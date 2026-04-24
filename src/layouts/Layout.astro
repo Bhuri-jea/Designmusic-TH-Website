@@ -1,0 +1,73 @@
+---
+import '../styles/global.css';
+import 'aos/dist/aos.css';
+
+import Navbar from '../components/Navbar.svelte';
+import Footer from '../components/Footer.svelte';
+import ColordropBackground from '../components/ui/ColordropBackground.svelte';
+import SumiTimeline from '../components/ui/SumiTimeline.svelte';
+import { getSession } from 'auth-astro/server';
+
+interface Props {
+  title: string;
+  lang?: 'en' | 'ja' | 'zh-CN' | 'th';
+  currentPath?: string;
+}
+
+const { title, lang = 'en', currentPath = Astro.url.pathname } = Astro.props;
+const session = await getSession(Astro.request);
+---
+
+<!doctype html>
+<html lang={lang} data-theme="black">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content="Design Music - Innovative Instruments & Excellent Repair. Bangkok, Thailand." />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title} | Design Music</title>
+
+    <!-- Preconnect for faster font loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Non-render-blocking font load -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Noto+Serif+JP:wght@300;400;500;600&family=Outfit:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Noto+Serif+JP:wght@300;400;500;600&family=Outfit:wght@300;400;500;700&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
+  </head>
+  <body class="min-h-screen flex flex-col text-white antialiased selection:bg-white/20 relative bg-transparent">
+    <!-- Pure CSS background — no client:load needed -->
+    <ColordropBackground client:load />
+
+    <SumiTimeline client:load />
+    <Navbar lang={lang} currentPath={currentPath} session={session} client:load />
+
+    <main class="flex-grow relative z-10 pt-20">
+      <slot />
+    </main>
+
+    <Footer />
+
+    <script>
+      import AOS from 'aos';
+      document.addEventListener('DOMContentLoaded', () => {
+        AOS.init({
+          duration: 400,
+          once: true,
+          offset: 100,
+        });
+      });
+    </script>
+  </body>
+</html>

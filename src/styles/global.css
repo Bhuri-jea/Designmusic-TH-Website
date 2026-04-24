@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+/* Custom Pure Tailwind Components */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-full font-medium transition-all duration-300 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply bg-white text-black hover:bg-neutral-200 border border-transparent shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_-5px_rgba(255,255,255,0.5)];
+  }
+  .btn-secondary {
+    @apply bg-neutral-900 text-white border border-white/20 hover:bg-white/10;
+  }
+  .btn-ghost {
+    @apply bg-transparent hover:bg-white/10 text-white;
+  }
+  .btn-sm {
+    @apply px-4 py-2 text-sm;
+  }
+  .btn-lg {
+    @apply px-8 py-4 text-lg;
+  }
+  .card {
+    @apply bg-neutral-950/80 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden flex flex-col;
+  }
+  .card-body {
+    @apply p-6 flex flex-col flex-grow;
+  }
+  .card-title {
+    @apply text-xl font-serif font-medium mb-2 text-white;
+  }
+  .card-actions {
+    @apply mt-auto pt-4 flex gap-2;
+  }
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border border-white/20 bg-black/50 backdrop-blur-sm text-white;
+  }
+  .badge-primary {
+    @apply border-white/30 bg-white text-black shadow-none;
+  }
+  .alert {
+    @apply p-4 rounded-2xl border border-white/10 bg-neutral-900/80 backdrop-blur-md flex items-center gap-4 text-neutral-300;
+  }
+}
+
+@theme {
+  --font-sans: "Outfit", "Inter", sans-serif;
+  --font-serif: "Noto Serif JP", serif;
+  --color-primary: #f8f9fa; /* Off-white for luxury feel */
+  --color-secondary: #adb5bd; /* Subtle gray */
+  --color-accent: #d4af37; /* Very subtle gold accent for 'Kodawari' luxury */
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: var(--font-sans);
+    background-color: transparent;
+    color: #fff;
+  }
+  h1, h2, h3, h4, h5, h6, .font-serif {
+    font-family: var(--font-serif);
+  }
+}
+
+@layer utilities {
+  .ikigai-glass {
+    @apply bg-neutral-950/60 backdrop-blur-2xl border border-white/5 shadow-2xl;
+  }
+  .ikigai-glass-hover {
+    @apply hover:bg-neutral-900/80 transition-all duration-500 hover:border-white/20 hover:shadow-[0_0_40px_-10px_rgba(255,255,255,0.05)];
+  }
+  .text-glow {
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+  }
+  .aurora-bg {
+    background: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.03) 0%, transparent 60%);
+  }
+}

@@ -1,0 +1,44 @@
+---
+import ProductLayout from '../../layouts/ProductLayout.astro';
+import ShakuhachiProduct from '../../components/product/ShakuhachiProduct.svelte';
+import { Zap, Wrench, Star } from 'lucide-svelte';
+import { products } from '../../lib/products';
+
+const p = products.find(x => x.slug === 'shakuhachi')!;
+---
+
+<ProductLayout
+  title="Shakuhachi"
+  pageTitle="Design music model S-1/D Shakuhachi"
+  badge={p.badge}
+  heroImage={p.heroImage}
+  galleryImages={p.galleryImages}
+>
+  <div class="prose max-w-none mt-6 text-neutral-300 font-light leading-relaxed">
+    <p class="text-lg">
+      Designed beyond the boundaries of traditional Japanese music, this is our vision of the
+      Shakuhachi as "an instrument for everyone". Crafted from resin material that resists dryness
+      and climate changes, while preserving the elegant appearance of natural bamboo. Ideal for travelling.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-10">
+    <div class="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-3xl">
+      <Zap class="w-6 h-6 text-white mb-4 opacity-70" />
+      <h4 class="font-medium tracking-widest uppercase text-sm text-white mb-2">A New Design Concept</h4>
+      <p class="text-sm font-light text-neutral-400">Body and mouthpieces are engineered separately for optimal tonal balance and effortless playability.</p>
+    </div>
+    <div class="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-3xl">
+      <Wrench class="w-6 h-6 text-white mb-4 opacity-70" />
+      <h4 class="font-medium tracking-widest uppercase text-sm text-white mb-2">Adjustability</h4>
+      <p class="text-sm font-light text-neutral-400">Replaceable cork joints eliminate looseness. Fine pitch adjustment by insertion depth.</p>
+    </div>
+    <div class="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-3xl sm:col-span-2">
+      <Star class="w-6 h-6 text-white mb-4 opacity-70" />
+      <h4 class="font-medium tracking-widest uppercase text-sm text-white mb-2">Designed for Performers</h4>
+      <p class="text-sm font-light text-neutral-400">Ergonomically shaped for smoother finger movement and faster response. Comfortably reaches three full octaves, enabling an exceptionally wide expressive range.</p>
+    </div>
+  </div>
+
+  <ShakuhachiProduct slot="purchase" client:load />
+</ProductLayout>

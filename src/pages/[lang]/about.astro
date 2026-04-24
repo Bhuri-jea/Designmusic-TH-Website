@@ -1,0 +1,16 @@
+---
+import About from "../../components/pages/About.astro";
+import { ui } from "../../i18n/ui";
+
+export function getStaticPaths() {
+  return [
+    { params: { lang: "ja" } },
+    { params: { lang: "zh-CN" } },
+    { params: { lang: "th" } },
+  ];
+}
+
+const { lang } = Astro.params;
+---
+
+<About lang={lang as keyof typeof ui} />

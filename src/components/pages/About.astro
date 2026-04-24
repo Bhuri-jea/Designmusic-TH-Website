@@ -1,0 +1,77 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { ui, defaultLang } from '../../i18n/ui';
+
+interface Props {
+  lang: keyof typeof ui;
+}
+
+const { lang } = Astro.props;
+
+function t(key: keyof typeof ui[typeof defaultLang]) {
+  return ui[lang]?.[key] || ui[defaultLang][key];
+}
+
+function getPath(path: string) {
+  if (lang === defaultLang) return path;
+  return `/${lang}${path === '/' ? '' : path}`;
+}
+---
+
+<Layout title={t('nav.about')} lang={lang}>
+  <div class="max-w-7xl mx-auto px-6 py-32 relative z-10">
+    <div class="text-center mb-24" data-aos="fade-up">
+      <span class="font-serif tracking-[0.2em] text-xs uppercase text-neutral-500 mb-4 block">{t('about.subtitle')}</span>
+      <h1 class="font-serif text-5xl md:text-6xl font-light mb-6 tracking-tight text-glow" set:html={t('about.title')}></h1>
+      <p class="text-xl font-light text-neutral-400 max-w-2xl mx-auto leading-relaxed">
+        {t('about.desc1')}
+      </p>
+    </div>
+
+    <!-- About Text 1 -->
+    <div class="bg-white/5 border border-white/10 backdrop-blur-md rounded-3xl p-10 md:p-16 mb-24 shadow-[0_0_40px_-10px_rgba(255,255,255,0.1)] relative overflow-hidden" data-aos="fade-up" data-aos-delay="100">
+      <div class="absolute -top-24 -right-24 w-64 h-64 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
+      <p class="text-xl md:text-2xl leading-relaxed text-neutral-300 font-light text-center max-w-4xl mx-auto relative z-10">
+        {t('about.desc2')}
+      </p>
+    </div>
+
+    <!-- Gallery 1-6 -->
+    <div class="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6 mb-32">
+      <img src="/images/about2.jpg" alt="About 2" class="w-full rounded-2xl hover:scale-[1.02] transition-transform duration-700 shadow-lg border border-white/5" />
+      <img src="/images/about3.jpg" alt="About 3" class="w-full rounded-2xl hover:scale-[1.02] transition-transform duration-700 shadow-lg border border-white/5" />
+      <img src="/images/about4.jpg" alt="About 4" class="w-full rounded-2xl hover:scale-[1.02] transition-transform duration-700 shadow-lg border border-white/5" />
+      <img src="/images/about5.jpg" alt="About 5" class="w-full rounded-2xl hover:scale-[1.02] transition-transform duration-700 shadow-lg border border-white/5" />
+      <img src="/images/about6.jpg" alt="About 6" class="w-full rounded-2xl hover:scale-[1.02] transition-transform duration-700 shadow-lg border border-white/5" />
+      <img src="/images/about7.jpg" alt="About 7" class="w-full rounded-2xl hover:scale-[1.02] transition-transform duration-700 shadow-lg border border-white/5" />
+    </div>
+
+    <!-- About Text 2 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 mb-32 items-center">
+      <div>
+        <h2 class="font-serif text-3xl font-light mb-6 text-white tracking-wide">{t('about.tailor.title')}</h2>
+        <p class="text-lg font-light text-neutral-400 leading-relaxed">
+          {t('about.tailor.p1')}
+        </p>
+        <p class="text-lg font-light text-neutral-400 leading-relaxed mt-6">
+          {t('about.tailor.p2')}
+        </p>
+      </div>
+      <div class="grid grid-cols-2 gap-6">
+        <!-- Gallery 8,9 -->
+        <img src="/images/about8.jpg" alt="About 8" class="w-full h-48 object-cover rounded-2xl shadow-lg transition-all duration-700 border border-white/5" />
+        <img src="/images/about9.jpg" alt="About 9" class="w-full h-48 object-cover rounded-2xl shadow-lg transition-all duration-700 border border-white/5" />
+      </div>
+    </div>
+
+    <div class="text-center border border-white/10 bg-neutral-900 rounded-3xl p-16 mt-20 relative overflow-hidden" data-aos="zoom-in">
+      <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiPjwvcmVjdD4KPHBhdGggZD0iTTAgMEw4IDhaTTAgOEw4IDBaIiBzdHJva2U9IiMwMDAiIHN0cm9rZS1vcGFjaXR5PSIwLjEiIHN0cm9rZS13aWR0aD0iMSI+PC9wYXRoPgo8L3N2Zz4=')] opacity-20 pointer-events-none"></div>
+      
+      <h2 class="font-serif text-3xl md:text-5xl font-light text-white mb-10 tracking-tight leading-tight relative z-10" set:html={t('about.quote')}></h2>
+      <div class="flex flex-col sm:flex-row gap-6 justify-center relative z-10">
+        <a href={getPath('/product')} class="inline-block px-8 py-4 bg-white text-black font-medium tracking-widest uppercase rounded-full hover:bg-neutral-200 transition-colors shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] text-sm">{t('about.btn.products')}</a>
+        <a href={getPath('/repair-services')} class="inline-block px-8 py-4 bg-transparent border border-white text-white font-medium tracking-widest uppercase rounded-full hover:bg-white hover:text-black transition-colors text-sm">{t('about.btn.repair')}</a>
+      </div>
+    </div>
+  </div>
+</Layout>

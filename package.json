@@ -1,0 +1,36 @@
+{
+  "name": "designmusic-th-website",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "dev": "cross-env ASTRO_DISABLE_NODE_VERSION_CHECK=true astro dev",
+    "build": "cross-env ASTRO_DISABLE_NODE_VERSION_CHECK=true astro build",
+    "preview": "cross-env ASTRO_DISABLE_NODE_VERSION_CHECK=true astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/node": "^10.0.5",
+    "@astrojs/svelte": "^8.0.5",
+    "@astrojs/vercel": "^10.0.4",
+    "@auth/core": "^0.37.4",
+    "@stripe/stripe-js": "^9.2.0",
+    "@tailwindcss/vite": "^4.2.2",
+    "aos": "^2.3.4",
+    "astro": "^6.1.7",
+    "auth-astro": "^4.2.0",
+    "clsx": "^2.1.1",
+    "lucide-svelte": "^0.292.0",
+    "stripe": "^22.0.2",
+    "svelte": "^5.55.4",
+    "svelte-motion": "^0.12.2",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0"
+  }
+}

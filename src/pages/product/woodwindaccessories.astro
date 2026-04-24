@@ -1,0 +1,95 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { ArrowLeft, Sparkles, Shield, Zap } from 'lucide-svelte';
+import { products } from '../../lib/products';
+
+// All products that belong to this category — add more in products.ts
+const accessories = products.filter(p => p.category === 'woodwindaccessories');
+const hero = products.find(p => p.slug === 'woodwindaccessories')!;
+---
+
+<Layout title="Woodwind Accessories">
+  <div class="max-w-7xl mx-auto px-6 py-16 relative z-10">
+    <a href="/product" class="inline-flex items-center gap-2 mb-8 text-neutral-400 hover:text-white transition-colors tracking-widest uppercase text-sm border-b border-transparent hover:border-white pb-1">
+      <ArrowLeft class="w-4 h-4" /> Back to Products
+    </a>
+
+    <!-- Hero -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-16">
+      <div data-aos="fade-right">
+        <span class="font-serif tracking-[0.2em] text-xs uppercase text-neutral-500 mb-4 block">Innovation &amp; Protection</span>
+        <h1 class="font-serif text-5xl md:text-6xl font-light mb-8 tracking-tight">
+          Woodwind <span class="italic text-neutral-400">Accessories</span>
+        </h1>
+        <p class="text-xl font-light text-neutral-300 leading-relaxed mb-10">
+          Our collection of woodwind accessories — reed cases, swabs, silicone pads and more — is born
+          from a deep understanding of the performer's needs. We combine precision engineering with
+          high-quality materials to solve common musical challenges.
+        </p>
+
+        <div class="space-y-8">
+          <div class="flex gap-6">
+            <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+              <Zap class="w-5 h-5 text-white opacity-70" />
+            </div>
+            <div>
+              <h3 class="font-serif text-xl text-white mb-2">Enhanced Performance</h3>
+              <p class="text-neutral-400 font-light text-sm">Every accessory is designed to improve response, resonance, or playability.</p>
+            </div>
+          </div>
+          <div class="flex gap-6">
+            <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+              <Shield class="w-5 h-5 text-white opacity-70" />
+            </div>
+            <div>
+              <h3 class="font-serif text-xl text-white mb-2">Instrument Care</h3>
+              <p class="text-neutral-400 font-light text-sm">Protection that goes beyond the surface, ensuring your instrument remains in peak condition.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="relative" data-aos="fade-left">
+        <div class="aspect-[4/5] rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
+          <img src={hero.heroImage} alt="Woodwind Accessories" class="w-full h-full object-cover" loading="lazy" />
+        </div>
+        <div class="absolute -bottom-8 -left-8 bg-neutral-900 border border-white/10 p-8 rounded-3xl shadow-2xl hidden md:block max-w-xs">
+          <Sparkles class="w-6 h-6 text-white mb-4 opacity-50" />
+          <p class="text-sm font-light text-neutral-300 italic">"Accessories should not just be additions, but essential enhancements to the musical journey."</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Accessories gallery — auto-populated from products.ts -->
+    <div class="border-t border-white/10 pt-24">
+      <h2 class="font-serif text-3xl font-light mb-12 text-center">
+        Current <span class="italic text-neutral-400">Highlights</span>
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {accessories.map((acc, i) => (
+          <a
+            href={`/product/${acc.slug}`}
+            class="group relative overflow-hidden rounded-3xl ikigai-glass"
+            data-aos="fade-up"
+            data-aos-delay={i * 100}
+          >
+            <div class="h-80 overflow-hidden relative">
+              <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10"></div>
+              <img src={acc.thumbnail} alt={acc.name} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" loading="lazy" />
+            </div>
+            <div class="absolute bottom-0 left-0 p-8 z-20 w-full">
+              <h2 class="font-serif text-2xl text-white mb-2 group-hover:text-glow transition-all">{acc.name}</h2>
+              {acc.badge && (
+                <span class="inline-block mb-2 border border-white/20 px-3 py-0.5 rounded-full text-xs tracking-widest uppercase text-neutral-300">{acc.badge}</span>
+              )}
+              <p class="text-neutral-400 font-light text-sm mb-6 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500">
+                {acc.shortDesc}
+              </p>
+              <span class="inline-block border border-white/20 px-5 py-2 rounded-full text-xs font-medium tracking-widest uppercase text-white hover:bg-white hover:text-black transition-colors">View Details</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  </div>
+</Layout>

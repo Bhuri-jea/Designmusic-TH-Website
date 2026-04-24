@@ -1,0 +1,59 @@
+---
+import ProductLayout from '../../../layouts/ProductLayout.astro';
+import { readFile } from 'fs/promises';
+import { resolve } from 'path';
+
+export async function getStaticPaths() {
+  // We can dynamically read the content directory to get all slugs
+  // For now, let's list them explicitly to be safe, or we could use fs.readdir
+  const products = ['shakuhachi', 'siliconepads', 'saxophone-end-plug', 'woodwindaccessories'];
+  const langs = ['en', 'ja', 'zh-CN', 'th'];
+  
+  return langs.flatMap(lang => 
+    products.map(slug => ({
+      params: { lang, slug }
+    }))
+  );
+}
+
+const { lang, slug } = Astro.params;
+
+// Resolve markdown file for the product
+const mdPath = resolve(process.cwd(), `src/content/products/${slug}/${slug}.md`);
+let raw = '';
+try {
+  raw = await readFile(mdPath, 'utf-8');
+} catch (e) {
+  // Fallback if file not found
+  return Astro.redirect('/404');
+}
+
+// Simple front-matter extraction
+const frontMatterMatch = raw.match(/^---\n([\s\S]*?)\n---/);
+let fm: any = {};
+let description = '';
+if (frontMatterMatch) {
+  const fmText = frontMatterMatch[1];
+  fmText.split('\n').forEach(line => {
+    const [key, ...rest] = line.split(':');
+    if (key && rest.length) {
+      fm[key.trim()] = rest.join(':').trim().replace(/^"|"$/g, '');
+    }
+  });
+  description = raw.slice(frontMatterMatch[0].length).trim();
+}
+
+// Handle markdown content (very basic, can be improved with a markdown parser)
+const renderedDescription = description
+  .replace(/^### (.*$)/gim, '<h3 class="font-serif text-xl text-white mt-8 mb-4">$1</h3>')
+  .replace(/^\* (.*$)/gim, '<li class="ml-4 list-disc text-neutral-400">$1</li>')
+  .replace(/\n\n/g, '</p><p class="mb-4 text-neutral-300 font-light leading-relaxed">')
+  .replace(/^/, '<p class="mb-4 text-neutral-300 font-light leading-relaxed">')
+  .concat('</p>');
+---
+
+<ProductLayout title={fm.title} image={fm.image} price={fm.price}>
+  <div class="prose prose-invert max-w-none">
+    <Fragment set:html={renderedDescription} />
+  </div>
+</ProductLayout>
