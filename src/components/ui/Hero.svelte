@@ -56,7 +56,7 @@
         <Motion variants={itemVariants} let:motion>
           <div use:motion class="mb-8">
             <span class="font-serif tracking-[0.2em] text-xs uppercase text-neutral-400 border border-white/10 px-4 py-2 rounded-full ikigai-glass">
-              {t('hero.ikigai')}
+              {t('hero.mission')}
             </span>
           </div>
         </Motion>
