@@ -104,9 +104,9 @@ export const ui = {
   'cart.processing': '処理中...',
 
   'hero.mission': '革新的な楽器と、丁寧なリペアを。',
-  'hero.title.crafting': '「よろこび」を',
-  'hero.title.joy': '届けるために',
-  'hero.title.through': 'ひたむきに',
+  'hero.title.crafting': '音の',
+  'hero.title.joy': 'よろこびを',
+  'hero.title.through': '丁寧に',
   'hero.title.perfection': '磨き続ける',
 
   'hero.desc':
@@ -132,13 +132,12 @@ export const ui = {
 
   'home.shakuhachi.title': 'モダン尺八',
   'home.shakuhachi.desc':
-    '現代的なデザインと、伝統的な音色を大切に。邦楽の世界にとどまらず、「みんなの尺八」。<br/>より多くの方に親しんでいただける尺八を目指しています。',
+    '現代的なデザインと、伝統的な音色を大切に。邦楽の世界にとどまらず、「みんなの尺八」。より多くの方に親しんでいただける尺八を目指しています。',
 
   'home.viewdetail': '詳細を見る',
 
-  'home.pads.title': '高精度のシリコン製タンポ',
-  'home.pads.desc':
-    '自然な吹き心地と、澄んだ響きを。',
+  'home.pads.title': '高性能オクターブパッド',
+  'home.pads.desc': '繊細な反応と、自然な吹き心地を。',
 
   'home.repair.title': '木管リペア',
   'home.repair.desc':
