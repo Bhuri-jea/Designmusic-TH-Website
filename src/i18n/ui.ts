@@ -13,182 +13,341 @@ export const ui = {
     'nav.about': 'About',
     'nav.products': 'Products',
     'nav.services': 'Repair Services',
+
     'cart.title': 'Your Cart',
-    'cart.empty': 'Cart is empty',
+    'cart.empty': 'Your cart is empty',
     'cart.total': 'Total',
     'cart.checkout': 'Checkout',
     'cart.processing': 'Processing...',
-    'hero.mission': 'Innovative instruments & Excellent repair.',
+
+    'hero.mission': 'Innovative instruments. Exceptional craftsmanship.',
     'hero.title.crafting': 'Crafting',
     'hero.title.joy': '"Joy"',
     'hero.title.through': 'Through',
     'hero.title.perfection': '"Perfection"',
-    'hero.desc': 'No matter how much time and effort it takes, we are always committed to making only the best products and services. Quality instruments, parts, accessories and repair service for students and musicians worldwide.',
+    'hero.desc':
+      'No matter how much time and dedication it takes, we pursue only the finest craftsmanship. High-quality instruments, accessories, and repair services for students and musicians around the world.',
     'hero.cta1': 'Discover Our Products',
     'hero.cta2': 'Explore Services',
     'hero.scroll': 'Scroll',
-    'home.philosophy.title': 'The resonance of <span class="font-bold italic text-white">"joy in the music"</span>',
-    'home.philosophy.p1': '<span class="font italic text-white">"Sanuk"</span>, the Thai belief that joy is essential to life, is what we cherish and want to spread globally. We believe a musical instrument is a powerful tool for this joy, capable of transforming society and making the world a better place.',
-    'home.philosophy.p2': 'To honor this mission, <span class="font italic text-white">we embrace the Japanese philosophy of "Kodawari"</span>, an uncompromising dedication to our craft. By ensuring every minute detail is perfect, we ensure that every note played brings better joy to musicians and listeners alike.',
-    'home.philosophy.link': 'Read Ours Story',
+
+    'home.philosophy.title':
+      'The resonance of <span class="font-bold italic text-white">"joy in music"</span>',
+
+    'home.philosophy.p1':
+      '<span class="font italic text-white">"Sanuk"</span> — the Thai belief that joy is an essential part of life — is a value we deeply cherish and hope to share with the world. We believe music and musical instruments have the power to inspire people, connect communities, and bring warmth to society.',
+
+    'home.philosophy.p2':
+      'To honor this philosophy, <span class="font italic text-white">we embrace the Japanese spirit of "Kodawari"</span> — an uncompromising dedication to craftsmanship and detail. By refining every subtle element, we strive to create instruments and services that bring genuine joy to both players and listeners.',
+
+    'home.philosophy.link': 'Read Our Story',
+
     'home.masterpieces.subtitle': 'Products',
     'home.masterpieces.title': 'Exquisite Craftsmanship',
+
     'home.shakuhachi.title': 'Modern Shakuhachi',
-    'home.shakuhachi.desc': 'Innovative modern design meets traditional sound. "An instrument for everyone".',
-    'home.viewdetail': 'View Detail',
+    'home.shakuhachi.desc':
+      'Innovative modern design meets traditional sound. An instrument designed for everyone.',
+
+    'home.viewdetail': 'View Details',
+
     'home.pads.title': 'Precision Pads',
-    'home.pads.desc': 'Clarity in every tone, effortless playability.',
+    'home.pads.desc':
+      'Clarity in every note with effortless playability.',
+
     'home.repair.title': 'Expert Repair',
-    'home.repair.desc': 'Reviving your beloved instruments.',
+    'home.repair.desc':
+      'Restoring the voice of your beloved instruments.',
+
     'home.viewall': 'View All Products',
-    'home.cta.title': 'Ready to design your sound?',
+
+    'home.cta.title': 'Ready to shape your sound?',
     'home.cta.button': 'Begin Your Journey',
-    'about.subtitle': 'About us',
-    'about.title': '<span class="text-4xl md:text-5xl block">We are instrument innovators <br> and woodwind repair specialists</span>',
-    'about.desc1': 'based in the Sathorn district of Bangkok.',
-    'about.desc2': 'Shaped by intensive repair training in Taiwan and more than 10 years of hands-on experience, we devote ourselves to refining each instrument’s sound, response, and character. Our products are made to serve players of every level, from beginners taking their first steps to seasoned professionals seeking nuance and control. Every service is carefully tailor-made for the individual musician, with close attention to detail and respect for the instrument’s voice.',
-    'about.tailor.title': 'We are here to create new legacy with profound value',
-    'about.tailor.p1': 'Our commitment is to make music accesible to everyone. We believed that know-how and craftmanship can break down barriers and create opportunities for all who wish to play music.',
-    'about.tailor.p2': 'We aim to create truly remarkable experiences for everyone.',
-    'about.quote': '“Leave value on earth.<br/><span class="italic text-neutral-400">That is true history.</span>”',
-    'about.btn.products': 'See our products',
-    'about.btn.repair': 'See repair services',
+
+    'about.subtitle': 'About Us',
+
+    'about.title':
+      '<span class="text-4xl md:text-5xl block">Instrument innovators <br> and woodwind repair specialists</span>',
+
+    'about.desc1':
+      'Based in the Sathorn district of Bangkok.',
+
+    'about.desc2':
+      'With intensive repair training in Taiwan and more than a decade of hands-on experience, we dedicate ourselves to refining the sound, response, and individuality of every instrument. Our products are crafted for musicians of all levels — from beginners discovering their first notes to professionals seeking deeper nuance and expression. Every repair and service is carefully tailored to the individual player, with deep respect for both the musician and the instrument.',
+
+    'about.tailor.title':
+      'Creating a legacy of lasting value',
+
+    'about.tailor.p1':
+      'Our mission is to make music more accessible to everyone. We believe craftsmanship and knowledge can break down barriers and open new possibilities for anyone who wishes to play.',
+
+    'about.tailor.p2':
+      'We strive to create meaningful experiences that resonate far beyond the music itself.',
+
+    'about.quote':
+      '“Leave something meaningful behind.<br/><span class="italic text-neutral-400">That is true legacy.</span>”',
+
+    'about.btn.products': 'Explore Products',
+    'about.btn.repair': 'Explore Repair Services',
   },
+
   ja: {
     'nav.home': 'ホーム',
     'nav.about': '私たちについて',
     'nav.products': '製品',
     'nav.services': '修理サービス',
+
     'cart.title': 'カート',
     'cart.empty': 'カートは空です',
     'cart.total': '合計',
-    'cart.checkout': 'チェックアウト',
+    'cart.checkout': '購入手続きへ',
     'cart.processing': '処理中...',
-    'hero.mission': '革新的な楽器と優れた修理。',
+
+    'hero.mission': '革新的な楽器と、卓越したリペアを。',
     'hero.title.crafting': '追求する',
-    'hero.title.joy': '「喜び」',
+    'hero.title.joy': '「よろこび」',
     'hero.title.through': 'を',
     'hero.title.perfection': '「完璧」で',
-    'hero.desc': 'どれだけの時間と労力がかかっても、私たちは常に最高の製品とサービスのみを提供することに全力を尽くします。世界中の学生や音楽家のための高品質な楽器、パーツ、アクセサリー、そして修理サービスを提供します。',
+
+    'hero.desc':
+      'どれだけ時間と手間がかかっても、私たちは妥協せず、本当に良いものだけを届けます。世界中の学生や演奏家へ向けた、高品質な楽器・アクセサリー・リペアサービスを提供しています。',
+
     'hero.cta1': '製品を見る',
     'hero.cta2': 'サービスを見る',
     'hero.scroll': 'スクロール',
-    'home.philosophy.title': '<span class="font-bold italic text-white">「音楽の喜び」</span>の共鳴',
-    'home.philosophy.p1': '<span class="font italic text-white">「サヌック」</span>とは、喜びは人生に不可欠であるというタイの信念です。私たちはその精神を大切にし、世界中に広めたいと思っています。楽器は、社会を変え、世界をより良い場所にする力を持つ、この喜びの強力なツールだと信じています。',
-    'home.philosophy.p2': 'このミッションを果たすために、<span class="font italic text-white">私たちは日本の「こだわり」の哲学</span>、つまり自らの仕事への妥協なき献身を大切にしています。細部のすべてを完璧にすることで、演奏されるすべての音が音楽家にも聴衆にも深い喜びをもたらすことを確かなものにします。',
-    'home.philosophy.link': '私たちのストーリーを読む',
+
+    'home.philosophy.title':
+      '<span class="font-bold italic text-white">「音楽のよろこび」</span>が響き合う',
+
+    'home.philosophy.p1':
+      '<span class="font italic text-white">「サヌック」</span>—— 人生には“楽しさ”が欠かせないというタイの価値観。私たちはその想いを大切にしています。音楽や楽器には、人の心を動かし、社会をより豊かにする力があると信じています。',
+
+    'home.philosophy.p2':
+      'その想いを形にするために、<span class="font italic text-white">日本の「こだわり」の精神</span>を大切にしています。細部まで丁寧に磨き上げることで、奏者にも聴き手にも、より深いよろこびを届けたいと考えています。',
+
+    'home.philosophy.link': 'ストーリーを見る',
+
     'home.masterpieces.subtitle': '製品',
-    'home.masterpieces.title': '精巧な職人技',
+    'home.masterpieces.title': '精巧なものづくり',
+
     'home.shakuhachi.title': 'モダン尺八',
-    'home.shakuhachi.desc': '革新的なモダンデザインと伝統的な音が出会う。「すべての人のための楽器」。',
+    'home.shakuhachi.desc':
+      '革新的なデザインと、伝統的な音色の融合。<br/>「すべての人のための尺八」を目指して。',
+
     'home.viewdetail': '詳細を見る',
-    'home.pads.title': '精密パッド',
-    'home.pads.desc': 'すべての音に明瞭さを、楽々とした演奏性を。',
-    'home.repair.title': '専門的な修理',
-    'home.repair.desc': 'あなたの大切な楽器を蘇らせます。',
-    'home.viewall': '全製品を見る',
-    'home.cta.title': 'あなたのサウンドをデザインする準備はできましたか？',
+
+    'home.pads.title': '高精度パッド',
+    'home.pads.desc':
+      '澄んだ響きと、自然な吹奏感を。',
+
+    'home.repair.title': '専門リペア',
+    'home.repair.desc':
+      '大切な楽器に、もう一度命を吹き込みます。',
+
+    'home.viewall': 'すべての製品を見る',
+
+    'home.cta.title':
+      'あなただけの音を、見つけませんか。',
     'home.cta.button': '旅を始める',
+
     'about.subtitle': '私たちについて',
-    'about.title': '<span class="text-4xl md:text-5xl block">私たちは楽器のイノベーターであり、<br>木管楽器修理のスペシャリストです</span>',
-    'about.desc1': 'バンコクのサトーン地区に拠点を置いています。',
-    'about.desc2': '台湾での集中的な修理トレーニングと10年以上の実践的な経験を経て、私たちは各楽器の音、レスポンス、そしてキャラクターを磨くことに情熱を注いでいます。私たちの製品は、はじめの一歩を踏み出す初心者から、ニュアンスとコントロールを追い求めるプロの音楽家まで、あらゆるレベルの演奏者のために作られています。すべてのサービスは、細部にまで細心の注意を払い、楽器の声を尊重しながら、個々の音楽家に合わせて丁寧にカスタマイズされます。',
-    'about.tailor.title': '深い価値を持つ新しい遺産を創るために、私たちはここにいます',
-    'about.tailor.p1': '私たちの使命は、音楽をすべての人にアクセスしやすいものにすることです。知識と職人技が壁を取り除き、音楽を演奏したいすべての人に機会を生み出すことができると信じています。',
-    'about.tailor.p2': 'すべての人にとって、本当に素晴らしい体験を創り出すことを目指しています。',
-    'about.quote': '"地球に価値を残す。<br/><span class="italic text-neutral-400">それが真の歴史です。</span>"',
+
+    'about.title':
+      '<span class="text-4xl md:text-5xl block">楽器の革新と、<br>木管リペアの専門技術を。</span>',
+
+    'about.desc1':
+      'バンコク・サトーン地区を拠点に活動しています。',
+
+    'about.desc2':
+      '台湾での専門的なリペア研修と、10年以上にわたる実践経験をもとに、一つひとつの楽器が持つ音色や響き、吹奏感を丁寧に磨き上げています。初心者からプロフェッショナルまで、あらゆる演奏者に寄り添う製品とサービスを追求しています。すべてのリペアや調整は、奏者と楽器それぞれの個性を尊重しながら、細部まで丁寧に仕上げています。',
+
+    'about.tailor.title':
+      '深い価値を持つ、新たな伝承を。',
+
+    'about.tailor.p1':
+      '私たちは、音楽をもっと身近なものにしたいと考えています。知識と技術によって壁を越え、音楽を奏でたいすべての人に新たな可能性を届けたいと願っています。',
+
+    'about.tailor.p2':
+      '音楽を超えた、心に残る体験を届けることを目指しています。',
+
+    'about.quote':
+      '「地球に価値を残す。<br/><span class="italic text-neutral-400">それが、本当の歴史になる。</span>」',
+
     'about.btn.products': '製品を見る',
     'about.btn.repair': '修理サービスを見る',
   },
+
   'zh-CN': {
     'nav.home': '首页',
     'nav.about': '关于我们',
     'nav.products': '产品',
     'nav.services': '维修服务',
-    'cart.title': '您的购物车',
-    'cart.empty': '购物车是空的',
+
+    'cart.title': '购物车',
+    'cart.empty': '购物车为空',
     'cart.total': '总计',
-    'cart.checkout': '结账',
+    'cart.checkout': '结算',
     'cart.processing': '处理中...',
-    'hero.mission': '创新乐器与卓越修复。',
+
+    'hero.mission': '创新乐器，卓越匠修。',
     'hero.title.crafting': '以',
-    'hero.title.joy': '"完美"',
+    'hero.title.joy': '“完美”',
     'hero.title.through': '成就',
-    'hero.title.perfection': '"喜悦"',
-    'hero.desc': '无论需要花费多少时间和精力，我们始终致力于只提供最好的产品和服务。为全球学生和音乐家提供高品质的乐器、零件、配件及维修服务。',
-    'hero.cta1': '探索我们的产品',
+    'hero.title.perfection': '“喜悦”',
+
+    'hero.desc':
+      '无论耗费多少时间与心力，我们始终坚持只呈现真正优秀的作品与服务。为世界各地的学生与演奏者提供高品质乐器、配件与专业维修服务。',
+
+    'hero.cta1': '探索产品',
     'hero.cta2': '了解服务',
     'hero.scroll': '滑动',
-    'home.philosophy.title': '<span class="font-bold italic text-white">"音乐中的喜悦"</span>之共鸣',
-    'home.philosophy.p1': '<span class="font italic text-white">"Sanuk"</span>，泰国文化中"喜悦是生活必需品"的信念，是我们所珍视并希望向全球传播的理念。我们相信，乐器是传递这种喜悦的有力工具，能够改变社会，让世界变得更美好。',
-    'home.philosophy.p2': '为实现这一使命，<span class="font italic text-white">我们秉承日本"执念"（Kodawari）的哲学</span>——对工艺毫不妥协的献身精神。通过确保每一个细节都臻于完美，我们确保每一个演奏的音符都能为音乐家和听众带来更深的喜悦。',
+
+    'home.philosophy.title':
+      '<span class="font-bold italic text-white">“音乐中的喜悦”</span>的共鸣',
+
+    'home.philosophy.p1':
+      '<span class="font italic text-white">“Sanuk”</span> 是泰国文化中“快乐是生活不可或缺的一部分”的理念。我们珍视这样的价值，也希望将这份喜悦分享给世界。我们相信，音乐与乐器拥有连接人与社会、让世界变得更加美好的力量。',
+
+    'home.philosophy.p2':
+      '为了实现这一理念，<span class="font italic text-white">我们秉承日本“こだわり（Kodawari）”的匠人精神</span>，坚持对细节毫不妥协。通过不断打磨每一个细微之处，让每一个音符都能为演奏者与听众带来更深层的感动。',
+
     'home.philosophy.link': '阅读我们的故事',
+
     'home.masterpieces.subtitle': '产品',
     'home.masterpieces.title': '精湛工艺',
+
     'home.shakuhachi.title': '现代尺八',
-    'home.shakuhachi.desc': '创新现代设计与传统音色的邂逅。"属于每个人的乐器"。',
+    'home.shakuhachi.desc':
+      '现代创新设计与传统音色的融合。<br/>属于每个人的尺八。',
+
     'home.viewdetail': '查看详情',
-    'home.pads.title': '精密垫片',
-    'home.pads.desc': '每个音色都清晰明亮，演奏轻松自如。',
-    'home.repair.title': '专家级维修',
-    'home.repair.desc': '让您心爱的乐器焕发新生。',
-    'home.viewall': '查看所有产品',
-    'home.cta.title': '准备好设计您的声音了吗？',
-    'home.cta.button': '开启您的旅程',
+
+    'home.pads.title': '高精度垫片',
+    'home.pads.desc':
+      '音色清晰通透，演奏轻松自然。',
+
+    'home.repair.title': '专业维修',
+    'home.repair.desc':
+      '让您珍爱的乐器重焕新生。',
+
+    'home.viewall': '查看全部产品',
+
+    'home.cta.title':
+      '准备好塑造属于你的声音了吗？',
+
+    'home.cta.button': '开启旅程',
+
     'about.subtitle': '关于我们',
-    'about.title': '<span class="text-4xl md:text-5xl block">我们是乐器创新者，<br>也是木管乐器维修专家</span>',
-    'about.desc1': '总部位于曼谷沙吞区。',
-    'about.desc2': '凭借在台湾接受的密集维修培训以及超过10年的实践经验，我们致力于精炼每件乐器的音色、响应和个性。我们的产品服务于各个层次的演奏者，从迈出第一步的初学者，到追求细腻与掌控的资深专业人士。每项服务都针对个人音乐家精心定制，细致入微，充分尊重乐器的声音个性。',
-    'about.tailor.title': '我们致力于创造具有深远价值的新传承',
-    'about.tailor.p1': '我们的承诺是让音乐触手可及。我们相信，知识与工艺能够打破壁垒，为所有希望演奏音乐的人创造机会。',
-    'about.tailor.p2': '我们致力于为每个人创造真正非凡的体验。',
-    'about.quote': '"在世界上留下价值。<br/><span class="italic text-neutral-400">这才是真正的历史。</span>"',
-    'about.btn.products': '查看我们的产品',
+
+    'about.title':
+      '<span class="text-4xl md:text-5xl block">乐器创新者，<br>木管乐器维修专家</span>',
+
+    'about.desc1':
+      '位于泰国曼谷沙吞区。',
+
+    'about.desc2':
+      '凭借在台湾接受的专业维修训练，以及十余年的实践经验，我们始终专注于打磨每一件乐器的音色、响应与个性。我们的产品面向所有层级的演奏者——从初学者到追求细腻表现的专业音乐家。每一次维修与调整，都会根据演奏者与乐器本身的特点细心定制，尊重每一件乐器独有的声音。',
+
+    'about.tailor.title':
+      '创造真正具有价值的传承',
+
+    'about.tailor.p1':
+      '我们希望让音乐变得更加触手可及。我们相信，知识与工艺能够打破界限，为所有热爱音乐的人带来新的可能性。',
+
+    'about.tailor.p2':
+      '我们致力于创造超越音乐本身、真正打动人心的体验。',
+
+    'about.quote':
+      '“为世界留下真正的价值。<br/><span class="italic text-neutral-400">这才是真正的传承。</span>”',
+
+    'about.btn.products': '查看产品',
     'about.btn.repair': '查看维修服务',
   },
+
   th: {
     'nav.home': 'หน้าแรก',
     'nav.about': 'เกี่ยวกับเรา',
     'nav.products': 'สินค้า',
     'nav.services': 'บริการซ่อม',
+
     'cart.title': 'ตะกร้าสินค้า',
-    'cart.empty': 'ตะกร้าสินค้าว่างเปล่า',
+    'cart.empty': 'ยังไม่มีสินค้าในตะกร้า',
     'cart.total': 'ยอดรวม',
     'cart.checkout': 'ชำระเงิน',
     'cart.processing': 'กำลังดำเนินการ...',
-    'hero.mission': 'เครื่องดนตรีแห่งนวัตกรรม & การซ่อมที่เป็นเลิศ',
-    'hero.title.crafting': 'สร้างสรรค์',
-    'hero.title.joy': '"ความสุขและความสนุก"',
+
+    'hero.mission':
+      'เครื่องดนตรีแห่งนวัตกรรม และงานซ่อมระดับมืออาชีพ',
+
+    'hero.title.crafting': 'สร้าง',
+    'hero.title.joy': '"ความสุข"',
     'hero.title.through': 'ผ่าน',
     'hero.title.perfection': '"ความสมบูรณ์แบบ"',
-    'hero.desc': 'ไม่ว่าจะใช้เวลาและความพยายามมากเพียงใด เราให้คำมั่นเสมอว่าจะมอบเฉพาะสินค้าและบริการที่ดีที่สุดเท่านั้น เครื่องดนตรี ชิ้นส่วน อุปกรณ์เสริม และบริการซ่อมคุณภาพสูงสำหรับนักเรียนและนักดนตรีทั่วโลก',
+
+    'hero.desc':
+      'ไม่ว่าจะต้องใช้เวลาและความทุ่มเทมากเพียงใด เรามุ่งมั่นสร้างสรรค์เฉพาะสินค้าและบริการที่ดีที่สุด เครื่องดนตรี อุปกรณ์เสริม และงานซ่อมคุณภาพสูงสำหรับนักเรียนและนักดนตรีทั่วโลก',
+
     'hero.cta1': 'ค้นพบสินค้าของเรา',
     'hero.cta2': 'สำรวจบริการ',
     'hero.scroll': 'เลื่อนลง',
-    'home.philosophy.title': 'เสียงกังวาลของ <span class="font-bold italic text-white">"ความสุขในดนตรี"</span>',
-    'home.philosophy.p1': '<span class="font italic text-white">"สนุก"</span> ความสนุกและความสุข คือสิ่งที่เราให้ความสำคัญและส่งต่อกันสู่ผู้อื่น เราเชื่อว่าเครื่องดนตรีเป็นเครื่องมืออันทรงพลังของความสุขนี้ ที่สามารถเปลี่ยนแปลงสังคมและทำให้โลกเป็นสถานที่ที่ดีขึ้นได้',
-    'home.philosophy.p2': 'เพื่อให้บรรลุภารกิจนี้ <span class="font italic text-white">เรายึกหลักปรัชญา "โคดาวาริ" ของญี่ปุ่น</span> ซึ่งคือความทุ่มเทในงานฝีมืออย่างไม่มีข้อแม้ การดูแลทุกรายละเอียดให้สมบูรณ์แบบ ทำให้ทุกโน้ตที่บรรเลงนำความสุขที่ยิ่งขึ้นมาสู่ทั้งนักดนตรีและผู้ฟัง',
-    'home.philosophy.link': 'อ่านเรื่องราวของเรา',
+
+    'home.philosophy.title':
+      'เสียงสะท้อนของ <span class="font-bold italic text-white">"ความสุขในดนตรี"</span>',
+
+    'home.philosophy.p1':
+      '<span class="font italic text-white">"สนุก"</span> คือแนวคิดแบบไทยที่เชื่อว่าความสุขเป็นส่วนสำคัญของชีวิต เราให้คุณค่ากับสิ่งนี้ และอยากส่งต่อความรู้สึกนั้นไปสู่ผู้คนทั่วโลก เราเชื่อว่าเสียงดนตรีและเครื่องดนตรีสามารถเชื่อมโยงผู้คน เติมพลังใจ และทำให้สังคมดีขึ้นได้',
+
+    'home.philosophy.p2':
+      'เพื่อถ่ายทอดแนวคิดนี้ออกมาให้ดีที่สุด <span class="font italic text-white">เรายึดถือจิตวิญญาณ “Kodawari” ของญี่ปุ่น</span> — ความพิถีพิถันที่ไม่ประนีประนอมในทุกรายละเอียด เราเชื่อว่าการใส่ใจแม้แต่จุดเล็กที่สุด จะทำให้ทุกเสียงที่บรรเลงส่งต่อความสุขได้อย่างแท้จริง',
+
+    'home.philosophy.link': 'เรื่องราวของเรา',
+
     'home.masterpieces.subtitle': 'สินค้า',
-    'home.masterpieces.title': 'งานฝีมือละเอียดอ่อน',
+    'home.masterpieces.title': 'งานฝีมืออันประณีต',
+
     'home.shakuhachi.title': 'ชากุฮาจิสมัยใหม่',
-    'home.shakuhachi.desc': 'การออกแบบสมัยใหม่ที่แหวกแนวพบกับเสียงแบบดั้งเดิม "เครื่องดนตรีสำหรับทุกคน"',
+    'home.shakuhachi.desc':
+      'การออกแบบร่วมสมัย ผสานกับเอกลักษณ์เสียงแบบดั้งเดิม<br/>“เครื่องดนตรีสำหรับทุกคน”',
+
     'home.viewdetail': 'ดูรายละเอียด',
-    'home.pads.title': 'นวมแซกโซโฟนพิเศษ',
-    'home.pads.desc': 'ชัดเจนในทุกเสียง ควบคุมอย่างลื่นไหล',
+
+    'home.pads.title': 'นวมคุณภาพสูง',
+    'home.pads.desc':
+      'ทุกโน้ตชัดเจน ควบคุมได้อย่างเป็นธรรมชาติ',
+
     'home.repair.title': 'บริการซ่อมโดยผู้เชี่ยวชาญ',
-    'home.repair.desc': 'ชุบชีวิตเครื่องดนตรีที่รักของคุณ',
+    'home.repair.desc':
+      'คืนชีวิตใหม่ให้กับเครื่องดนตรีที่คุณรัก',
+
     'home.viewall': 'ดูสินค้าทั้งหมด',
-    'home.cta.title': 'พร้อมจะออกเดินทางแล้วหรือยัง?',
+
+    'home.cta.title':
+      'พร้อมออกแบบเสียงในแบบของคุณแล้วหรือยัง?',
     'home.cta.button': 'เริ่มต้นการเดินทาง',
+
     'about.subtitle': 'เกี่ยวกับเรา',
-    'about.title': '<span class="text-4xl md:text-5xl block">เราคือผู้สร้างนวัตกรรมเครื่องดนตรี <br> และผู้เชี่ยวชาญด้านการซ่อมเครื่องเป่าลมไม้</span>',
-    'about.desc1': 'ตั้งอยู่ในย่านสาทร กรุงเทพมหานคร',
-    'about.desc2': 'จากการฝึกอบรมการซ่อมอย่างเข้มข้นในไต้หวันและประสบการณ์ลงมือปฏิบัติกว่า 10 ปี เราทุ่มเทพัฒนาเสียง การตอบสนอง และเอกลักษณ์ของเครื่องดนตรีแต่ละชิ้น สินค้าของเราถูกสร้างมาเพื่อรองรับนักดนตรีทุกระดับ ตั้งแต่ผู้เริ่มต้นก้าวแรกไปจนถึงมืออาชีพที่ต้องการความละเอียดอ่อนและการควบคุม บริการทุกอย่างได้รับการปรับแต่งอย่างพิถีพิถันสำหรับนักดนตรีแต่ละคน ด้วยความใส่ใจทุกรายละเอียดในเสียงของเครื่องดนตรี',
-    'about.tailor.title': 'เราอยู่ที่นี่เพื่อสร้างมรดกใหม่ที่มีคุณค่าอันลึกซึ้ง',
-    'about.tailor.p1': 'ความมุ่งมั่นของเราคือการทำให้ดนตรีเข้าถึงได้สำหรับทุกคน เราเชื่อว่าความรู้และงานฝีมือสามารถทลายกำแพงและสร้างโอกาสให้กับทุกคนที่ต้องการเล่นดนตรี',
-    'about.tailor.p2': 'เรามุ่งมั่นสร้างประสบการณ์ที่ยอดเยี่ยมอย่างแท้จริงให้กับทุกคน',
-    'about.quote': '"สร้างคุณค่าที่น่าจดจำ<br/><span class="italic text-neutral-400">และสร้างประวัติศาสตร์ไปด้วยกัน</span>"',
+
+    'about.title':
+      '<span class="text-4xl md:text-5xl block">ผู้สร้างนวัตกรรมเครื่องดนตรี <br> และผู้เชี่ยวชาญด้านการซ่อมเครื่องเป่าลมไม้</span>',
+
+    'about.desc1':
+      'ตั้งอยู่ในย่านสาทร กรุงเทพมหานคร',
+
+    'about.desc2':
+      'ด้วยการฝึกอบรมด้านการซ่อมอย่างเข้มข้นในไต้หวัน และประสบการณ์จริงกว่า 10 ปี เราทุ่มเทให้กับการพัฒนาเสียง การตอบสนอง และเอกลักษณ์ของเครื่องดนตรีแต่ละชิ้น ผลิตภัณฑ์ของเราถูกออกแบบมาเพื่อนักดนตรีทุกระดับ ตั้งแต่ผู้เริ่มต้นไปจนถึงมืออาชีพที่ต้องการความละเอียดอ่อนในการควบคุม ทุกบริการและการซ่อมได้รับการปรับแต่งอย่างพิถีพิถัน เพื่อให้เหมาะกับทั้งตัวผู้เล่นและตัวเครื่องดนตรีอย่างแท้จริง',
+
+    'about.tailor.title':
+      'สร้างคุณค่าที่ส่งต่อไปได้ในระยะยาว',
+
+    'about.tailor.p1':
+      'เราต้องการให้ดนตรีเป็นสิ่งที่ทุกคนเข้าถึงได้ เพราะเราเชื่อว่าความรู้และงานฝีมือสามารถเปิดโอกาสใหม่ ๆ ให้กับทุกคนที่อยากเล่นดนตรี',
+
+    'about.tailor.p2':
+      'เรามุ่งมั่นสร้างประสบการณ์ที่มีความหมาย มากกว่าตัวดนตรีเพียงอย่างเดียว',
+
+    'about.quote':
+      '"จงสร้างคุณค่าทิ้งไว้บนโลกใบนี้<br/><span class="italic text-neutral-400">นั่นคือประวัติศาสตร์ที่แท้จริง</span>"',
+
     'about.btn.products': 'ดูสินค้าของเรา',
     'about.btn.repair': 'ดูบริการซ่อม',
   },
