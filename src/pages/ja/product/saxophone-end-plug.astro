@@ -1,0 +1,36 @@
+---
+import ProductLayout from '../../../layouts/ProductLayout.astro';
+import EndPlugProduct from '../../../components/product/EndPlugProduct.svelte';
+import { products } from '../../../lib/products';
+
+const p = products.find(x => x.slug === 'saxophone-end-plug')!;
+---
+
+<ProductLayout
+  title="サックス用エンドプラグ"
+  pageTitle="サックス用エンドプラグ"
+  badge={p.badge}
+  heroImage={p.heroImage}
+  galleryImages={p.galleryImages}
+  backHref="/ja/product"
+  backLabel="製品一覧に戻る"
+  lang="ja"
+>
+  <div class="prose max-w-none mt-8 text-neutral-300 font-light leading-relaxed">
+    <p class="text-lg">
+      エンドプラグは、繊細なオクターブキー機構へのダメージを防ぎ、ケース内でネックレシーバーをしっかり守るための必須アイテムです。
+    </p>
+    <h3 class="font-medium tracking-widest uppercase text-sm text-white mt-10 mb-6">こだわりのコレクション</h3>
+    <p class="mb-6">
+      機能性だけでなくデザイン性も重視し、35種類以上のカラー、マーブル模様、動物モチーフからお選びいただけます。あなたの個性を反映する、特別な1点に仕上げます。
+    </p>
+    <ul class="list-none space-y-4 m-0 p-0 text-neutral-400">
+      <li class="flex items-start gap-3"><span class="text-white font-bold opacity-50">•</span>プレーン、クリア、パステル、メタリックカラーを35種類以上ご用意</li>
+      <li class="flex items-start gap-3"><span class="text-white font-bold opacity-50">•</span>2色使い、マーブル模様</li>
+      <li class="flex items-start gap-3"><span class="text-white font-bold opacity-50">•</span>動物モチーフも選べるキュートなデザイン</li>
+      <li class="flex items-start gap-3"><span class="text-white font-bold opacity-50">•</span>エンドプラグ内側に名入れプレートをカスタム可能</li>
+    </ul>
+  </div>
+
+  <EndPlugProduct slot="purchase" client:load />
+</ProductLayout>

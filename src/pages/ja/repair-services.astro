@@ -1,0 +1,148 @@
+---
+import { Check } from 'lucide-svelte';
+import Layout from '../../../layouts/Layout.astro';
+---
+
+<Layout title="修理サービス">
+  <div class="max-w-6xl mx-auto px-4 py-20 relative z-10 pl-1">
+    <div class="text-center mb-16" data-aos="fade-up">
+      <h1 class="font-serif text-5xl md:text-6xl font-light mb-6 tracking-tight">修理 <span class="italic text-neutral-400">&amp; サービス</span></h1>
+      <p class="text-xl font-light text-neutral-400 max-w-3xl mx-auto leading-relaxed">
+        台湾での集中的な修理研修と10年以上の実務経験を積み重ねた専門知識を活かし、各楽器の音色、レスポンス、個性を引き出すための修理に尽力しています。
+      </p>
+    </div>
+
+    <!-- Alert / Notice -->
+    <div class="alert shadow-lg max-w-2xl mx-auto mb-16" data-aos="fade-up" data-aos-delay="100">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-white shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+      <div>
+        <h3 class="font-medium tracking-widest uppercase text-sm text-white mb-2">ご注意ください：</h3>
+        <ul class="text-sm list-disc list-inside text-neutral-400 space-y-1 font-light">
+          <li>これらは参考用の概算価格です。</li>
+          <li>修理費用は楽器の状態により異なります。</li>
+          <li>ご予約はお気軽にお問い合わせください。</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Image -->
+    <div class="mb-24 rounded-3xl overflow-hidden shadow-2xl h-[400px] relative group border border-white/10" data-aos="zoom-in" data-aos-delay="200">
+      <img src="/images/repair1.jpg" alt="修理サービス" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" />
+      <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+    </div>
+
+    <!-- Saxophone Section -->
+    <div class="mb-32">
+      <div class="mb-12 text-center" data-aos="fade-up">
+        <h2 class="font-serif text-4xl font-light mb-4">サックス</h2>
+        <p class="text-lg font-light text-neutral-400">高品質なシェラック塗料と本物のピゾーニパッドを使用しています。</p>
+        <p class="text-lg font-light text-neutral-400">ソプラノ、アルト、テナー、バリトンすべてに対応します。</p>
+        <p class="text-sm text-neutral-500 mt-4 italic">（以下の参考価格はアルトサックスの場合です。）</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- Basic -->
+        <div class="card hover:border-white/40 transition-colors" data-aos="fade-up" data-aos-delay="100">
+          <div class="card-body">
+            <h3 class="card-title text-2xl">基本</h3>
+            <div class="text-white font-medium text-3xl my-4">1,000 THB 〜</div>
+            <ul class="space-y-3 mt-4 flex-grow font-light text-neutral-300">
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> パッド調整</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> コルク交換</li>
+            </ul>
+            <div class="card-actions justify-end mt-8">
+              <a href="/ja/booking" class="btn btn-secondary w-full tracking-widest uppercase">予約する</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Standard -->
+        <div class="card bg-white text-black md:scale-105 shadow-[0_0_40px_-10px_rgba(255,255,255,0.2)]" data-aos="fade-up" data-aos-delay="200">
+          <div class="card-body relative">
+            <div class="absolute -top-3 right-6 bg-black text-white px-3 py-1 rounded-full text-xs font-medium tracking-widest uppercase border border-white/20">人気</div>
+            <h3 class="card-title text-2xl text-black">標準</h3>
+            <div class="font-medium text-3xl my-4">3,500 THB 〜</div>
+            <ul class="space-y-3 mt-4 flex-grow font-light">
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-400" /> パッド調整</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-400" /> コルク交換</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-400" /> パッド交換</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-400" /> ボディクリーニング</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-400" /> スプリング交換</li>
+            </ul>
+            <div class="card-actions justify-end mt-8">
+              <a href="/ja/booking" class="btn bg-black text-white hover:bg-neutral-800 w-full tracking-widest uppercase">予約する</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Overhaul -->
+        <div class="card hover:border-white/40 transition-colors" data-aos="fade-up" data-aos-delay="300">
+          <div class="card-body">
+            <h3 class="card-title text-2xl">オーバーホール</h3>
+            <div class="text-white font-medium text-3xl my-4">5,000 THB 〜</div>
+            <ul class="space-y-3 mt-4 flex-grow font-light text-neutral-300">
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> パッド調整</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> コルク交換</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> パッド交換</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> ボディクリーニング</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> スプリング交換</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> フェルト交換</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> へこみ修正</li>
+            </ul>
+            <div class="card-actions justify-end mt-8">
+              <a href="/ja/booking" class="btn btn-secondary w-full tracking-widest uppercase">予約する</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bassoon Section -->
+    <div>
+      <div class="mb-12 text-center" data-aos="fade-up">
+        <h2 class="font-serif text-4xl font-light mb-4">ファゴット</h2>
+        <p class="text-lg font-light text-neutral-400">高品質なシェラック塗料と本物のピゾーニパッドを使用しています。</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <!-- Standard -->
+        <div class="card hover:border-white/40 transition-colors" data-aos="fade-up" data-aos-delay="100">
+          <div class="card-body">
+            <h3 class="card-title text-2xl">標準</h3>
+            <div class="text-white font-medium text-3xl my-4">3,500 THB 〜</div>
+            <ul class="space-y-3 mt-4 flex-grow font-light text-neutral-300">
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> パッド調整</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> コルク交換</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> パッド交換</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> ボディクリーニング</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> スプリング交換</li>
+            </ul>
+            <div class="card-actions justify-end mt-8">
+              <a href="/ja/booking" class="btn btn-secondary w-full tracking-widest uppercase">予約する</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Overhaul -->
+        <div class="card hover:border-white/40 transition-colors" data-aos="fade-up" data-aos-delay="200">
+          <div class="card-body">
+            <h3 class="card-title text-2xl">オーバーホール</h3>
+            <div class="text-white font-medium text-3xl my-4">5,000 THB 〜</div>
+            <ul class="space-y-3 mt-4 flex-grow font-light text-neutral-300">
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> パッド調整</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> コルク交換</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> パッド交換</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> ボディクリーニング</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> スプリング交換</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> フェルト交換</li>
+              <li class="flex items-center gap-3"><Check class="w-5 h-5 text-neutral-500" /> へこみ修正</li>
+            </ul>
+            <div class="card-actions justify-end mt-8">
+              <a href="/ja/booking" class="btn btn-secondary w-full tracking-widest uppercase">予約する</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>

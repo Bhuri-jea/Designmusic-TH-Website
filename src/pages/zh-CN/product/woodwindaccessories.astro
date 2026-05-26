@@ -1,30 +1,28 @@
 ---
-import Layout from '../../layouts/Layout.astro';
+import Layout from '../../../layouts/Layout.astro';
 import { ArrowLeft, Sparkles, Shield, Zap } from 'lucide-svelte';
-import { products } from '../../lib/products';
+import { products } from '../../../lib/products';
 
-// All products that belong to this category — add more in products.ts
+// All products that belong to this category
 const accessories = products.filter(p => p.category === 'woodwindaccessories');
 const hero = products.find(p => p.slug === 'woodwindaccessories')!;
 ---
 
-<Layout title="Woodwind Accessories">
+<Layout title="木管配件">
   <div class="max-w-7xl mx-auto px-6 py-16 relative z-10">
-    <a href="/product" class="inline-flex items-center gap-2 mb-8 text-neutral-400 hover:text-white transition-colors tracking-widest uppercase text-sm border-b border-transparent hover:border-white pb-1">
-      <ArrowLeft class="w-4 h-4" /> Back to Products
+    <a href="/zh-CN/product" class="inline-flex items-center gap-2 mb-8 text-neutral-400 hover:text-white transition-colors tracking-widest uppercase text-sm border-b border-transparent hover:border-white pb-1">
+      <ArrowLeft class="w-4 h-4" /> 返回产品
     </a>
 
     <!-- Hero -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-16">
       <div data-aos="fade-right">
-        <span class="font-serif tracking-[0.2em] text-xs uppercase text-neutral-500 mb-4 block">Innovation &amp; Protection</span>
+        <span class="font-serif tracking-[0.2em] text-xs uppercase text-neutral-500 mb-4 block">创新与保护</span>
         <h1 class="font-serif text-5xl md:text-6xl font-light mb-8 tracking-tight">
-          Woodwind <span class="italic text-neutral-400">Accessories</span>
+          木管 <span class="italic text-neutral-400">配件</span>
         </h1>
         <p class="text-xl font-light text-neutral-300 leading-relaxed mb-10">
-          Our collection of woodwind accessories — reed cases, swabs, silicone pads and more — is born
-          from a deep understanding of the performer's needs. We combine precision engineering with
-          high-quality materials to solve common musical challenges.
+          我们的木管配件系列源自对演奏者需求的深入理解。通过高品质材料与精密设计，我们提供旨在提升演奏表现的解决方案。
         </p>
 
         <div class="space-y-8">
@@ -33,8 +31,8 @@ const hero = products.find(p => p.slug === 'woodwindaccessories')!;
               <Zap class="w-5 h-5 text-white opacity-70" />
             </div>
             <div>
-              <h3 class="font-serif text-xl text-white mb-2">Enhanced Performance</h3>
-              <p class="text-neutral-400 font-light text-sm">Every accessory is designed to improve response, resonance, or playability.</p>
+              <h3 class="font-serif text-xl text-white mb-2">增强演奏性能</h3>
+              <p class="text-neutral-400 font-light text-sm">每件配件都设计用于改善响应、共鸣或可演奏性。</p>
             </div>
           </div>
           <div class="flex gap-6">
@@ -42,8 +40,8 @@ const hero = products.find(p => p.slug === 'woodwindaccessories')!;
               <Shield class="w-5 h-5 text-white opacity-70" />
             </div>
             <div>
-              <h3 class="font-serif text-xl text-white mb-2">Instrument Care</h3>
-              <p class="text-neutral-400 font-light text-sm">Protection that goes beyond the surface, ensuring your instrument remains in peak condition.</p>
+              <h3 class="font-serif text-xl text-white mb-2">乐器护理</h3>
+              <p class="text-neutral-400 font-light text-sm">超越表面的保护，确保您的乐器始终处于最佳状态。</p>
             </div>
           </div>
         </div>
@@ -51,11 +49,11 @@ const hero = products.find(p => p.slug === 'woodwindaccessories')!;
 
       <div class="relative" data-aos="fade-left">
         <div class="aspect-[4/5] rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
-          <img src={hero.heroImage} alt="Woodwind Accessories" class="w-full h-full object-cover" loading="lazy" />
+          <img src={hero.heroImage} alt="木管配件" class="w-full h-full object-cover" loading="lazy" />
         </div>
         <div class="absolute -bottom-8 -left-8 bg-neutral-900 border border-white/10 p-8 rounded-3xl shadow-2xl hidden md:block max-w-xs">
           <Sparkles class="w-6 h-6 text-white mb-4 opacity-50" />
-          <p class="text-sm font-light text-neutral-300 italic">"Accessories should not just be additions, but essential enhancements to the musical journey."</p>
+          <p class="text-sm font-light text-neutral-300 italic">"配件不应仅是附加品，而应是音乐之旅中不可或缺的增强。"</p>
         </div>
       </div>
     </div>
@@ -63,12 +61,12 @@ const hero = products.find(p => p.slug === 'woodwindaccessories')!;
     <!-- Accessories gallery — auto-populated from products.ts -->
     <div class="border-t border-white/10 pt-24">
       <h2 class="font-serif text-3xl font-light mb-12 text-center">
-        Current <span class="italic text-neutral-400">Highlights</span>
+        当前 <span class="italic text-neutral-400">精选</span>
       </h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {accessories.map((acc, i) => (
           <a
-            href={`/product/${acc.slug}`}
+            href={`/zh-CN/product/${acc.slug}`}
             class="group relative overflow-hidden rounded-3xl ikigai-glass"
             data-aos="fade-up"
             data-aos-delay={i * 100}
@@ -85,7 +83,7 @@ const hero = products.find(p => p.slug === 'woodwindaccessories')!;
               <p class="text-neutral-200 font-light text-sm mb-6 opacity-75 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500">
                 {acc.shortDesc}
               </p>
-              <span class="inline-block border border-white/20 px-5 py-2 rounded-full text-xs font-medium tracking-widest uppercase text-white hover:bg-white hover:text-black transition-colors">View Details</span>
+              <span class="inline-block border border-white/20 px-5 py-2 rounded-full text-xs font-medium tracking-widest uppercase text-white hover:bg-white hover:text-black transition-colors">查看详情</span>
             </div>
           </a>
         ))}

@@ -1,0 +1,99 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { products } from '../../../lib/products';
+
+export function getStaticPaths() {
+  return [
+    { params: { lang: 'ja' } },
+    { params: { lang: 'zh-CN' } },
+    { params: { lang: 'th' } },
+  ];
+}
+
+const { lang } = Astro.params;
+const allProducts = products;
+
+const translations = {
+  en: {
+    pageTitle: 'Products',
+    sectionLabel: 'Our Collection',
+    headlinePrefix: 'Master',
+    headlineEmphasis: 'pieces',
+    description: 'Crafted with uncompromising dedication to quality and the pursuit of perfect resonance.',
+    viewDetails: 'View Details',
+  },
+  ja: {
+    pageTitle: '製品',
+    sectionLabel: 'こだわりのコレクション',
+    headlinePrefix: 'ひとつひとつ',
+    headlineEmphasis: '丁寧な逸品',
+    description: 'ひとつひとつ手間を惜しまず仕上げた、音の響きと質感にこだわった品々です。',
+    viewDetails: '詳細を見る',
+  },
+  'zh-CN': {
+    pageTitle: '产品',
+    sectionLabel: '精选系列',
+    headlinePrefix: '匠心',
+    headlineEmphasis: '之作',
+    description: '我们以精益求精的态度打造每一件产品，追求质感与共鸣的完美结合。',
+    viewDetails: '查看详情',
+  },
+  th: {
+    pageTitle: 'ผลิตภัณฑ์',
+    sectionLabel: 'ชิ้นงานของเรา',
+    headlinePrefix: 'คอลเลกชั่น',
+    headlineEmphasis: 'สินค้า',
+    description: 'เรารังสรรค์ด้วยความพิถีพิถัน เพื่อคุณภาพที่ยอดเยี่ยม เสียงที่ตอบโจทย์และดีไซน์ที่มีสไตล์',
+    viewDetails: 'ดูรายละเอียด',
+  },
+};
+
+const copy = translations[lang] ?? translations.en;
+---
+
+<Layout title={copy.pageTitle}>
+  <div class="max-w-7xl mx-auto px-6 py-16 relative z-10">
+    <div class="text-center mb-12" data-aos="fade-up">
+      <span class="font-serif tracking-[0.2em] text-xs uppercase text-neutral-500 mb-4 block">{copy.sectionLabel}</span>
+      <h1 class="font-serif text-5xl md:text-6xl font-light mb-6 tracking-tight">
+        {copy.headlinePrefix}
+        <span class="italic text-neutral-400">{copy.headlineEmphasis}</span>
+      </h1>
+      <p class="text-xl font-light text-neutral-400 max-w-2xl mx-auto">
+        {copy.description}
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {allProducts.map((p, i) => (
+        <a
+          href={`/${lang}/product/${p.slug}`}
+          class="group relative overflow-hidden rounded-3xl ikigai-glass"
+          data-aos="fade-up"
+          data-aos-delay={(i + 1) * 100}
+        >
+          <div class="h-80 overflow-hidden relative">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10"></div>
+            <img
+              src={p.thumbnail}
+              alt={p.name}
+              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
+              loading={i === 0 ? 'eager' : 'lazy'}
+            />
+          </div>
+          <div class="absolute bottom-0 left-0 p-8 z-20 w-full">
+            <h2 class="font-serif text-2xl text-white mb-2 group-hover:text-glow transition-all">{p.name}</h2>
+            {p.badge && (
+              <span class="inline-block mb-2 border border-white/40 px-3 py-0.5 rounded-full text-xs tracking-widest uppercase text-neutral-100">{p.badge}</span>
+            )}
+            <p class="text-neutral-200 font-light text-sm mb-6 opacity-75 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500">
+              {p.shortDesc}
+            </p>
+            <span class="inline-block border border-white/20 px-5 py-2 rounded-full text-xs font-medium tracking-widest uppercase text-white hover:bg-white hover:text-black transition-colors">{copy.viewDetails}</span>
+          </div>
+        </a>
+      ))}
+    </div>
+  </div>
+</Layout>
+

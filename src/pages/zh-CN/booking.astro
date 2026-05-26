@@ -1,0 +1,25 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import BookingForm from '../../../components/ui/BookingForm.svelte';
+import { ArrowLeft } from 'lucide-svelte';
+---
+
+<Layout title="预约">npm
+  <div class="max-w-5xl mx-auto px-6 py-20 relative z-10 pl-1">
+    <a href="/zh-CN/repair-services" class="inline-flex items-center gap-2 mb-12 text-neutral-400 hover:text-white transition-colors tracking-widest uppercase text-sm border-b border-transparent hover:border-white pb-1">
+      <ArrowLeft class="w-4 h-4" /> 返回服务
+    </a>
+
+    <div class="text-center mb-16" data-aos="fade-up">
+      <span class="font-serif tracking-[0.2em] text-xs uppercase text-neutral-500 mb-4 block">预约</span>
+      <h1 class="font-serif text-5xl md:text-6xl font-light mb-6 tracking-tight">预约 <span class="italic text-neutral-400">时间</span></h1>
+      <p class="text-lg font-light text-neutral-400 max-w-2xl mx-auto">
+        选择方便的 1 小时时间段来放下您的乐器或由我们的专家进行评估。
+      </p>
+    </div>
+
+    <div data-aos="fade-up" data-aos-delay="100">
+      <BookingForm client:load />
+    </div>
+  </div>
+</Layout>

@@ -1,0 +1,45 @@
+---
+import ProductLayout from '../../../layouts/ProductLayout.astro';
+import ShakuhachiProduct from '../../../components/product/ShakuhachiProduct.svelte';
+import { Zap, Wrench, Star } from 'lucide-svelte';
+import { products } from '../../../lib/products';
+
+const p = products.find(x => x.slug === 'shakuhachi')!;
+---
+
+<ProductLayout
+  title="ขลุ่ยญี่ปุ่นชากุฮาจิ"
+  pageTitle="Design music model S-1/D ชากุฮาจิ"
+  badge={p.badge}
+  heroImage={p.heroImage}
+  galleryImages={p.galleryImages}
+  backHref="/th/product"
+  backLabel="กลับไปยังผลิตภัณฑ์"
+  lang="th"
+>
+  <div class="prose max-w-none mt-6 text-neutral-300 font-light leading-relaxed">
+    <p class="text-lg">
+      ออกแบบเกินกว่าขอบเขตของดนตรีญี่ปุ่นแบบดั้งเดิม นี่คือวิสัยทัศน์ของเราสำหรับชากุฮาจิว่าเป็น "เครื่องดนตรีสำหรับทุกคน" ผลิตจากวัสดุเรซิ่นที่ต้านทานแห้งและการเปลี่ยนแปลงของสภาพอากาศ พร้อมรักษาลักษณะที่หรูหราของไม้ไผ่ธรรมชาติ เหมาะสำหรับการเดินทาง
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-10">
+    <div class="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-3xl">
+      <Zap class="w-6 h-6 text-white mb-4 opacity-70" />
+      <h4 class="font-medium tracking-widest uppercase text-sm text-white mb-2">แนวคิดการออกแบบใหม่</h4>
+      <p class="text-sm font-light text-neutral-400">ตัวเครื่องและส่วนปาก ถูกออกแบบแยกกันเพื่อให้ได้ความสมดุลของโทนเสียงที่เหมาะสมและความสะดวกในการเล่นที่ยอดเยี่ยม</p>
+    </div>
+    <div class="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-3xl">
+      <Wrench class="w-6 h-6 text-white mb-4 opacity-70" />
+      <h4 class="font-medium tracking-widest uppercase text-sm text-white mb-2">ความสามารถในการปรับแต่ง</h4>
+      <p class="text-sm font-light text-neutral-400">ข้อต่อไม้ก๊อก ที่สามารถแลกเปลี่ยนได้กำจัดความหลวม ปรับแต่งระดับเสียงอย่างละเอียดด้วยความลึกของการแทรก</p>
+    </div>
+    <div class="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-3xl sm:col-span-2">
+      <Star class="w-6 h-6 text-white mb-4 opacity-70" />
+      <h4 class="font-medium tracking-widest uppercase text-sm text-white mb-2">ออกแบบสำหรับนักแสดง</h4>
+      <p class="text-sm font-light text-neutral-400">มีรูปร่างตามหลักสรีรศาสตร์สำหรับการเคลื่อนไหวของนิ้วที่ราบรื่นและการตอบสนองที่รวดเร็ว สามารถครอบคลุมระดับเสียงสามช่วง ท่ะสำหรับช่วงการแสดงออกที่ห้องกว้างอย่างพิเศษ</p>
+    </div>
+  </div>
+
+  <ShakuhachiProduct slot="purchase" client:load />
+</ProductLayout>

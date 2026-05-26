@@ -1,0 +1,45 @@
+---
+import ProductLayout from '../../../layouts/ProductLayout.astro';
+import ShakuhachiProduct from '../../../components/product/ShakuhachiProduct.svelte';
+import { Zap, Wrench, Star } from 'lucide-svelte';
+import { products } from '../../../lib/products';
+
+const p = products.find(x => x.slug === 'shakuhachi')!;
+---
+
+<ProductLayout
+  title="尺八"
+  pageTitle="デザインミュージックモデル S-1/D 尺八"
+  badge={p.badge}
+  heroImage={p.heroImage}
+  galleryImages={p.galleryImages}
+  backHref="/ja/product"
+  backLabel="製品一覧に戻る"
+  lang="ja"
+>
+  <div class="prose max-w-none mt-6 text-neutral-300 font-light leading-relaxed">
+    <p class="text-lg">
+      伝統的な日本音楽と現代加工技術の巡り合い、尺八を「みんなの楽器」として再解釈しました。吸湿性や気候変動に強い樹脂素材を使用しながら、天然竹の優雅な外観を保ちました。旅行時の携帯にも最適です。
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-10">
+    <div class="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-3xl">
+      <Zap class="w-6 h-6 text-white mb-4 opacity-70" />
+      <h4 class="font-medium tracking-widest uppercase text-sm text-white mb-2">新しい設計コンセプト</h4>
+      <p class="text-sm font-light text-neutral-400">胴体と吹奏部を分離設計し、最適な音色バランスと滑らかな演奏性を実現しました。</p>
+    </div>
+    <div class="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-3xl">
+      <Wrench class="w-6 h-6 text-white mb-4 opacity-70" />
+      <h4 class="font-medium tracking-widest uppercase text-sm text-white mb-2">調整可能性</h4>
+      <p class="text-sm font-light text-neutral-400">交換可能なコルク接続部で緩みを排除。挿入深度による微調整で音程を整えられます。</p>
+    </div>
+    <div class="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-3xl sm:col-span-2">
+      <Star class="w-6 h-6 text-white mb-4 opacity-70" />
+      <h4 class="font-medium tracking-widest uppercase text-sm text-white mb-2">演奏者のために設計</h4>
+      <p class="text-sm font-light text-neutral-400">人間工学的に設計された指の動きと素早いレスポンスで、3オクターブの広い音域を快適に演奏できます。表現力に優れた楽器です。</p>
+    </div>
+  </div>
+
+  <ShakuhachiProduct slot="purchase" client:load />
+</ProductLayout>

@@ -4,7 +4,7 @@
   let selectedHole = $state('standard');
   let selectedMouthpiece = $state('balance');
   
-  const currentPrice = 15000;
+  const currentPrice = 6900;
 
   let item = $derived({
     id: `shakuhachi`,
@@ -27,15 +27,15 @@
         class={`p-6 flex flex-col items-start gap-3 rounded-2xl border transition-all text-left ${selectedHole === 'standard' ? 'bg-white text-black border-white shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)]' : 'bg-transparent text-white border-white/20 hover:border-white/50'}`}
         onclick={() => selectedHole = 'standard'}
       >
-        <span class="font-medium tracking-widest uppercase text-sm">Standard Tone Holes</span>
+        <span class="font-medium tracking-widest uppercase text-sm">Standard Tone Holes (diameter 11-11.5 mm)</span>
         <span class={`text-sm font-light leading-relaxed ${selectedHole === 'standard' ? 'text-neutral-700' : 'text-neutral-400'}`}>Compact, clear tone. Easy pitch control.</span>
       </button>
       <button 
         class={`p-6 flex flex-col items-start gap-3 rounded-2xl border transition-all text-left ${selectedHole === 'large' ? 'bg-white text-black border-white shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)]' : 'bg-transparent text-white border-white/20 hover:border-white/50'}`}
         onclick={() => selectedHole = 'large'}
       >
-        <span class="font-medium tracking-widest uppercase text-sm">Large Tone Holes</span>
-        <span class={`text-sm font-light leading-relaxed ${selectedHole === 'large' ? 'text-neutral-700' : 'text-neutral-400'}`}>Rich, expressive tone. *Not recommended for small hands.</span>
+        <span class="font-medium tracking-widest uppercase text-sm">Large Tone Holes (diameter 11-12.5 mm)</span>
+        <span class={`text-sm font-light leading-relaxed ${selectedHole === 'large' ? 'text-neutral-700' : 'text-neutral-400'}`}>Rich, expressive tone. *Not recommended for small fingers.</span>
       </button>
     </div>
   </div>

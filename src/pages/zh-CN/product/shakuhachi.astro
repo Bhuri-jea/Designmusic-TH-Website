@@ -1,0 +1,45 @@
+---
+import ProductLayout from '../../../layouts/ProductLayout.astro';
+import ShakuhachiProduct from '../../../components/product/ShakuhachiProduct.svelte';
+import { Zap, Wrench, Star } from 'lucide-svelte';
+import { products } from '../../../lib/products';
+
+const p = products.find(x => x.slug === 'shakuhachi')!;
+---
+
+<ProductLayout
+  title="尺八"
+  pageTitle="Design music model S-1/D 尺八"
+  badge={p.badge}
+  heroImage={p.heroImage}
+  galleryImages={p.galleryImages}
+  backHref="/zh-CN/product"
+  backLabel="返回产品"
+  lang="zh-CN"
+>
+  <div class="prose max-w-none mt-6 text-neutral-300 font-light leading-relaxed">
+    <p class="text-lg">
+      突破传统日本音乐的边界，我们重新诠释了尺八作为"人人可用的乐器"的理念。采用耐湿耐温变的树脂材料，同时保持天然竹的优雅外观。便于携带旅行。
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-10">
+    <div class="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-3xl">
+      <Zap class="w-6 h-6 text-white mb-4 opacity-70" />
+      <h4 class="font-medium tracking-widest uppercase text-sm text-white mb-2">全新设计理念</h4>
+      <p class="text-sm font-light text-neutral-400">胴体与吹奏部分独立设计，实现最佳音色平衡和流畅的可演奏性。</p>
+    </div>
+    <div class="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-3xl">
+      <Wrench class="w-6 h-6 text-white mb-4 opacity-70" />
+      <h4 class="font-medium tracking-widest uppercase text-sm text-white mb-2">可调节性</h4>
+      <p class="text-sm font-light text-neutral-400">可更换的软木接头消除松动问题。通过插入深度精确调节音高。</p>
+    </div>
+    <div class="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-3xl sm:col-span-2">
+      <Star class="w-6 h-6 text-white mb-4 opacity-70" />
+      <h4 class="font-medium tracking-widest uppercase text-sm text-white mb-2">为演奏者设计</h4>
+      <p class="text-sm font-light text-neutral-400">符合人体工学的设计确保手指灵活移动和快速响应。轻松达到三个完整八度音程，提供异常宽阔的表现范围。</p>
+    </div>
+  </div>
+
+  <ShakuhachiProduct slot="purchase" client:load />
+</ProductLayout>

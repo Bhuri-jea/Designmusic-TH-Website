@@ -4,27 +4,39 @@ import { readFile } from 'fs/promises';
 import { resolve } from 'path';
 
 export async function getStaticPaths() {
-  // We can dynamically read the content directory to get all slugs
-  // For now, let's list them explicitly to be safe, or we could use fs.readdir
+  // Explicit product slugs listed here — keep in sync with src/lib/products.ts
   const products = ['shakuhachi', 'siliconepads', 'saxophone-end-plug', 'woodwindaccessories'];
   const langs = ['en', 'ja', 'zh-CN', 'th'];
-  
-  return langs.flatMap(lang => 
+
+  return langs.flatMap(lang =>
     products.map(slug => ({
-      params: { lang, slug }
+      params: { lang, slug },
     }))
   );
 }
 
 const { lang, slug } = Astro.params;
 
-// Resolve markdown file for the product
-const mdPath = resolve(process.cwd(), `src/content/products/${slug}/${slug}.md`);
+// Try localized markdown first, then fallback to default
+const candidatePaths = [
+  resolve(process.cwd(), `src/content/products/${slug}/${lang}/${slug}.md`),
+  resolve(process.cwd(), `src/content/products/${slug}/${slug}.${lang}.md`),
+  resolve(process.cwd(), `src/content/products/${slug}/${slug}.md`),
+];
+
 let raw = '';
-try {
-  raw = await readFile(mdPath, 'utf-8');
-} catch (e) {
-  // Fallback if file not found
+let foundPath: string | null = null;
+for (const p of candidatePaths) {
+  try {
+    raw = await readFile(p, 'utf-8');
+    foundPath = p;
+    break;
+  } catch (e) {
+    // ignore and continue to next candidate
+  }
+}
+
+if (!foundPath) {
   return Astro.redirect('/404');
 }
 
@@ -43,6 +55,16 @@ if (frontMatterMatch) {
   description = raw.slice(frontMatterMatch[0].length).trim();
 }
 
+// Small UI translations for the detail page
+const ui = {
+  en: { backLabel: 'Back to Products' },
+  ja: { backLabel: '製品一覧に戻る' },
+  'zh-CN': { backLabel: '返回产品' },
+  th: { backLabel: 'กลับไปยังผลิตภัณฑ์' },
+};
+
+const backLabel = ui[lang]?.backLabel ?? ui.en.backLabel;
+
 // Handle markdown content (very basic, can be improved with a markdown parser)
 const renderedDescription = description
   .replace(/^### (.*$)/gim, '<h3 class="font-serif text-xl text-white mt-8 mb-4">$1</h3>')
@@ -52,7 +74,17 @@ const renderedDescription = description
   .concat('</p>');
 ---
 
-<ProductLayout title={fm.title} image={fm.image} price={fm.price}>
+<ProductLayout
+  title={fm.title}
+  pageTitle={fm.title}
+  badge={fm.badge}
+  heroImage={fm.image}
+  galleryImages={fm.galleryImages}
+  backHref={`/${lang}/product`}
+  backLabel={backLabel}
+  lang={lang}
+  price={fm.price}
+>
   <div class="prose prose-invert max-w-none">
     <Fragment set:html={renderedDescription} />
   </div>

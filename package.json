@@ -16,6 +16,8 @@
     "@astrojs/svelte": "^8.0.5",
     "@astrojs/vercel": "^10.0.4",
     "@auth/core": "^0.37.4",
+    "@sentry/astro": "^10.53.1",
+    "@spotlightjs/astro": "^3.2.6",
     "@stripe/stripe-js": "^9.2.0",
     "@tailwindcss/vite": "^4.2.2",
     "aos": "^2.3.4",

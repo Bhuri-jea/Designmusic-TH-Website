@@ -1,0 +1,36 @@
+---
+import ProductLayout from '../../../layouts/ProductLayout.astro';
+import EndPlugProduct from '../../../components/product/EndPlugProduct.svelte';
+import { products } from '../../../lib/products';
+
+const p = products.find(x => x.slug === 'saxophone-end-plug')!;
+---
+
+<ProductLayout
+  title="萨克斯管端塞"
+  pageTitle="萨克斯管端塞"
+  badge={p.badge}
+  heroImage={p.heroImage}
+  galleryImages={p.galleryImages}
+  backHref="/zh-CN/product"
+  backLabel="返回产品"
+  lang="zh-CN"
+>
+  <div class="prose max-w-none mt-8 text-neutral-300 font-light leading-relaxed">
+    <p class="text-lg">
+      端塞是保护萨克斯八度键机构和颈部接收器的重要配件，能够防止放入乐器盒时的磨损与碰撞。
+    </p>
+    <h3 class="font-medium tracking-widest uppercase text-sm text-white mt-10 mb-6">我们的独特系列</h3>
+    <p class="mb-6">
+      我们兼顾实用与美感，提供超过 35 种颜色、云母纹理和动物主题造型，让每一个端塞都成为你的专属选择。
+    </p>
+    <ul class="list-none space-y-4 m-0 p-0 text-neutral-400">
+      <li class="flex items-start gap-3"><span class="text-white font-bold opacity-50">•</span>提供 35+ 种纯色、透明、粉色和金属色</li>
+      <li class="flex items-start gap-3"><span class="text-white font-bold opacity-50">•</span>支持双色设计与大理石纹理</li>
+      <li class="flex items-start gap-3"><span class="text-white font-bold opacity-50">•</span>可选可爱动物造型</li>
+      <li class="flex items-start gap-3"><span class="text-white font-bold opacity-50">•</span>支持内置姓名铭牌定制</li>
+    </ul>
+  </div>
+
+  <EndPlugProduct slot="purchase" client:load />
+</ProductLayout>

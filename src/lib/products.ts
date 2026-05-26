@@ -46,7 +46,7 @@ export const products: ProductDefinition[] = [
   {
     slug: 'shakuhachi',
     name: 'Shakuhachi S-1/D',
-    badge: 'Innovation Award',
+    badge: 'Innovative approach',
     thumbnail: '/images/ShakuhachiPoster2.jpg',
     heroImage: '/images/ShakuhachiPoster1.jpg',
     galleryImages: [
@@ -65,7 +65,7 @@ export const products: ProductDefinition[] = [
     thumbnail: '/images/woodwind accessory.jpg',
     heroImage: '/images/woodwind accessory.jpg',
     galleryImages: [],
-    shortDesc: 'Reed cases, swabs, silicone pads and more — tools that elevate your playing.',
+    shortDesc: 'Reed holders, thumb rests, thumb hook, key buttons inlays and more — tools that elevate your playing.',
   },
 
   // ─── Woodwind Accessories sub-products ─────────────────────
@@ -79,7 +79,8 @@ export const products: ProductDefinition[] = [
     heroImage: '/images/SiliconePad1.jpg',
     galleryImages: ['/images/SiliconePad2.jpg', '/images/SiliconePad3.jpg'],
     shortDesc:
-      'Innovative silicone pads with a pointed cone shape that helps reduce air noise on octave keys.',
+      'Innovative silicone pads with a pointed cone shape that helps reduce noise on octave keys.',
+    category: 'woodwindaccessories',
   },
 
   // Add more accessories here — they'll appear automatically
