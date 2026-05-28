@@ -41,7 +41,7 @@
   function currencyForLang(lang: string) {
     if (lang === 'th') return 'THB';
     if (lang === 'ja') return 'JPY';
-    if (lang === 'zh-CN') return 'RMP';
+    if (lang === 'zh-CN') return 'RMP'; // Tip: Check if you want to use CNY/RMB instead of RMP
     return 'USD';
   }
 
@@ -67,7 +67,6 @@
 
 <nav class="fixed top-0 w-full z-50 bg-black/60 backdrop-blur-xl border-b border-white/10 transition-all">
   <div class="max-w-7xl mx-auto px-4 md:px-6 h-20 flex items-center justify-between">
-    <!-- Left: Mobile Menu & Logo -->
     <div class="flex items-center gap-4">
       <button class="md:hidden p-2 text-white hover:bg-white/10 rounded-full transition-colors" onclick={toggleMenu}>
         <Menu class="h-6 w-6" />
@@ -77,11 +76,9 @@
       </a>
     </div>
 
-    <!-- Center: Desktop Links -->
     <div class="hidden md:flex items-center gap-8">
       <a href={getPath('/about')} class="text-sm tracking-widest uppercase text-neutral-300 hover:text-white transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1px] after:bg-white hover:after:w-full after:transition-all">{t('nav.about')}</a>
 
-      <!-- Product Dropdown — auto-driven from products.ts -->
       <div class="relative group">
         <a href={getPath('/product')} class="text-sm tracking-widest uppercase text-neutral-300 hover:text-white transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1px] after:bg-white hover:after:w-full after:transition-all">{t('nav.products')}</a>
         <div class="absolute left-0 top-full pt-2 hidden group-hover:block z-50 min-w-[200px]">
@@ -96,7 +93,6 @@
         </div>
       </div>
 
-      <!-- Repair Services Dropdown -->
       <div class="relative group">
         <a href={getPath('/repair-services')} class="text-sm tracking-widest uppercase text-neutral-300 hover:text-white transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1px] after:bg-white hover:after:w-full after:transition-all">{t('nav.services')}</a>
         <div class="absolute left-0 top-full pt-2 hidden group-hover:block z-50 min-w-[200px]">
@@ -108,9 +104,8 @@
       </div>
     </div>
 
-    <!-- Right: Lang & Cart -->
     <div class="flex items-center gap-2">
-      <div class="relative hidden sm:block">
+      <div class="relative">
         <button class="p-2 text-white hover:bg-white/10 rounded-full transition-colors flex items-center gap-2" onclick={() => isLangOpen = !isLangOpen}>
           <Globe class="h-5 w-5" />
         </button>
@@ -143,7 +138,6 @@
   </div>
 </nav>
 
-<!-- Mobile Menu Overlay -->
 {#if isMenuOpen}
   <div class="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center" transition:fade={{duration: 200}}>
     <button class="absolute top-6 right-6 p-2 text-white hover:bg-white/10 rounded-full" onclick={toggleMenu}>
@@ -153,7 +147,6 @@
       <a href={getPath('/about')} class="text-white hover:text-neutral-400" onclick={toggleMenu}>{t('nav.about')}</a>
       <div class="relative text-center">
         <a href={getPath('/product')} class="text-white hover:text-neutral-400" onclick={toggleMenu}>{t('nav.products')}</a>
-        <!-- Mobile sub-links — auto-driven from products.ts -->
         <div class="mt-3 flex flex-col space-y-3">
           {#each products as p}
             <a href={getPath(`/product/${p.slug}`)} class="text-lg text-neutral-400 hover:text-white transition-colors" onclick={toggleMenu}>
@@ -165,6 +158,7 @@
       <div class="relative text-center">
         <a href={getPath('/repair-services')} class="text-white hover:text-neutral-400" onclick={toggleMenu}>{t('nav.services')}</a>
         <div class="mt-3 flex flex-col space-y-3">
+          <a href={getPath('/repair-services')} class="text-lg text-neutral-400 hover:text-white transition-colors" onclick={toggleMenu}>Overview</a>
           <a href={getPath('/booking')} class="text-lg text-neutral-400 hover:text-white transition-colors" onclick={toggleMenu}>Book Appointment</a>
         </div>
       </div>
@@ -175,7 +169,6 @@
   </div>
 {/if}
 
-<!-- Cart Drawer -->
 {#if cart.isOpen}
   <div class="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm" transition:fade={{duration: 300}} onclick={toggleCart}></div>
   <div class="fixed top-0 right-0 w-full sm:w-[400px] h-full bg-neutral-950 border-l border-white/10 z-[70] flex flex-col shadow-2xl" transition:fly={{x: 400, duration: 400, opacity: 1}}>

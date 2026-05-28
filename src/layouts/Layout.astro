@@ -14,7 +14,18 @@ interface Props {
   currentPath?: string;
 }
 
-const { title, lang = 'en', currentPath = Astro.url.pathname } = Astro.props;
+// 1. Automatically detect language from the URL path if not explicitly provided as a prop.
+const { pathname } = Astro.url;
+const segments = pathname.split('/').filter(Boolean);
+const detectLangFromUrl = ['ja', 'zh-CN', 'th'].includes(segments[0]) ? segments[0] : 'en';
+
+// 2. Destructure props with smart defaults based on your EN default requirement
+const { 
+  title, 
+  lang = detectLangFromUrl as 'en' | 'ja' | 'zh-CN' | 'th', 
+  currentPath = pathname 
+} = Astro.props;
+
 const session = await getSession(Astro.request);
 ---
 
@@ -51,6 +62,8 @@ const session = await getSession(Astro.request);
     <ColordropBackground client:load />
 
     <SumiTimeline client:load />
+    
+    <!-- The layout passes the strictly correct language and path down to Svelte -->
     <Navbar lang={lang} currentPath={currentPath} session={session} client:load />
 
     <main class="flex-grow relative z-10 pt-20">

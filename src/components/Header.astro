@@ -1,0 +1,38 @@
+---
+// src/components/Header.astro
+import { getLocalizedPath, getCurrentLang } from '../utils/navigation';
+
+const currentLang = getCurrentLang(Astro.url);
+
+// Main Navigation Items (without prefixes)
+const navItems = [
+  { label: { en: 'Home', th: 'หน้าแรก', 'zh-CN': '首页', ja: 'ホーム' }, path: '/' },
+  { label: { en: 'About Us', th: 'เกี่ยวกับเรา', 'zh-CN': '关于我们', ja: '会社概要' }, path: '/about' },
+  { label: { en: 'Services', th: 'บริการ', 'zh-CN': '服务', ja: 'サービス' }, path: '/services' },
+  { label: { en: 'Contact', th: 'ติดต่อเรา', 'zh-CN': '联系เรา', ja: 'お問い合わせ' }, path: '/contact' },
+];
+---
+
+<header>
+  <nav>
+    <!-- Navigation Links -->
+    <ul>
+      {navItems.map((item) => (
+        <li>
+          <a href={getLocalizedPath(item.path, Astro.url)}>
+            {item.label[currentLang as keyof typeof item.label] || item.label['en']}
+          </a>
+        </li>
+      ))}
+    </ul>
+
+    <!-- Language Selector Buttons -->
+    <div class="lang-switcher">
+      <!-- English links directly to root paths -->
+      <a href="/" class={currentLang === 'en' ? 'active' : ''}>EN</a>
+      <a href="/th" class={currentLang === 'th' ? 'active' : ''}>TH</a>
+      <a href="/zh-CN" class={currentLang === 'zh-CN' ? 'active' : ''}>ZH</a>
+      <a href="/ja" class={currentLang === 'ja' ? 'active' : ''}>JA</a>
+    </div>
+  </nav>
+</header>
