@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Calendar, Clock, PenTool, Image as ImageIcon, ChevronRight, ChevronLeft, CheckCircle2, AlertCircle, UploadCloud } from 'lucide-svelte';
+  import { ui, defaultLang } from '../../i18n/ui';
 
   // State
   let step = $state(1);
@@ -34,7 +35,8 @@
     if (instrument === 'Saxophone (Baritone)') multiplier = 1.5;
     if (instrument === 'Bassoon') multiplier = 1.3;
     
-    return `~ ${(srv.basePrice * multiplier).toLocaleString()} THB`;
+    const currency = 'THB';
+    return `~ ${(srv.basePrice * multiplier).toLocaleString()} ${currency}`;
   });
 
   const timeBlocks = [
@@ -176,7 +178,7 @@ ${notes}
         {#if instrument && service}
           <div class="p-6 bg-white/5 border border-white/10 rounded-xl mt-8 animate-in fade-in slide-in-from-bottom-2">
             <div class="flex justify-between items-end mb-3">
-              <span class="text-neutral-400 font-medium tracking-widest uppercase text-xs">Estimated Price</span>
+              <span class="text-neutral-400 font-medium tracking-widest uppercase text-xs">{t('booking.estimated')}</span>
               <span class="text-3xl font-serif text-white">{estimatedPrice}</span>
             </div>
             <div class="flex gap-2 text-neutral-500 text-xs font-light bg-black/40 p-3 rounded-lg">

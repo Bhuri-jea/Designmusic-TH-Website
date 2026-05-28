@@ -26,6 +26,8 @@ export interface ProductDefinition {
    * appear on the main /product index AND inside their category page.
    */
   category?: string;
+  /** Optional per-currency prices. Use currency codes (THB, JPY, USD, RMP) as keys. */
+  prices?: Record<string, number>;
 }
 
 export const products: ProductDefinition[] = [
@@ -42,6 +44,15 @@ export const products: ProductDefinition[] = [
     ],
     shortDesc:
       'Customizable end plugs with over 35 color options, marble patterns, and animal models.',
+    // Example: edit these to set per-currency prices for this product
+    // Variant prices per currency. Edit values per-currency and per-variant as needed.
+    prices: {
+      THB: { plain: 200, twoColor: 250, custom: 350 },
+      JPY: { plain: 2500, twoColor: 2800, custom: 3200 },
+      // RMP values are converted from JPY at 1 JPY = 0.043 RMP
+      RMP: { plain: 107.5, twoColor: 120.4, custom: 137.6 },
+      USD: { plain: 15, twoColor: 18, custom: 22 }
+    },
   },
   {
     slug: 'shakuhachi',
@@ -54,6 +65,13 @@ export const products: ProductDefinition[] = [
     ],
     shortDesc:
       'Resin-crafted Shakuhachi with interchangeable mouthpieces and adjustable pitch control.',
+    // Set the locale-specific prices here. Edit values as needed.
+    prices: {
+      THB: 6900,
+      JPY: 35000,
+      RMP: 1505,
+      USD: 230
+    },
   },
 
   // ─── Woodwind Accessories category page ────────────────────

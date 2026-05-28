@@ -38,6 +38,13 @@
 
   let isCheckingOut = $state(false);
 
+  function currencyForLang(lang: string) {
+    if (lang === 'th') return 'THB';
+    if (lang === 'ja') return 'JPY';
+    if (lang === 'zh-CN') return 'RMP';
+    return 'USD';
+  }
+
   async function handleCheckout() {
     isCheckingOut = true;
     try {
@@ -196,7 +203,7 @@
               <p class="text-sm text-neutral-400 font-light">{Object.values(item.options).join(', ')}</p>
             {/if}
             <div class="flex justify-between items-center mt-2">
-              <span class="text-white font-medium">{item.price} THB</span>
+              <span class="text-white font-medium">{item.price} {currencyForLang(lang)}</span>
               <span class="text-xs text-neutral-400 bg-white/10 px-2 py-1 rounded-full">Qty: {item.quantity}</span>
             </div>
           </div>
@@ -208,7 +215,7 @@
       <div class="p-6 border-t border-white/10 bg-black/50">
         <div class="flex justify-between items-center mb-6 text-xl">
           <span class="font-light tracking-widest uppercase text-neutral-400">{t('cart.total')}</span>
-          <span class="font-serif text-white">{cart.total} THB</span>
+          <span class="font-serif text-white">{cart.total} {currencyForLang(lang)}</span>
         </div>
         <button class="btn btn-primary w-full disabled:opacity-50 tracking-widest uppercase text-sm font-medium py-4" onclick={handleCheckout} disabled={isCheckingOut}>
           {#if isCheckingOut}

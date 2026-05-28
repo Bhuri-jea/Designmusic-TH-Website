@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ShoppingCart, Check } from 'lucide-svelte';
   import { cart } from '../../store/cart.svelte';
+  import { ui, defaultLang } from '../../i18n/ui';
   
   let { item, options = {} } = $props<{
     item: {
@@ -13,6 +14,23 @@
   }>();
   
   let added = $state(false);
+
+  function getLang() {
+    if (typeof document !== 'undefined') return document.documentElement.lang || defaultLang;
+    return defaultLang;
+  }
+
+  function t(key: keyof typeof ui[typeof defaultLang]) {
+    const lang = getLang();
+    return ui[lang]?.[key] || ui[defaultLang][key];
+  }
+
+  function currencyForLang(lang: string) {
+    if (lang === 'th') return 'THB';
+    if (lang === 'ja') return 'JPY';
+    if (lang === 'zh-CN') return 'RMP';
+    return 'USD';
+  }
 
   function handleAdd() {
     cart.add({
@@ -34,9 +52,13 @@
 <button class="btn btn-primary w-full text-sm disabled:opacity-50" onclick={handleAdd} disabled={added}>
   {#if added}
     <Check class="w-5 h-5 mr-3" />
-    <span class="animate-pulse">Added!</span>
+    <span class="animate-pulse">{t('addtocart.added')}</span>
   {:else}
     <ShoppingCart class="w-5 h-5 mr-3" />
-    Add to Cart - {item.price.toLocaleString()} THB
+    {#await Promise.resolve()}
+      <span>Loading...</span>
+    {:then}
+      {@html t('addtocart.add').replace('{price}', item.price.toLocaleString()).replace('{currency}', currencyForLang(getLang()))}
+    {/await}
   {/if}
 </button>
