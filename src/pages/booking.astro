@@ -1,13 +1,15 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import BookingForm from '../components/ui/BookingForm.svelte';
-import { ArrowLeft } from 'lucide-svelte';
 ---
 
 <Layout title="Book an Appointment">
   <div class="max-w-5xl mx-auto px-6 py-20 relative z-10 pl-1">
     <a href="/repair-services" class="inline-flex items-center gap-2 mb-12 text-neutral-400 hover:text-white transition-colors tracking-widest uppercase text-sm border-b border-transparent hover:border-white pb-1">
-      <ArrowLeft class="w-4 h-4" /> Back to Services
+      <svg viewBox="0 0 24 24" aria-hidden="true" class="w-4 h-4">
+        <path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      Back to Services
     </a>
 
     <div class="text-center mb-16" data-aos="fade-up">

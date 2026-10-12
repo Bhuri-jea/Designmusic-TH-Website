@@ -3,8 +3,7 @@
   const currentYear = new Date().getFullYear();
 </script>
 
-<footer class="mt-32 pt-16 pb-8 border-t border-white/10 bg-black text-white relative overflow-hidden">
-  <div class="absolute inset-0 z-0 aurora-bg opacity-20 pointer-events-none"></div>
+<footer class="mt-32 pt-16 pb-8 border-t border-white/10 bg-black text-white">
   <div class="max-w-7xl mx-auto px-4 relative z-10">
     <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
       

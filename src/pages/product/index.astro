@@ -22,28 +22,27 @@ const allProducts = products;
       {allProducts.map((p, i) => (
         <a
           href={`/product/${p.slug}`}
-          class="group relative overflow-hidden rounded-3xl ikigai-glass"
+          class="card group transition-colors hover:border-white/30"
           data-aos="fade-up"
           data-aos-delay={(i + 1) * 100}
         >
-          <div class="h-80 overflow-hidden relative">
-            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10"></div>
+          <div class="flex h-72 items-center justify-center bg-neutral-900 p-4">
             <img
               src={p.thumbnail}
               alt={p.name}
-              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
+              class="h-full w-full object-contain"
               loading={i === 0 ? 'eager' : 'lazy'}
             />
           </div>
-          <div class="absolute bottom-0 left-0 p-8 z-20 w-full">
-            <h2 class="font-serif text-2xl text-white mb-2 group-hover:text-glow transition-all">{p.name}</h2>
+          <div class="card-body">
+            <h2 class="font-serif text-2xl text-white mb-2">{p.name}</h2>
             {p.badge && (
-              <span class="inline-block mb-2 border border-white/40 px-3 py-0.5 rounded-full text-xs tracking-widest uppercase text-neutral-100">{p.badge}</span>
+              <span class="badge self-start mb-2">{p.badge}</span>
             )}
-            <p class="text-neutral-200 font-light text-sm mb-6 opacity-75 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500">
+            <p class="text-neutral-400 font-light text-sm mb-6">
               {p.shortDesc}
             </p>
-            <span class="inline-block border border-white/20 px-5 py-2 rounded-full text-xs font-medium tracking-widest uppercase text-white hover:bg-white hover:text-black transition-colors">View Details</span>
+            <span class="mt-auto text-xs font-medium tracking-widest uppercase text-[#c2aa6a]">View Details</span>
           </div>
         </a>
       ))}

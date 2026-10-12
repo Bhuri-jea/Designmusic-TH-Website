@@ -2,20 +2,11 @@
 import ProductLayout from '../../../layouts/ProductLayout.astro';
 import { readFile } from 'fs/promises';
 import { resolve } from 'path';
-
-export async function getStaticPaths() {
-  // Explicit product slugs listed here — keep in sync with src/lib/products.ts
-  const products = ['shakuhachi', 'siliconepads', 'saxophone-end-plug', 'woodwindaccessories'];
-  const langs = ['en', 'ja', 'zh-CN', 'th'];
-
-  return langs.flatMap(lang =>
-    products.map(slug => ({
-      params: { lang, slug },
-    }))
-  );
-}
+import { isSupportedLocale } from '../../../lib/server/locales';
 
 const { lang, slug } = Astro.params;
+const supportedSlugs = ['shakuhachi', 'siliconepads', 'saxophone-end-plug', 'woodwindaccessories'];
+if (!isSupportedLocale(lang) || lang === 'en' || !slug || !supportedSlugs.includes(slug)) return new Response(null, { status: 404 });
 
 // Try localized markdown first, then fallback to default
 const candidatePaths = [
@@ -83,9 +74,11 @@ const renderedDescription = description
   backHref={`/${lang}/product`}
   backLabel={backLabel}
   lang={lang}
-  price={fm.price}
 >
   <div class="prose prose-invert max-w-none">
     <Fragment set:html={renderedDescription} />
   </div>
 </ProductLayout>
+
+
+

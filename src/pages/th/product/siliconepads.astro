@@ -1,6 +1,5 @@
 ---
 import ProductLayout from '../../../layouts/ProductLayout.astro';
-import { CheckCircle2 } from 'lucide-svelte';
 import { products } from '../../../lib/products';
 
 const p = products.find(x => x.slug === 'siliconepads')!;
@@ -25,7 +24,8 @@ const p = products.find(x => x.slug === 'siliconepads')!;
 
     <div class="bg-white/5 backdrop-blur-sm rounded-3xl p-8 my-8 space-y-6 border border-white/10">
       <h3 class="font-medium tracking-widest uppercase text-sm flex items-center gap-3 text-white m-0">
-        <CheckCircle2 class="w-5 h-5 text-neutral-400" /> ข้อดีที่โดดเด่น
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="w-5 h-5 text-neutral-400"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7" /><path d="M8 12.5l2.5 2.5 5.5-6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        ข้อดีที่โดดเด่น
       </h3>
       <ul class="list-none space-y-4 m-0 p-0 text-neutral-400">
         <li class="flex items-start gap-3"><span class="text-white font-bold opacity-50">•</span>ลดแรงต้านจากการไหลของอากาศ</li>

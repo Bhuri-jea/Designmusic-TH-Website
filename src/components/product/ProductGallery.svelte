@@ -14,11 +14,11 @@
 
 <div class="space-y-6">
   <!-- Main image -->
-  <div class="aspect-square bg-neutral-900 rounded-3xl overflow-hidden shadow-[0_0_40px_-10px_rgba(255,255,255,0.1)] border border-white/10">
+  <div class="aspect-[4/5] bg-neutral-950 rounded-md overflow-hidden border border-white/10">
     <img
       src={currentImage}
       {alt}
-      class="w-full h-full object-cover transition-all duration-700"
+      class="w-full h-full object-contain"
       loading="eager"
     />
   </div>
@@ -29,10 +29,10 @@
       {#each galleryImages as img}
         <button
           onclick={() => (currentImage = img)}
-          class="aspect-square w-full overflow-hidden rounded-2xl border transition-all duration-500 cursor-pointer {currentImage === img ? 'border-white/60 ring-1 ring-white/30' : 'border-white/10 hover:border-white/40'}"
+          class="aspect-square w-full overflow-hidden rounded-sm border bg-neutral-950 transition-colors duration-150 cursor-pointer {currentImage === img ? 'border-[#c2aa6a]' : 'border-white/10 hover:border-white/40'}"
           aria-label="View image"
         >
-          <img src={img} alt="" class="w-full h-full object-cover" loading="lazy" />
+          <img src={img} alt="" class="w-full h-full object-contain" loading="lazy" />
         </button>
       {/each}
     </div>

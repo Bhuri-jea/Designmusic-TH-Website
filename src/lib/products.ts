@@ -27,7 +27,7 @@ export interface ProductDefinition {
    */
   category?: string;
   /** Optional per-currency prices. Use currency codes (THB, JPY, USD, RMP) as keys. */
-  prices?: Record<string, number>;
+  prices?: Record<string, number | Record<string, number>>;
 }
 
 export const products: ProductDefinition[] = [
@@ -113,3 +113,4 @@ export const products: ProductDefinition[] = [
   //   category: 'woodwindaccessories',
   // },
 ];
+

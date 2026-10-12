@@ -37,11 +37,11 @@ function getPath(path: string) {
         </div>
       </div>
       <div class="w-full md:w-1/2 relative">
-        <div class="aspect-[4/5] overflow-hidden rounded-2xl ikigai-glass p-2">
+        <div class="aspect-[4/5] overflow-hidden rounded-md ikigai-glass p-2">
             <img 
               src="/images/shakuhachi1.jfif" 
               alt="Artisan crafting instrument" 
-              class="w-full h-full object-cover rounded-xl transition-all duration-700 hover:scale-105"
+              class="w-full h-full object-contain"
             />
         </div>
       </div>
@@ -59,54 +59,49 @@ function getPath(path: string) {
       <div class="grid grid-cols-1 md:grid-cols-3 md:grid-rows-2 gap-4 md:gap-6 h-auto md:h-[800px]">
         
         <!-- Large Featured Item -->
-        <a href={getPath('/product/shakuhachi')} class="group relative md:col-span-2 md:row-span-2 overflow-hidden rounded-3xl ikigai-glass">
-          <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10"></div>
-          <img 
-            src="/images/ShakuhachiPoster1.jpg" 
-            alt="3D Printed Shakuhachi" 
-            class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700"
-          />
-          <div class="absolute bottom-0 left-0 p-8 z-20 w-full">
-            <h3 class="font-serif text-3xl mb-2 text-white group-hover:text-glow transition-all">{t('home.shakuhachi.title')}</h3>
-            <p class="text-neutral-300 font-light mb-4 opacity-0 transform translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500">
-              {t('home.shakuhachi.desc')}
-            </p>
-            <span class="inline-block border border-white/20 px-4 py-1 rounded-full text-sm hover:bg-white hover:text-black transition-colors">{t('home.viewdetail')}</span>
+        <a href={getPath('/product/shakuhachi')} class="group md:col-span-2 md:row-span-2 min-h-[520px] flex flex-col overflow-hidden rounded-md ikigai-glass">
+          <div class="flex min-h-0 flex-1 items-center justify-center bg-neutral-900 p-4">
+            <img
+              src="/images/ShakuhachiPoster1.jpg"
+              alt="Shakuhachi S-1/D product and feature poster"
+              class="w-full h-full object-contain"
+            />
+          </div>
+          <div class="flex items-center justify-between gap-4 p-6">
+            <div>
+              <h3 class="font-serif text-2xl text-white">{t('home.shakuhachi.title')}</h3>
+              <p class="text-sm text-neutral-400 mt-1">{t('home.shakuhachi.desc')}</p>
+            </div>
+            <span class="shrink-0 text-xs uppercase text-[#c2aa6a]">{t('home.viewdetail')}</span>
           </div>
         </a>
 
         <!-- Smaller Item 1 -->
-        <a href={getPath('/product/siliconepads')} class="group relative overflow-hidden rounded-3xl ikigai-glass">
-          <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10"></div>
-          <img 
-            src="/images/SiliconePad1.jpg" 
-            alt="Silicone Pads" 
-            class="w-full h-full object-cover transform group-hover:scale-110 transition-all duration-700"
-          />
-          <div class="absolute bottom-0 left-0 p-6 z-20">
-            <h3 class="font-serif text-xl mb-1 text-white">{t('home.pads.title')}</h3>
-            <p class="text-neutral-400 text-sm font-light">{t('home.pads.desc')}</p>
+        <a href={getPath('/product/siliconepads')} class="group min-h-[360px] flex flex-col overflow-hidden rounded-md ikigai-glass">
+          <div class="flex min-h-0 flex-1 items-center justify-center bg-neutral-900 p-4">
+            <img src="/images/SiliconePad1.jpg" alt="Silicone instrument pads" class="w-full h-full object-contain" />
+          </div>
+          <div class="p-5">
+            <h3 class="font-serif text-xl text-white">{t('home.pads.title')}</h3>
+            <p class="text-neutral-400 text-sm font-light mt-1">{t('home.pads.desc')}</p>
           </div>
         </a>
 
         <!-- Smaller Item 2 -->
-        <a href={getPath('/repair-services')} class="group relative overflow-hidden rounded-3xl ikigai-glass">
-          <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10"></div>
-          <img 
-            src="/images/repair1.jpg" 
-            alt="Repair Services" 
-            class="w-full h-full object-cover transform group-hover:scale-110 transition-all duration-700"
-          />
-          <div class="absolute bottom-0 left-0 p-6 z-20">
-            <h3 class="font-serif text-xl mb-1 text-white">{t('home.repair.title')}</h3>
-            <p class="text-neutral-400 text-sm font-light">{t('home.repair.desc')}</p>
+        <a href={getPath('/repair-services')} class="group min-h-[360px] flex flex-col overflow-hidden rounded-md ikigai-glass">
+          <div class="flex min-h-0 flex-1 items-center justify-center bg-neutral-900 p-4">
+            <img src="/images/repair1.jpg" alt="Workshop instrument repair" class="w-full h-full object-contain" />
+          </div>
+          <div class="p-5">
+            <h3 class="font-serif text-xl text-white">{t('home.repair.title')}</h3>
+            <p class="text-neutral-400 text-sm font-light mt-1">{t('home.repair.desc')}</p>
           </div>
         </a>
 
       </div>
       
       <div class="mt-16 text-center" data-aos="fade-up">
-        <a href={getPath('/product')} class="inline-block border-b border-neutral-600 pb-1 text-neutral-400 hover:text-white hover:border-white transition-all uppercase tracking-widest text-sm">
+        <a href={getPath('/product')} class="inline-block border-b border-neutral-600 pb-1 text-neutral-300 hover:text-white hover:border-white transition-colors uppercase text-sm">
           {t('home.viewall')}
         </a>
       </div>
@@ -115,10 +110,9 @@ function getPath(path: string) {
 
   <!-- CTA Section -->
   <section class="py-32 px-6 relative overflow-hidden bg-transparent flex items-center justify-center">
-    <div class="absolute inset-0 z-0 aurora-bg opacity-30 pointer-events-none"></div>
     <div class="relative z-10 text-center max-w-2xl mx-auto pl-1" data-aos="zoom-in">
       <h2 class="font-serif text-3xl md:text-5xl font-light mb-8">{t('home.cta.title')}</h2>
-      <a href={getPath('/product')} class="px-10 py-4 bg-white text-black rounded-full font-medium tracking-wide transition-transform hover:scale-105 inline-block shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)]">
+      <a href={getPath('/product')} class="btn btn-primary">
         {t('home.cta.button')}
       </a>
     </div>

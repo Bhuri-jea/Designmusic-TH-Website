@@ -1,12 +1,9 @@
 ---
 import '../styles/global.css';
-import 'aos/dist/aos.css';
 
 import Navbar from '../components/Navbar.svelte';
 import Footer from '../components/Footer.svelte';
-import ColordropBackground from '../components/ui/ColordropBackground.svelte';
-import SumiTimeline from '../components/ui/SumiTimeline.svelte';
-import { getSession } from 'auth-astro/server';
+import { getOptionalSession } from '../lib/server/customer';
 
 interface Props {
   title: string;
@@ -14,19 +11,12 @@ interface Props {
   currentPath?: string;
 }
 
-// 1. Automatically detect language from the URL path if not explicitly provided as a prop.
 const { pathname } = Astro.url;
 const segments = pathname.split('/').filter(Boolean);
-const detectLangFromUrl = ['ja', 'zh-CN', 'th'].includes(segments[0]) ? segments[0] : 'en';
-
-// 2. Destructure props with smart defaults based on your EN default requirement
-const { 
-  title, 
-  lang = detectLangFromUrl as 'en' | 'ja' | 'zh-CN' | 'th', 
-  currentPath = pathname 
-} = Astro.props;
-
-const session = await getSession(Astro.request);
+const detected = ['ja', 'zh-CN', 'th'].includes(segments[0]) ? segments[0] : 'en';
+const { title, lang = detected as Props['lang'], currentPath = pathname } = Astro.props;
+const session = await getOptionalSession(Astro.request);
+const navbarSession = session ? { user: { name: session.user?.name ?? null, image: session.user?.image ?? null } } : null;
 ---
 
 <!doctype html>
@@ -38,49 +28,11 @@ const session = await getSession(Astro.request);
     <link rel="icon" type="image/svg+xml" href="/favicon.png" />
     <meta name="generator" content={Astro.generator} />
     <title>{title} | Design Music</title>
-
-    <!-- Preconnect for faster font loading -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-
-    <!-- Non-render-blocking font load -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Noto+Serif+JP:wght@300;400;500;600&family=Outfit:wght@300;400;500;700&display=swap"
-      rel="stylesheet"
-      media="print"
-      onload="this.media='all'"
-    />
-    <noscript>
-      <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Noto+Serif+JP:wght@300;400;500;600&family=Outfit:wght@300;400;500;700&display=swap"
-        rel="stylesheet"
-      />
-    </noscript>
   </head>
-  <body class="min-h-screen flex flex-col text-white antialiased selection:bg-white/20 relative bg-transparent">
-    <!-- Pure CSS background — no client:load needed -->
-    <ColordropBackground client:load />
-
-    <SumiTimeline client:load />
-    
-    <!-- The layout passes the strictly correct language and path down to Svelte -->
-    <Navbar lang={lang} currentPath={currentPath} session={session} client:load />
-
-    <main class="flex-grow relative z-10 pt-20">
-      <slot />
-    </main>
-
+  <body class="min-h-screen flex flex-col text-white antialiased selection:bg-white/20">
+    <Navbar lang={lang} currentPath={currentPath} session={navbarSession} client:load />
+    <main class="flex-grow relative z-10 pt-20"><slot /></main>
     <Footer />
-
-    <script>
-      import AOS from 'aos';
-      document.addEventListener('DOMContentLoaded', () => {
-        AOS.init({
-          duration: 400,
-          once: true,
-          offset: 100,
-        });
-      });
-    </script>
   </body>
 </html>
+

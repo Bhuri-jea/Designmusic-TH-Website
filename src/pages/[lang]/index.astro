@@ -1,15 +1,11 @@
 ---
 import Home from '../../components/pages/Home.astro';
 import { ui } from '../../i18n/ui';
-
-export function getStaticPaths() {
-  return [
-    { params: { lang: 'ja' } },
-    { params: { lang: 'zh-CN' } },
-    { params: { lang: 'th' } },
-  ];
-}
+import { isSupportedLocale } from '../../lib/server/locales';
 
 const { lang } = Astro.params;
+if (!isSupportedLocale(lang) || lang === 'en') return new Response(null, { status: 404 });
 ---
 <Home lang={lang as keyof typeof ui} />
+
+

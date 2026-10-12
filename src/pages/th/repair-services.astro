@@ -1,5 +1,4 @@
 ---
-import { Check } from 'lucide-svelte';
 import Layout from '../../layouts/Layout.astro';
 ---
 
@@ -26,9 +25,8 @@ import Layout from '../../layouts/Layout.astro';
     </div>
 
     <!-- Image -->
-    <div class="mb-24 rounded-3xl overflow-hidden shadow-2xl h-[400px] relative group border border-white/10" data-aos="zoom-in" data-aos-delay="200">
-      <img src="/images/repair1.jpg" alt="บริการซ่อม" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" />
-      <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+    <div class="mb-24 flex justify-center bg-neutral-950 border border-white/10" data-aos="fade-up" data-aos-delay="200">
+      <img src="/images/repair1.jpg" alt="ช่างกำลังซ่อมเครื่องดนตรีที่โต๊ะทำงาน" class="w-full h-auto object-contain" />
     </div>
 
     <!-- Saxophone Section -->
@@ -57,9 +55,9 @@ import Layout from '../../layouts/Layout.astro';
         </div>
 
         <!-- Standard -->
-        <div class="card bg-white text-black md:scale-105 shadow-[0_0_40px_-10px_rgba(255,255,255,0.2)]" data-aos="fade-up" data-aos-delay="200">
+        <div class="card bg-white text-black" data-aos="fade-up" data-aos-delay="200">
           <div class="card-body relative">
-            <div class="absolute -top-3 right-6 bg-black text-white px-3 py-1 rounded-full text-xs font-medium tracking-widest uppercase border border-white/20">ยอดนิยม</div>
+            <div class="self-end bg-black text-white px-3 py-1 rounded-full text-xs font-medium tracking-widest uppercase border border-white/20">ยอดนิยม</div>
             <h3 class="card-title text-2xl text-black">มาตรฐาน</h3>
             <div class="font-medium text-3xl my-4">เริ่มต้น 3,500 THB</div>
             <ul class="space-y-3 mt-4 flex-grow font-light">

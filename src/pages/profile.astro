@@ -1,6 +1,5 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { User, Mail, Phone, Calendar, ArrowRight, LogOut } from 'lucide-svelte';
 import { getSession } from 'auth-astro/server';
 
 const session = await getSession(Astro.request);
@@ -21,7 +20,14 @@ if (!session) {
           <h1 class="font-serif text-5xl font-light tracking-tight">{session?.user?.name || 'My Profile'}</h1>
         </div>
       </div>
-      <button id="signout-btn" class="btn btn-ghost text-red-400 hover:text-red-300 gap-2"><LogOut class="w-4 h-4" /> Sign Out</button>
+      <button id="signout-btn" class="btn btn-ghost text-red-400 hover:text-red-300 gap-2">
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="w-4 h-4">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M16 17l5-5-5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M21 12H9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+        Sign Out
+      </button>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
@@ -29,20 +35,29 @@ if (!session) {
       <div class="lg:col-span-2 space-y-8" data-aos="fade-up" data-aos-delay="100">
         <div class="bg-neutral-900/60 backdrop-blur-xl border border-white/10 rounded-3xl p-8">
           <h2 class="text-lg font-serif text-white mb-6 border-b border-white/10 pb-4">Personal Information</h2>
-          
+
           <form class="space-y-6">
             <div class="space-y-2">
-              <label for="name" class="text-xs font-medium tracking-widest uppercase text-neutral-400 flex items-center gap-2"><User class="w-4 h-4" /> Full Name</label>
+              <label for="name" class="text-xs font-medium tracking-widest uppercase text-neutral-400 flex items-center gap-2">
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="w-4 h-4"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                Full Name
+              </label>
               <input id="name" type="text" value={session?.user?.name} class="w-full bg-black/50 border border-white/20 rounded-xl p-4 text-white focus:outline-none focus:border-white transition-all" />
             </div>
 
             <div class="space-y-2">
-              <label for="email" class="text-xs font-medium tracking-widest uppercase text-neutral-400 flex items-center gap-2"><Mail class="w-4 h-4" /> Email Address (Google)</label>
+              <label for="email" class="text-xs font-medium tracking-widest uppercase text-neutral-400 flex items-center gap-2">
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="w-4 h-4"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5zm0 0 8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                Email Address
+              </label>
               <input id="email" type="email" value={session?.user?.email} disabled class="w-full bg-black/20 border border-white/10 rounded-xl p-4 text-neutral-500 cursor-not-allowed" />
             </div>
 
             <div class="space-y-2">
-              <label for="phone" class="text-xs font-medium tracking-widest uppercase text-neutral-400 flex items-center gap-2"><Phone class="w-4 h-4" /> Phone Number</label>
+              <label for="phone" class="text-xs font-medium tracking-widest uppercase text-neutral-400 flex items-center gap-2">
+                <svg viewBox="0 0 24 24" aria-hidden="true" class="w-4 h-4"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07A19.5 19.5 0 0 1 3.07 12.8 19.86 19.86 0 0 1 0 4.18 2 2 0 0 1 2 2h3a2 2 0 0 1 2 1.72 12.77 12.77 0 0 0 .7 4.87 2 2 0 0 1-.3 2.23L2.24 10a16 16 0 0 0 11.77 11.77l.18-.18a2 2 0 0 1 2.23-.3 12.77 12.77 0 0 0 4.87.7A2 2 0 0 1 22 16.92z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                Phone Number
+              </label>
               <input id="phone" type="tel" placeholder="+66 123 456 789" class="w-full bg-black/50 border border-white/20 rounded-xl p-4 text-white focus:outline-none focus:border-white transition-all" />
             </div>
 
@@ -56,8 +71,11 @@ if (!session) {
       <!-- Upcoming Appointments -->
       <div data-aos="fade-up" data-aos-delay="200">
         <div class="bg-white/5 border border-white/10 rounded-3xl p-8 sticky top-32">
-          <h2 class="text-lg font-serif text-white mb-6 flex items-center gap-2"><Calendar class="w-5 h-5 opacity-70" /> Appointments</h2>
-          
+          <h2 class="text-lg font-serif text-white mb-6 flex items-center gap-2">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="w-5 h-5"><path d="M7 2v3M17 2v3M3 9h18M5 5h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            Appointments
+          </h2>
+
           <div class="space-y-4">
             <div class="p-4 rounded-xl border border-white/10 bg-black/30">
               <div class="text-xs tracking-widest text-neutral-400 uppercase mb-2">Upcoming</div>
@@ -77,11 +95,12 @@ if (!session) {
 
 <script>
   import { signOut } from 'auth-astro/client';
-  
+
   const btn = document.getElementById('signout-btn');
   if (btn) {
-    btn.addEventListener('click', () => {
-      signOut({ callbackUrl: '/' });
+    btn.addEventListener('click', async () => {
+      await signOut();
+      window.location.href = '/';
     });
   }
 </script>

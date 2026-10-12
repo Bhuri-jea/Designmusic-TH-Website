@@ -8,6 +8,7 @@
   let service = $state('');
   let selectedDate = $state('');
   let selectedTime = $state('');
+  let bookingEmailUrl = $state('');
   
   // Details & Uploads
   let notes = $state('');
@@ -23,6 +24,7 @@
     { name: 'Overhaul (Full restoration)', basePrice: 5000 },
     { name: 'Custom/Assessment', basePrice: 0 }
   ];
+  let availableServices = $derived(instrument === 'Bassoon' ? services.filter(s => !s.name.startsWith('Basic')) : services);
   
   // Calculate estimated price based on service and instrument
   let estimatedPrice = $derived.by(() => {
@@ -33,7 +35,6 @@
     let multiplier = 1;
     if (instrument === 'Saxophone (Tenor)') multiplier = 1.2;
     if (instrument === 'Saxophone (Baritone)') multiplier = 1.5;
-    if (instrument === 'Bassoon') multiplier = 1.3;
     
     const currency = 'THB';
     return `~ ${(srv.basePrice * multiplier).toLocaleString()} ${currency}`;
@@ -58,7 +59,7 @@
     for (let i = 0; i < 14; i++) {
       if (d.getDay() !== 0) { // Skip Sundays
         dates.push({
-          value: d.toISOString().split('T')[0],
+          value: [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-'),
           display: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
         });
       }
@@ -122,17 +123,15 @@ Estimated Price: ${estimatedPrice}
 Condition Notes:
 ${notes}
 
-[Note: Images were attached in the web UI. Requires backend for full sync]
+Photos selected in the form: ${uploadedImages.length}. They are not attached to this email; please attach them manually.
     `);
     
-    window.location.href = `mailto:designmusicthailand@gmail.com?subject=${subject}&body=${body}`;
-    
-    // Show success screen
+  bookingEmailUrl = `mailto:designmusicthailand@gmail.com?subject=${subject}&body=${body}`;
     step = 4;
   }
 </script>
 
-<div class="max-w-3xl mx-auto bg-neutral-900/60 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+<div class="max-w-3xl mx-auto bg-neutral-950 border border-white/10 rounded-md overflow-hidden">
   
   <!-- Progress Header -->
   <div class="flex border-b border-white/10">
@@ -152,7 +151,12 @@ ${notes}
             {#each instruments as inst}
               <button 
                 class={`p-4 text-left rounded-xl border transition-all ${instrument === inst ? 'bg-white text-black border-white' : 'bg-transparent text-neutral-300 border-white/20 hover:border-white/50'}`}
-                onclick={() => instrument = inst}
+                onclick={() => {
+                  if (instrument !== inst) {
+                    instrument = inst;
+                    service = '';
+                  }
+                }}
               >
                 {inst}
               </button>
@@ -163,7 +167,7 @@ ${notes}
         <div>
           <h3 class="font-serif text-2xl text-white mb-4">Required Service</h3>
           <div class="grid grid-cols-1 gap-4">
-            {#each services as srv}
+            {#each availableServices as srv}
               <button 
                 class={`p-4 text-left rounded-xl border transition-all flex justify-between items-center ${service === srv.name ? 'bg-white text-black border-white' : 'bg-transparent text-neutral-300 border-white/20 hover:border-white/50'}`}
                 onclick={() => service = srv.name}
@@ -263,8 +267,8 @@ ${notes}
           {#if uploadedImages.length > 0}
             <div class="flex gap-4 mt-4 overflow-x-auto py-2">
               {#each uploadedImages as img, i}
-                <div class="relative w-20 h-20 shrink-0 rounded-lg overflow-hidden border border-white/20">
-                  <img src={img} alt="Upload preview" class="w-full h-full object-cover" />
+                <div class="relative w-20 h-20 shrink-0 rounded-sm overflow-hidden border border-white/20 bg-neutral-900">
+                  <img src={img} alt="Upload preview" class="w-full h-full object-contain" />
                   <button type="button" class="absolute top-1 right-1 bg-black/60 rounded-full p-1 hover:bg-red-500/80 transition-colors" onclick={() => uploadedImages.splice(i, 1)}>
                     <CheckCircle2 class="w-3 h-3 text-white hidden" /> <!-- We reuse the icon slot for a close or check -->
                     <span class="text-white text-[10px] leading-none block px-1">&times;</span>
@@ -288,25 +292,23 @@ ${notes}
 
         <div class="flex justify-between pt-6">
           <button type="button" class="btn btn-ghost gap-2" onclick={prevStep}><ChevronLeft class="w-4 h-4" /> Back</button>
-          <button type="submit" class="btn btn-primary gap-2">Confirm Booking <CheckCircle2 class="w-4 h-4" /></button>
+          <button type="submit" class="btn btn-primary">Prepare Email</button>
         </div>
       </form>
     {/if}
 
-    <!-- STEP 4: Success -->
+    <!-- STEP 4: Email draft -->
     {#if step === 4}
-      <div class="text-center py-12 space-y-6 animate-in fade-in zoom-in-95 duration-500">
-        <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_40px_-10px_rgba(255,255,255,0.5)]">
-          <CheckCircle2 class="w-10 h-10 text-black" />
-        </div>
-        <h2 class="font-serif text-4xl text-white">Booking Request Sent</h2>
+      <div class="text-center py-12 space-y-6">
+        <h2 class="font-serif text-3xl text-white">Request Ready to Send</h2>
         <p class="text-neutral-400 font-light text-lg max-w-md mx-auto">
-          Thank you for choosing Design Music. Your appointment request and photos have been submitted. We will review and reply to confirm your time slot shortly.
+          Review and send the prepared email to submit your request. Your appointment is not confirmed until we reply. Uploaded photos are not attached; please add them to the email manually.
         </p>
         <div class="pt-8 flex flex-col sm:flex-row gap-4 justify-center">
-          <a href="/profile" class="btn btn-primary tracking-widest uppercase text-sm">View My Appointments</a>
-          <a href="/repair-services" class="btn btn-secondary tracking-widest uppercase text-sm">Return to Services</a>
+          <a href={bookingEmailUrl} class="btn btn-primary">Open Email Draft</a>
+          <a href="/repair-services" class="btn btn-secondary">Return to Services</a>
         </div>
+        <button type="button" class="text-sm text-neutral-400 underline underline-offset-4" onclick={() => step = 3}>Edit Request</button>
       </div>
     {/if}
 

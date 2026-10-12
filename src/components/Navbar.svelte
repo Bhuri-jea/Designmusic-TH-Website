@@ -65,10 +65,10 @@
   }
 </script>
 
-<nav class="fixed top-0 w-full z-50 bg-black/60 backdrop-blur-xl border-b border-white/10 transition-all">
+<nav class="fixed top-0 w-full z-50 bg-neutral-950 border-b border-white/10">
   <div class="max-w-7xl mx-auto px-4 md:px-6 h-20 flex items-center justify-between">
     <div class="flex items-center gap-4">
-      <button class="md:hidden p-2 text-white hover:bg-white/10 rounded-full transition-colors" onclick={toggleMenu}>
+      <button class="md:hidden p-2 text-white hover:bg-white/10 rounded-sm transition-colors" aria-label="Open menu" onclick={toggleMenu}>
         <Menu class="h-6 w-6" />
       </button>
       <a href={getPath('/')} class="text-2xl font-serif tracking-widest text-white hover:text-glow transition-all">
@@ -106,7 +106,7 @@
 
     <div class="flex items-center gap-2">
       <div class="relative">
-        <button class="p-2 text-white hover:bg-white/10 rounded-full transition-colors flex items-center gap-2" onclick={() => isLangOpen = !isLangOpen}>
+        <button class="p-2 text-white hover:bg-white/10 rounded-sm transition-colors flex items-center gap-2" aria-label="Choose language" aria-expanded={isLangOpen} onclick={() => isLangOpen = !isLangOpen}>
           <Globe class="h-5 w-5" />
         </button>
         {#if isLangOpen}
@@ -126,7 +126,7 @@
           <User class="h-5 w-5" />
         {/if}
       </a>
-      <button class="relative p-2 text-white hover:bg-white/10 rounded-full transition-colors" onclick={toggleCart}>
+      <button class="relative p-2 text-white hover:bg-white/10 rounded-sm transition-colors" aria-label="Open cart" onclick={toggleCart}>
         <ShoppingCart class="h-6 w-6" />
         {#if cart.count > 0}
           <span class="absolute top-0 right-0 w-4 h-4 badge-primary text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -139,11 +139,11 @@
 </nav>
 
 {#if isMenuOpen}
-  <div class="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center" transition:fade={{duration: 200}}>
-    <button class="absolute top-6 right-6 p-2 text-white hover:bg-white/10 rounded-full" onclick={toggleMenu}>
+  <div class="fixed inset-0 z-[60] max-h-[100dvh] overflow-y-auto bg-neutral-950 flex flex-col items-center justify-start py-20" transition:fade={{duration: 150}}>
+    <button class="absolute top-6 right-6 p-2 text-white hover:bg-white/10 rounded-sm" aria-label="Close menu" onclick={toggleMenu}>
       <X class="h-8 w-8" />
     </button>
-    <div class="flex flex-col items-center gap-8 text-2xl font-serif tracking-widest uppercase">
+    <div class="flex flex-col items-center gap-8 text-2xl font-serif uppercase">
       <a href={getPath('/about')} class="text-white hover:text-neutral-400" onclick={toggleMenu}>{t('nav.about')}</a>
       <div class="relative text-center">
         <a href={getPath('/product')} class="text-white hover:text-neutral-400" onclick={toggleMenu}>{t('nav.products')}</a>
@@ -165,6 +165,12 @@
       <a href={getPath(session ? '/profile' : '/login')} class="text-white hover:text-neutral-400" onclick={toggleMenu}>
         {session ? 'Profile' : 'Account'}
       </a>
+    </div>
+    <div class="mt-10 flex flex-wrap justify-center gap-x-5 gap-y-2 border-t border-white/10 pt-6 text-sm">
+      <a href={getLangPath('en')} class="text-neutral-300 hover:text-[#c2aa6a]" onclick={toggleMenu}>English</a>
+      <a href={getLangPath('ja')} class="text-neutral-300 hover:text-[#c2aa6a]" onclick={toggleMenu}>日本語</a>
+      <a href={getLangPath('zh-CN')} class="text-neutral-300 hover:text-[#c2aa6a]" onclick={toggleMenu}>中文</a>
+      <a href={getLangPath('th')} class="text-neutral-300 hover:text-[#c2aa6a]" onclick={toggleMenu}>ภาษาไทย</a>
     </div>
   </div>
 {/if}

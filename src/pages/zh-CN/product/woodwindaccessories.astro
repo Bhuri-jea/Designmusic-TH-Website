@@ -1,6 +1,5 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
-import { ArrowLeft, Sparkles, Shield, Zap } from 'lucide-svelte';
 import { products } from '../../../lib/products';
 
 // All products that belong to this category
@@ -11,7 +10,8 @@ const hero = products.find(p => p.slug === 'woodwindaccessories')!;
 <Layout title="木管配件">
   <div class="max-w-7xl mx-auto px-6 py-16 relative z-10">
     <a href="/zh-CN/product" class="inline-flex items-center gap-2 mb-8 text-neutral-400 hover:text-white transition-colors tracking-widest uppercase text-sm border-b border-transparent hover:border-white pb-1">
-      <ArrowLeft class="w-4 h-4" /> 返回产品
+      <svg viewBox="0 0 24 24" aria-hidden="true" class="w-4 h-4"><path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      返回产品
     </a>
 
     <!-- Hero -->
@@ -27,8 +27,8 @@ const hero = products.find(p => p.slug === 'woodwindaccessories')!;
 
         <div class="space-y-8">
           <div class="flex gap-6">
-            <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-              <Zap class="w-5 h-5 text-white opacity-70" />
+            <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-white/70">
+              <svg viewBox="0 0 24 24" aria-hidden="true" class="w-5 h-5"><path d="M13 2L4 13h6l-1 9 9-11h-6l1-9z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></svg>
             </div>
             <div>
               <h3 class="font-serif text-xl text-white mb-2">增强演奏性能</h3>
@@ -36,8 +36,8 @@ const hero = products.find(p => p.slug === 'woodwindaccessories')!;
             </div>
           </div>
           <div class="flex gap-6">
-            <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-              <Shield class="w-5 h-5 text-white opacity-70" />
+            <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-white/70">
+              <svg viewBox="0 0 24 24" aria-hidden="true" class="w-5 h-5"><path d="M12 3l7 3v6c0 4.5-2.8 8.7-7 11-4.2-2.3-7-6.5-7-11V6l7-3zm-1 6h2v4h-2zm0 5h2v2h-2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
             </div>
             <div>
               <h3 class="font-serif text-xl text-white mb-2">乐器护理</h3>
@@ -48,12 +48,8 @@ const hero = products.find(p => p.slug === 'woodwindaccessories')!;
       </div>
 
       <div class="relative" data-aos="fade-left">
-        <div class="aspect-[4/5] rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
-          <img src={hero.heroImage} alt="木管配件" class="w-full h-full object-cover" loading="lazy" />
-        </div>
-        <div class="absolute -bottom-8 -left-8 bg-neutral-900 border border-white/10 p-8 rounded-3xl shadow-2xl hidden md:block max-w-xs">
-          <Sparkles class="w-6 h-6 text-white mb-4 opacity-50" />
-          <p class="text-sm font-light text-neutral-300 italic">"配件不应仅是附加品，而应是音乐之旅中不可或缺的增强。"</p>
+        <div class="aspect-[4/5] flex items-center justify-center rounded-md overflow-hidden border border-white/10 bg-neutral-950">
+          <img src={hero.heroImage} alt="木管配件" class="w-full h-full object-contain" loading="lazy" />
         </div>
       </div>
     </div>
@@ -67,23 +63,22 @@ const hero = products.find(p => p.slug === 'woodwindaccessories')!;
         {accessories.map((acc, i) => (
           <a
             href={`/zh-CN/product/${acc.slug}`}
-            class="group relative overflow-hidden rounded-3xl ikigai-glass"
+            class="card group transition-colors hover:border-white/30"
             data-aos="fade-up"
             data-aos-delay={i * 100}
           >
-            <div class="h-80 overflow-hidden relative">
-              <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10"></div>
-              <img src={acc.thumbnail} alt={acc.name} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" loading="lazy" />
+            <div class="flex h-72 items-center justify-center bg-neutral-900 p-4">
+              <img src={acc.thumbnail} alt={acc.name} class="w-full h-full object-contain" loading="lazy" />
             </div>
-            <div class="absolute bottom-0 left-0 p-8 z-20 w-full">
-              <h2 class="font-serif text-2xl text-white mb-2 group-hover:text-glow transition-all">{acc.name}</h2>
+            <div class="card-body">
+              <h2 class="font-serif text-2xl text-white mb-2">{acc.name}</h2>
               {acc.badge && (
-                <span class="inline-block mb-2 border border-white/40 px-3 py-0.5 rounded-full text-xs tracking-widest uppercase text-neutral-100">{acc.badge}</span>
+                <span class="badge self-start mb-2">{acc.badge}</span>
               )}
-              <p class="text-neutral-200 font-light text-sm mb-6 opacity-75 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500">
+              <p class="text-neutral-400 font-light text-sm mb-6">
                 {acc.shortDesc}
               </p>
-              <span class="inline-block border border-white/20 px-5 py-2 rounded-full text-xs font-medium tracking-widest uppercase text-white hover:bg-white hover:text-black transition-colors">查看详情</span>
+              <span class="mt-auto text-xs font-medium tracking-widest uppercase text-[#c2aa6a]">查看详情</span>
             </div>
           </a>
         ))}

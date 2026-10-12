@@ -41,7 +41,7 @@
     id: `endplug-${selectedType}`,
     name: 'Saxophone End Plug',
     price: currentPrice,
-    image: '/images/endplug1.jpg'
+    image: '/images/endplug2.jpg'
   });
 
   function getLang() {
