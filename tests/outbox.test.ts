@@ -84,3 +84,30 @@ test('dispatcher caps batch and elapsed budget; scheduler requires protected Bea
   assert.equal(ok.status, 200);
   assert.equal(reconciles, 1);
 });
+
+test('Google rejects missing location, non-JSON acknowledgments and byte overflow; stalled transport times out and aborts', async () => {
+ await assert.rejects(sendGoogleReport(payload, n => config[n], async () => new Response(null, { status: 302 })));
+ await assert.rejects(sendGoogleReport(payload, n => config[n], async () => new Response(JSON.stringify({ ok: true, bookingId: id }), { headers: { 'content-type': 'text/html' } })));
+ await assert.rejects(sendGoogleReport(payload, n => config[n], async () => new Response('あ'.repeat(1400), { headers: { 'content-type': 'application/json' } })));
+ let signal: AbortSignal | null = null;
+ await assert.rejects(sendGoogleReport(payload, n => config[n], async (_url, init) => { signal = init!.signal as AbortSignal; return new Promise(() => {}); }, 15), /transport_timeout/);
+ assert.equal(signal!.aborted, true);
+});
+test('email malformed acknowledgment and stale completion ownership never report success', async () => {
+ const f = fixture('booking_buyer');
+ f.deps.fetch = async () => new Response('{"error":"provider failure"}', { headers: { 'content-type': 'application/json' } });
+ assert.equal((await dispatchOutbox(f.deps)).sent, 0);
+ assert.equal(f.calls.some(c => c.name === 'complete_outbox'),false);
+ const g = fixture('booking_google');
+ const original = g.deps.rpc;
+ g.deps.rpc = async <T>(name: string, args: Record<string, unknown>) => { if (name === 'complete_outbox') throw Error('outbox_lease_owner_mismatch'); return original<T>(name,args); };
+ assert.equal((await dispatchOutbox(g.deps)).sent,0);
+ assert.equal(g.calls.some(c => c.name === 'fail_outbox'),true);
+});
+test('scheduler GET is denied and absent cron secret fails closed even with provided bearer', async () => {
+ const f = fixture();
+ assert.equal((await runScheduler(new Request('https://shop.test/api/cron/outbox'), f.deps)).status,405);
+ f.deps.env = () => undefined;
+ assert.equal((await runScheduler(new Request('https://shop.test/api/cron/outbox',{method:'POST',headers:{authorization:'Bearer undefined'}}), f.deps)).status,503);
+ assert.equal(f.calls.length,0);
+});

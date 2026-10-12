@@ -2,11 +2,11 @@
 
 ## Project Commands
 
-- Requires Node `22.x`; install dependencies with `npm install`.
+- Requires Node `22.x`; install locked dependencies with `npm ci --legacy-peer-deps`.
 - Run the site with `npm run dev` and build it with `npm run build`.
 - Preview a production build with `npm run preview`.
 - Run Astro diagnostics with `npm run astro -- check`.
-- No automated test or lint script is currently configured.
+- Run native behavioral tests with `npm test`; no lint script is configured.
 
 ## Architecture
 
@@ -36,8 +36,8 @@
 ## Checkout And Auth
 
 - Checkout is implemented in [checkout.ts](src/pages/api/checkout.ts) and requires `STRIPE_SECRET_KEY` for real Stripe requests.
-- Treat cart-provided names, prices, quantities, options, and image URLs as untrusted input. The current endpoint trusts client prices and hard-codes Stripe currency to THB; preserve or document this limitation rather than treating it as production-safe.
-- Auth uses `auth-astro`; server pages read sessions with `getSession(Astro.request)`. Google OAuth requires the credentials described in [auth.config.ts](auth.config.ts).
+- Treat all browser cart fields as untrusted. Checkout accepts canonical identifiers/options/quantity/locale/request key, derives prices on the server (en/zh-CN USD, ja JPY, th THB), and reserves stock atomically. Only verified Stripe events authorize paid state.
+- Auth uses `auth-astro` and stable Google provider subjects. Customer/admin APIs enforce server ownership/allowlists; `.env.example` documents protected configuration. Stock seeds remain zero until actual counts are known.
 
 ## Change And Validation Rules
 

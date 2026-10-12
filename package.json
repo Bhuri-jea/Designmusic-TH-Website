@@ -3,11 +3,11 @@
   "type": "module",
   "version": "0.0.1",
   "engines": {
-    "node": "22.x"
+    "node": "24.x"
   },
   "scripts": {
-    "dev": "cross-env ASTRO_DISABLE_NODE_VERSION_CHECK=true astro dev",
-    "build": "cross-env ASTRO_DISABLE_NODE_VERSION_CHECK=true astro build",
+    "dev": "astro dev",
+    "build": "astro build",
     "preview": "cross-env ASTRO_DISABLE_NODE_VERSION_CHECK=true astro preview",
     "astro": "astro",
     "test": "node --experimental-strip-types --experimental-test-isolation=none --test tests/*.test.ts"
@@ -34,7 +34,8 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "cross-env": "^10.1.0",
-    "@astrojs/check": "^0.9.10"
+    "@astrojs/check": "^0.9.10",
+    "@emnapi/runtime": "1.10.0",
+    "cross-env": "^10.1.0"
   }
 }

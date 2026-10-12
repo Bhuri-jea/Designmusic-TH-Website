@@ -6,8 +6,8 @@ declare
   lines jsonb := '[{"sku":"endplug-plain","productId":"saxophone-end-plug","variant":"plain","options":{},"quantity":2,"name":"Saxophone End Plug (plain)","unitAmount":1500}]'::jsonb;
   params jsonb;
 begin
-  if (select count(*) from public.inventory) <> 9 or exists (select 1 from public.inventory where on_hand <> 1) then
-    raise exception 'initial inventory should contain nine one-unit SKUs';
+  if (select count(*) from public.inventory) <> 9 or exists (select 1 from public.inventory where on_hand <> 0 or reserved <> 0) then
+    raise exception 'initial inventory should contain nine zero-stock SKUs';
   end if;
   insert into public.customers(google_subject,email,name) values('sql-test-'||gen_random_uuid(),'sql@example.test','SQL test') returning id into c;
   update public.inventory set on_hand=3,reserved=0 where sku='endplug-plain';

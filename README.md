@@ -1,43 +1,39 @@
-# Astro Starter Kit: Minimal
+# Design Music website
 
-```sh
-npm create astro@latest -- --template minimal
+Astro server routes with Svelte 5 interactions and Tailwind CSS 4. English, Japanese, Thai and Simplified Chinese use the existing system fonts and design.
+
+## Local preview
+
+Use Node 24.x. From this project directory:
+
+```powershell
+npm ci --legacy-peer-deps
+Copy-Item .env.example .env
+npm run dev -- --host 127.0.0.1 --port 4322
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+Set a long random AUTH_SECRET in the private .env file, then open http://127.0.0.1:4322/. Match APP_ORIGIN to the exact browser origin. Public pages can be previewed without connecting external providers; missing configuration must not be mistaken for a completed sign-in, booking or payment. Never commit .env or paste service secrets into chat.
 
-## 🚀 Project Structure
+## Verification
 
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+```powershell
+npm test
+npm run astro -- check
+npm run build
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+Tests run native Node validators and orchestration with controlled external transports. SQL acceptance/concurrency scripts under supabase/tests require a disposable PostgreSQL database with the expected Supabase roles; never run fixture scripts against production. Build uses the Vercel server adapter; the Astro preview command alone is not evidence of a deployed server.
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+## Service setup
 
-Any static assets, like images, can be placed in the `public/` directory.
+See [integration setup](docs/integration-setup.md), [booking mirror and mail setup](docs/google-sheets-booking-webhook.md), and the complete server-only variable reference in [.env.example](.env.example).
 
-## 🧞 Commands
+Google subject resolves a stable customer UUID. Supabase stores customer profiles, bookings, orders, inventory and delivery jobs. Canonical server prices are independent USD/JPY/THB values: en/zh-CN charge USD, ja JPY, th THB. Stripe Checkout is one-time card payment, with verified webhook updates. Returning from Stripe does not prove payment.
 
-All commands are run from the root of the project, from a terminal:
+Bookings commit before asynchronous Sheets, Calendar and transactional email delivery. An authenticated POST scheduler handles reporting, email and payment reconciliation. Initial stock is zero until actual counts are entered. The preserved one-each sample in docs/examples is excluded from migrations.
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+Thailand Post's supplied 2022 table is a historical parcel-preparation reference only. It adds no Checkout shipping charge and does not define current worldwide eligibility.
 
-## 👀 Want to learn more?
+## Work status
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+The four requested workflows and acceptance checks are tracked in [website-agent-plan.md](docs/website-agent-plan.md). The detailed implementation ledger is [the integration progress file](docs/superpowers/progress/2026-10-12-website-integration.md). Local code/tests and real external-service verification are recorded separately. No automatic deployment, production migration, live payment or real customer message is part of local setup.

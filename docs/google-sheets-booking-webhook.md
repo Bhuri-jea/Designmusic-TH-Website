@@ -1,0 +1,45 @@
+# Booking mirror and transactional delivery setup
+
+Bookings are confirmed by the database transaction. Google Sheets and Calendar are asynchronous mirrors; an unavailable transport cannot discard a booking. No email or Google request is sent during local setup/tests. Configure and verify real destinations separately before enabling the scheduler.
+
+## Database and booking API
+
+Apply customer migration 001, order/inventory/outbox 002, then `202610120003_bookings.sql` in an owner-approved environment. Explicitly select migration files. The one-unit stock sample now lives under `docs/examples/` and is excluded from migrations: all nine initial stock counts stay zero until actual counts are known.
+
+`POST /api/bookings` accepts same-origin bounded JSON `{requestKey,slot,instrument,service,notes?,locale?}`, with a UUID request key, a UTC ISO start instant, canonical machine IDs, at most 2000 note characters and one of en/ja/zh-CN/th (default en). Google subject resolves ownership; the browser supplies no customer ID or email. SQL independently checks tomorrow through 14 Bangkok calendar days, excludes Sundays, and allows exactly one hour at 10,11,13,14,15,16,17. Bassoon has no Basic service.
+
+Identical request keys return the immutable booking even after date/profile changes; changed input conflicts. `GET /api/booking-availability` returns `{timeZone:'Asia/Bangkok',slots:[{startAt,endAt}]}` and excludes confirmed slots. `GET /api/bookings` or `?booking_id=<UUID>` returns only the signed-in customer's records. Owned responses and errors are private/no-store. Calendar edits never change availability.
+
+## Apps Script
+
+1. Choose a private spreadsheet and a private calendar writable by the Apps Script execution owner. Restrict both destinations to the people who need customer contact data.
+2. Copy `scripts/google-sheets-booking-webhook.gs` into the script project. In **Services**, add the Advanced **Google Calendar API** service with identifier `Calendar`. Enable the Calendar API in the associated Google Cloud project if the project requires it.
+3. Set Script Properties: `BOOKING_REPORT_SECRET` (private random shared secret), `SPREADSHEET_ID`, `CALENDAR_ID`, and optional `SHEET_NAME` (default `Repair Bookings`). The secret is never stored in a sheet row or event.
+4. Authorize destination access as the execution owner. Deploy a web app that **executes as that owner**. Its access setting must permit this server's POST; the request-body shared secret authenticates it because Apps Script does not reliably expose custom request headers. Use a deployment dedicated to these destinations.
+5. Set server-only `GOOGLE_SHEETS_WEBHOOK_URL=https://script.google.com/macros/s/<deployment-id>/exec` and `GOOGLE_SHEETS_WEBHOOK_SECRET` to the same secret. The URL must use HTTPS, exact host/default port, no userinfo/query/fragment, and that deployment path.
+
+The request is exactly `{reportSecret,bookingId,startAt,endAt,timeZone,customer:{name,email,phone},instrument,service,notes}`. A ScriptLock surrounds Sheet upsert and Calendar lookup/insert. Rows are keyed by booking UUID; formula-like customer text is prefixed with an apostrophe. The UUID without hyphens is the deterministic private Calendar event ID. Events contain no attendees and are inserted with `sendUpdates:'none'`. Replays repair either partial destination without another row/event.
+
+The script flushes pending Sheet writes while holding the ScriptLock, before touching Calendar. Only after that flush and both destinations succeed does the script return exactly `{ok:true,bookingId:<same UUID>}`. A flush failure returns `{ok:false}` and leaves Calendar untouched; replay repairs the same booking row/event. Other failures return `{ok:false}` with no private diagnostics. See [Google's lock release guidance](https://developers.google.com/apps-script/reference/lock/lock#releaselock).
+
+Google ContentService normally redirects the response to a one-time content URL. The server accepts direct HTTP 200 JSON or exactly one initial 302/303 to an absolute HTTPS URL on **script.googleusercontent.com**, default port, no userinfo/fragment. It issues a fresh GET without POST body, secret, forwarded headers/cookies/authorization/referer and disallows further redirects. Login redirects, host lookalikes,301/307/308, extra hops, malformed/wrong-ID/extra-key/non-JSON/over 4096-byte acknowledgments fail delivery. The entire Google exchange has a 12-second timeout. Neither secrets nor one-time URLs are logged. This narrow exception follows [Google ContentService redirects](https://developers.google.com/apps-script/guides/content#redirects); event IDs/privacy/sendUpdates follow [Calendar events.insert](https://developers.google.com/workspace/calendar/api/v3/reference/events/insert).
+
+## Resend
+
+Configure server-only `RESEND_API_KEY`, `EMAIL_FROM` (a verified sender or `Name <verified@example.com>`), and `SELLER_EMAIL` (one mailbox). Verify the sender domain in Resend and test with owner-approved dummy recipients before real delivery. The dispatcher uses [Resend's REST email endpoint](https://resend.com/docs/api-reference/emails/send-email), an Authorization bearer token and a stable `Idempotency-Key` equal to the database job's dedupe key.
+
+Buyer and seller messages use immutable booking/order snapshots, HTML escaping, and localized en/ja/zh-CN/th transactional templates. There are no subscriptions or marketing messages. Email requests have a 10-second timeout and require a bounded successful JSON response containing an email ID. Configuration changes must not be used to redirect an uncertain already-sent message to a different account or recipient; resolve ambiguous jobs before changing sender/provider-account/destination settings.
+
+## Authenticated POST scheduler
+
+Configure a separate private `CRON_SECRET`. Use an HTTP scheduler that sends **POST** to `https://<site>/api/cron/outbox` with `Authorization: Bearer <CRON_SECRET>`; a GET-based scheduler alone is incompatible. A five-minute interval is a reasonable starting point. Do not put this header/secret in browser code or URLs. There is no immediate transport side effect from the booking API.
+
+The scheduler first allows payment reconciliation up to 25 seconds, then dispatches at most five outbox jobs within 70 seconds, totaling at most 95 seconds plus response overhead. The hosting route duration must allow this budget (at least 100 seconds); deployment/runtime configuration is a separate release check. Each run gets a fresh UUID lease owner. Task 2 RPCs enforce five-minute leases and reject stale/wrong-owner completion/failure; provider dedupe keys stay stable across lease owners.
+
+Jobs have backoff. Email automatic delivery stops after five claims or 23 hours from first attempt and remains in **review**; Google jobs stop after five claims in **failed**. Missing configuration preserves the booking/job and can eventually require manual review; it does not count as delivery. A timeout may follow an external write: replay repairs Google partials and Resend idempotency bounds email ambiguity, rather than promising globally exactly-once email. Inspect provider delivery and database job state before any manual retry beyond the automatic window.
+
+## Local evidence and external prerequisites
+
+Native tests execute the actual Apps Script in a VM with controlled Sheet/Calendar service doubles, including duplicate requests, formula escaping, partial failure repair and lock failure. Transport tests cover redirects, acknowledgments, byte/time bounds, sanitized failure and worker ownership. SQL acceptance and two-session booking scripts are under `supabase/tests/`; actual PostgreSQL execution is reported separately.
+
+Actual deployed Apps Script connectivity, its consent/scopes/destination permissions, Resend sender/delivery and scheduler authentication/duration remain external verification prerequisites. Keep calendar/spreadsheet access private, leave secrets out of source control, and disable the scheduler while reviewing ambiguous jobs. No production migration, deployment or real customer mail is authorized by this local implementation.
