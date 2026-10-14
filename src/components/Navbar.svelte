@@ -62,7 +62,7 @@
 <nav class="fixed top-0 w-full z-50 bg-neutral-950 border-b border-white/10">
   <div class="max-w-7xl mx-auto px-4 md:px-6 h-20 flex items-center justify-between">
     <div class="flex items-center gap-4">
-      <button class="md:hidden p-2 text-white hover:bg-white/10 rounded-sm transition-colors" bind:this={menuTrigger} aria-label={t('flow.menu')} aria-expanded={isMenuOpen} onclick={toggleMenu}>
+      <button class="md:hidden p-2 text-white hover:bg-white/10 rounded-sm transition-colors" bind:this={menuTrigger} aria-label={t('flow.menu')} aria-expanded={isMenuOpen} onpointerenter={(event) => { if (event.pointerType === 'mouse') isMenuOpen = true; }} onclick={() => isMenuOpen = true}>
         <Menu class="h-6 w-6" />
       </button>
       <a href={getPath('/')} class="text-2xl font-serif tracking-widest text-white hover:text-glow transition-all">
@@ -99,16 +99,18 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <div class="relative">
-        <button class="p-2 text-white hover:bg-white/10 rounded-sm transition-colors flex items-center gap-2" bind:this={languageTrigger} aria-label={t('flow.language')} aria-expanded={isLangOpen} onclick={() => isLangOpen = !isLangOpen}>
+      <div class="relative" role="group" aria-label={t('flow.language')} onpointerenter={(event) => { if (event.pointerType === 'mouse') isLangOpen = true; }} onpointerleave={(event) => { if (event.pointerType === 'mouse') isLangOpen = false; }}>
+        <button class="p-2 text-white hover:bg-white/10 rounded-sm transition-colors flex items-center gap-2" bind:this={languageTrigger} aria-label={t('flow.language')} aria-expanded={isLangOpen} onclick={() => isLangOpen = true}>
           <Globe class="h-5 w-5" />
         </button>
         {#if isLangOpen}
-          <div class="absolute top-full right-0 mt-2 w-40 bg-neutral-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 py-2">
+          <div class="absolute top-full right-0 w-40 pt-2 z-50">
+            <div class="bg-neutral-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-2">
             <a href={getLangPath('en')} class="block w-full text-left px-4 py-3 hover:bg-white/10 text-sm tracking-widest text-white transition-colors" onclick={() => isLangOpen = false}>English</a>
             <a href={getLangPath('ja')} class="block w-full text-left px-4 py-3 hover:bg-white/10 text-sm tracking-widest text-white transition-colors" onclick={() => isLangOpen = false}>日本語</a>
             <a href={getLangPath('zh-CN')} class="block w-full text-left px-4 py-3 hover:bg-white/10 text-sm tracking-widest text-white transition-colors" onclick={() => isLangOpen = false}>中文</a>
             <a href={getLangPath('th')} class="block w-full text-left px-4 py-3 hover:bg-white/10 text-sm tracking-widest text-white transition-colors" onclick={() => isLangOpen = false}>ภาษาไทย</a>
+            </div>
           </div>
         {/if}
       </div>

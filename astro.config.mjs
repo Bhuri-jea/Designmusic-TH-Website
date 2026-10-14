@@ -3,6 +3,9 @@ import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
 import vercel from '@astrojs/vercel';
 import auth from 'auth-astro';
+import { realpathSync } from 'node:fs';
+
+const dependencyPath = realpathSync('node_modules');
 
 export default defineConfig({
   output: 'server',
@@ -14,7 +17,10 @@ export default defineConfig({
   integrations: [svelte(), auth({ injectEndpoints: false })],
   vite: {
     plugins: [tailwindcss()],
-    server: { watch: { ignored: ['**/.runtime/**', '**/.superpowers/**', '**/.vercel/**'] } },
+    server: {
+      fs: { allow: ['.', dependencyPath] },
+      watch: { ignored: ['**/.runtime/**', '**/.superpowers/**', '**/.vercel/**'] },
+    },
   },
   adapter: vercel({ maxDuration: 120 }),
 });
