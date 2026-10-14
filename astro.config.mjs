@@ -16,6 +16,6 @@ export default defineConfig({
     plugins: [tailwindcss()],
     server: { watch: { ignored: ['**/.runtime/**', '**/.superpowers/**', '**/.vercel/**'] } },
   },
-  adapter: vercel(),
+  adapter: vercel({ maxDuration: 120 }),
 });
 

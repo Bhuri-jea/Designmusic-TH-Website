@@ -16,3 +16,14 @@ test('ignores other providers and browser-supplied subject values', () => {
   assert.equal(captureGoogleSubject({} as IdentityToken, { provider: 'github', providerAccountId: 'attacker' }, { googleSubject: 'replace-me' }).googleSubject, undefined);
 });
 
+test('email login replaces a previous Google identity with the verified Supabase ID', () => {
+  const next = captureGoogleSubject({ googleSubject: 'previous-google' }, { provider: 'credentials' }, { id: '12345678-1234-4234-8234-123456789abc' });
+  assert.equal(next.googleSubject, undefined);
+  assert.equal(subjectFromToken(next), 'supabase:12345678-1234-4234-8234-123456789abc');
+  assert.equal(subjectFromToken(captureGoogleSubject(next, { provider: 'google', providerAccountId: 'google-456' })), 'google-456');
+});
+
+test('invalid email identities cannot keep a previous customer identity', () => {
+  assert.equal(subjectFromToken(captureGoogleSubject({ googleSubject: 'previous-google' }, { provider: 'credentials' }, { id: 'email-user' })), undefined);
+});
+

@@ -1,0 +1,26 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import BookingManagementPanel from '../../../components/account/BookingManagementPanel.svelte';
+import { requireCustomer } from '../../../lib/server/customer.ts';
+import { HttpError } from '../../../lib/server/http.ts';
+import { ui } from '../../../i18n/ui';
+import { localizedPath } from '../../../utils/navigation';
+import { isSupportedLocale } from '../../../lib/server/locales';
+
+export const prerender = false;
+
+const requestedLang = Astro.params.lang;
+if (!isSupportedLocale(requestedLang) || requestedLang === 'en') return Astro.redirect('/profile/bookings');
+const lang = requestedLang;
+
+try { await requireCustomer(Astro.request); }
+catch (error) {
+  if (error instanceof HttpError && error.status === 401) {
+    return Astro.redirect(`${localizedPath('/login', lang)}?returnTo=${encodeURIComponent(localizedPath('/profile/bookings', lang))}`);
+  }
+  throw error;
+}
+---
+<Layout title={ui[lang]['booking.manageTitle']} lang={lang}>
+  <BookingManagementPanel lang={lang} client:load />
+</Layout>

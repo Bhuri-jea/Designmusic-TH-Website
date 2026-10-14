@@ -1,0 +1,38 @@
+export const accountCopy = {
+  en: {
+    account: 'Account', login: 'Log in', signup: 'Sign up', welcome: 'Welcome back', create: 'Create your account',
+    intro: 'Manage your appointments, purchases and profile.', signupIntro: 'Sign up with Google or your email address.',
+    name: 'Full name', email: 'Email', password: 'Password', confirm: 'Confirm password', passwordHint: 'Use 12–72 characters.',
+    emailLogin: 'Log in with email', emailSignup: 'Sign up with email', googleLogin: 'Log in with Google', googleSignup: 'Sign up with Google', or: 'or', busy: 'Please wait…',
+    mismatch: 'The passwords do not match.', sent: 'If this address is eligible, check your inbox for a confirmation link, then log in. If you already have an account, use Log in.',
+    invalid: 'Check your email and password. Confirm your email before logging in.', unavailable: 'Unable to connect. Please try again later.', rate: 'Too many attempts. Please wait before trying again.', weak: 'Choose a stronger password.',
+    confirmation: 'After confirming your email, log in below.', separate: 'Use the same sign-in method each time to access your appointments and purchases.',
+  },
+  th: {
+    account: 'บัญชี', login: 'เข้าสู่ระบบ', signup: 'สมัครสมาชิก', welcome: 'ยินดีต้อนรับกลับ', create: 'สร้างบัญชีของคุณ',
+    intro: 'จัดการการนัดหมาย การซื้อ และข้อมูลส่วนตัว', signupIntro: 'สมัครด้วย Google หรืออีเมลของคุณ',
+    name: 'ชื่อและนามสกุล', email: 'อีเมล', password: 'รหัสผ่าน', confirm: 'ยืนยันรหัสผ่าน', passwordHint: 'ใช้ 12–72 ตัวอักษร',
+    emailLogin: 'เข้าสู่ระบบด้วยอีเมล', emailSignup: 'สมัครด้วยอีเมล', googleLogin: 'เข้าสู่ระบบด้วย Google', googleSignup: 'สมัครด้วย Google', or: 'หรือ', busy: 'โปรดรอสักครู่…',
+    mismatch: 'รหัสผ่านไม่ตรงกัน', sent: 'หากอีเมลนี้สามารถสมัครได้ โปรดตรวจสอบกล่องจดหมายและกดลิงก์ยืนยัน แล้วเข้าสู่ระบบ หากมีบัญชีแล้ว ให้เลือกเข้าสู่ระบบ',
+    invalid: 'ตรวจสอบอีเมลและรหัสผ่าน และยืนยันอีเมลก่อนเข้าสู่ระบบ', unavailable: 'ไม่สามารถเชื่อมต่อได้ โปรดลองอีกครั้งภายหลัง', rate: 'ลองหลายครั้งเกินไป โปรดรอก่อนลองใหม่', weak: 'โปรดเลือกรหัสผ่านที่ปลอดภัยยิ่งขึ้น',
+    confirmation: 'หลังยืนยันอีเมลแล้ว กรุณาเข้าสู่ระบบด้านล่าง', separate: 'ใช้วิธีเข้าสู่ระบบเดิมทุกครั้งเพื่อเข้าถึงการนัดหมายและการซื้อของคุณ',
+  },
+  ja: {
+    account: 'アカウント', login: 'ログイン', signup: '新規登録', welcome: 'おかえりなさい', create: 'アカウントを作成',
+    intro: '予約、購入履歴、プロフィールを管理できます。', signupIntro: 'Googleまたはメールアドレスで登録できます。',
+    name: '氏名', email: 'メールアドレス', password: 'パスワード', confirm: 'パスワードの確認', passwordHint: '12〜72文字で入力してください。',
+    emailLogin: 'メールでログイン', emailSignup: 'メールで新規登録', googleLogin: 'Googleでログイン', googleSignup: 'Googleで新規登録', or: 'または', busy: 'お待ちください…',
+    mismatch: 'パスワードが一致しません。', sent: '登録可能な場合は確認メールが届きます。リンクを開いてからログインしてください。登録済みの場合はログインを選んでください。',
+    invalid: 'メールとパスワードを確認してください。ログイン前にメール確認が必要です。', unavailable: '接続できません。しばらくしてから再度お試しください。', rate: '試行回数が多すぎます。少し待ってから再度お試しください。', weak: 'より強力なパスワードを設定してください。',
+    confirmation: 'メール確認後、以下からログインしてください。', separate: '予約と購入履歴にアクセスするには、毎回同じ方法でログインしてください。',
+  },
+  'zh-CN': {
+    account: '账户', login: '登录', signup: '注册', welcome: '欢迎回来', create: '创建账户',
+    intro: '管理预约、购买记录和个人资料。', signupIntro: '使用 Google 或电子邮箱注册。',
+    name: '姓名', email: '电子邮箱', password: '密码', confirm: '确认密码', passwordHint: '请使用 12–72 个字符。',
+    emailLogin: '使用邮箱登录', emailSignup: '使用邮箱注册', googleLogin: '使用 Google 登录', googleSignup: '使用 Google 注册', or: '或', busy: '请稍候…',
+    mismatch: '两次输入的密码不一致。', sent: '如果此邮箱可注册，请查收确认邮件，打开链接后登录。如果已有账户，请选择登录。',
+    invalid: '请检查邮箱和密码，并在登录前确认邮箱。', unavailable: '无法连接，请稍后重试。', rate: '尝试次数过多，请稍后重试。', weak: '请选择更安全的密码。',
+    confirmation: '确认邮箱后，请在下方登录。', separate: '请每次使用相同的登录方式，以访问您的预约和购买记录。',
+  },
+};

@@ -8,7 +8,7 @@
     <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
       
       <div class="md:col-span-2">
-        <h3 class="font-serif tracking-widest uppercase text-2xl mb-4"><span class="font-light">Design</span><span class="font-bold">Music</span></h3>
+        <h3 class="font-serif tracking-widest uppercase text-2xl mb-4"><span class="font-light">Design</span><span class="font-light">Music</span></h3>
         <p class="text-neutral-400 font-light leading-relaxed max-w-sm mb-6">
           Embracing the Japanese philosophy of Kodawari. Uncompromising dedication to crafting perfect sound and joy.
         </p>

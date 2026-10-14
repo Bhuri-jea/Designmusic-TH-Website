@@ -12,13 +12,17 @@ function boundedOption(value: number | undefined, maximum: number): number {
     return Number.isFinite(value) ? Math.max(1, Math.min(maximum, Math.floor(value!))) : maximum;
 }
 
-async function boundedAwait<T>(operation: () => Promise<T>, timeoutMs: number): Promise<T> {
+class ReconciliationTimeout extends Error {
+    readonly limit: 'budget' | 'provider';
+    constructor(limit: 'budget' | 'provider') { super('reconciliation_timeout'); this.limit = limit; }
+}
+async function boundedAwait<T>(operation: () => Promise<T>, timeoutMs: number, limit: 'budget' | 'provider' = 'budget'): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
         return await Promise.race([
             Promise.resolve().then(operation),
             new Promise<never>((_resolve, reject) => {
-                timer = setTimeout(() => reject(new Error('reconciliation_timeout')), timeoutMs);
+                timer = setTimeout(() => reject(new ReconciliationTimeout(limit)), timeoutMs);
             }),
         ]);
     } finally {
@@ -59,7 +63,8 @@ export async function reconcilePayments(deps: PaymentDependencies = paymentDepen
                 p_id: batch[index].id,
             }), remaining());
             if (!order?.checkoutSessionId || !['pending', 'failed'].includes(order.status)) continue;
-            const timeout = Math.min(retrieveTimeoutMs, remaining());
+            const budgetRemaining = remaining();
+            const timeout = Math.min(retrieveTimeoutMs, budgetRemaining);
             if (!timeout) {
                 result.deferred += batch.length - index;
                 break;
@@ -67,7 +72,7 @@ export async function reconcilePayments(deps: PaymentDependencies = paymentDepen
             const session = await boundedAwait(() => deps.stripe(config.key).retrieve(order.checkoutSessionId!, {
                 timeout,
                 maxNetworkRetries: 0,
-            }), timeout);
+            }), timeout, timeout >= budgetRemaining ? 'budget' : 'provider');
             sessionMatches(session, order, config.live);
             result.checked++;
             if (session.status !== 'expired' || session.payment_status === 'paid') continue;
@@ -80,9 +85,13 @@ export async function reconcilePayments(deps: PaymentDependencies = paymentDepen
                 Math.floor(deps.now() / 1000), deps,
             ), remaining());
             result.expired++;
-        } catch {
+        } catch (error) {
             // A timed-out read never authorizes release or fulfillment.
             result.errors++;
+            if (error instanceof ReconciliationTimeout && error.limit === 'budget') {
+                result.deferred += batch.length - index - 1;
+                break;
+            }
         }
     }
     return result;

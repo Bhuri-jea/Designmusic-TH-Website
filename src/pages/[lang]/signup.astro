@@ -1,0 +1,6 @@
+---
+import Account from '../../components/pages/Account.astro';
+const lang = Astro.params.lang;
+if (lang !== 'ja' && lang !== 'th' && lang !== 'zh-CN') return new Response(null, { status: 404 });
+---
+<Account lang={lang} signup />

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const id = '22222222-2222-4222-8222-222222222222';
-const payload = { reportSecret: 'secret', bookingId: id, startAt: '2026-10-13T03:00:00Z', endAt: '2026-10-13T04:00:00Z', timeZone: 'Asia/Bangkok', customer: { name: '=SUM(A1)', email: 'buyer@example.test', phone: '+123' }, instrument: 'alto', service: 'basic', notes: '  @malicious' };
+const payload = { reportSecret: 'secret', bookingId: id, startAt: '2026-10-13T03:00:00Z', endAt: '2026-10-13T04:00:00Z', timeZone: 'Asia/Bangkok', customer: { name: '=SUM(A1)', email: 'buyer@example.test', phone: '+123' }, instrument: 'alto', service: 'basic', notes: '  @malicious', status: 'confirmed', version: 1 };
 function fixture() {
  const rows: unknown[][] = [];
  const pendingRows = new Map<number, unknown[]>();
@@ -22,6 +22,9 @@ function fixture() {
    SpreadsheetApp: { openById: () => ({ getSheetByName: () => sheet, insertSheet: () => sheet }), flush: () => { assert.equal(locked,true); operations.push('flush'); if (flushFails) throw Error('flush failed'); pendingRows.forEach((value, row) => rows[row] = value); pendingRows.clear(); } },
    Calendar: { Events: { get: (_calendar: string, eventId: string) => { assert.equal(locked,true); operations.push('calendar'); if (!events.has(eventId)) throw Error('404 Not Found'); return events.get(eventId); },
      insert: (event: any, calendar: string, options: any) => { assert.equal(locked,true); assert.equal(calendar,'calendar'); assert.equal(options.sendUpdates,'none'); assert.equal(event.visibility,'private'); assert.equal('attendees' in event,false); if(calendarFails) throw Error('calendar failed'); insertions++; events.set(event.id,event); return event; },
+     patch: (event: any, calendar: string, eventId: string, options: any) => { assert.equal(locked,true); assert.equal(calendar,'calendar'); assert.equal(options.sendUpdates,'none'); if(calendarFails) throw Error('calendar failed'); events.set(eventId,{...events.get(eventId),...event}); },
+     delete: (calendar: string, eventId: string, options: any) => { assert.equal(locked,true); assert.equal(calendar,'calendar'); assert.equal(options.sendUpdates,'none'); if(calendarFails) throw Error('calendar failed'); events.delete(eventId); },
+     list: (_calendar: string, options: any) => { assert.equal(locked,true); assert.equal(_calendar,'calendar'); assert.equal(options.singleEvents,true); return { items: Array.from(events.values()) }; },
    } },
  });
  vm.runInContext(readFileSync(new URL('../scripts/google-sheets-booking-webhook.gs', import.meta.url), 'utf8'), context);
@@ -44,6 +47,34 @@ test('Apps Script execution deduplicates sheet/event, escapes formulas and creat
  assert.equal(f.rows.length,2); assert.equal(f.events.size,1); assert.equal(f.insertions,1); assert.equal(f.locked,false);
  assert.equal(f.rows[1][4], "'=SUM(A1)"); assert.equal(f.rows[1][6], "'+123"); assert.equal(f.rows[1][9], "'  @malicious");
  assert.equal(f.events.has(id.replaceAll('-','')),true); assert.equal(JSON.stringify(f.rows).includes('secret'),false);
+});
+
+test('Apps Script versioned reschedules and cancellation update/delete events idempotently', () => {
+ const f=fixture(); assert.equal(f.send().ok,true);
+ const eventId=id.replaceAll('-','');
+ const moved={...payload,startAt:'2026-10-13T04:00:00Z',endAt:'2026-10-13T05:00:00Z',version:2};
+ assert.deepEqual(f.send(moved),{ok:true,bookingId:id});
+ assert.equal(f.events.get(eventId).start.dateTime,moved.startAt);
+ assert.equal(f.events.get(eventId).extendedProperties.private.bookingVersion,'2');
+ const cancelled={...moved,status:'cancelled',version:3};
+ assert.deepEqual(f.send(cancelled),{ok:true,bookingId:id});
+ assert.equal(f.events.has(eventId),false);
+ assert.deepEqual(f.send(cancelled),{ok:true,bookingId:id});
+ assert.deepEqual(f.send(payload),{ok:true,bookingId:id});
+ assert.equal(f.events.has(eventId),false);
+ assert.equal(f.rows[1][10],'cancelled');
+ assert.equal(f.rows[1][11],3);
+});
+
+test('Apps Script availability filters overlapping Calendar events and transparent events', () => {
+ const f=fixture();
+ const blocked={ start:{dateTime:'2026-10-13T03:30:00Z'}, end:{dateTime:'2026-10-13T04:30:00Z'}, status:'confirmed' };
+ const transparent={ start:{dateTime:'2026-10-13T05:00:00Z'}, end:{dateTime:'2026-10-13T06:00:00Z'}, transparency:'transparent' };
+ const allDay={ start:{date:'2026-10-14'}, end:{date:'2026-10-15'}, status:'confirmed' };
+ f.events.set('busy',blocked); f.events.set('free',transparent); f.events.set('all-day',allDay);
+ const slots=[{startAt:'2026-10-13T03:00:00Z',endAt:'2026-10-13T04:00:00Z'},{startAt:'2026-10-13T05:00:00Z',endAt:'2026-10-13T06:00:00Z'},{startAt:'2026-10-14T03:00:00Z',endAt:'2026-10-14T04:00:00Z'}];
+ const result=f.send({reportSecret:'secret',action:'availability',slots});
+ assert.deepEqual(result,{ok:true,availableStartAt:[slots[1].startAt]});
 });
 test('Apps Script acknowledges only both destinations; replay repairs sheet-first and calendar-first partial writes', () => {
  const f=fixture(); f.calendarFails=true; assert.equal(f.send().ok,false); assert.equal(f.rows.length,2); assert.equal(f.events.size,0);

@@ -1,0 +1,65 @@
+import { quoteCart, quoteCartDetails, priceFor, type CartInput, type CartQuote, type Locale } from './catalog.ts';
+type Lot = CartInput & { entryId: string };
+type Attempt = {requestKey:string;locale:Locale;quote:CartQuote;lots:Lot[];orderId?:string;reconciled:boolean};
+export type CartState = {version:1;items:Lot[];attempts:Attempt[]};
+export const CART_STORAGE_KEY='designmusic.cart.v1';
+const MAX_STORAGE_BYTES=1024*1024;
+function bounded(state:CartState):CartState{if(new TextEncoder().encode(JSON.stringify(state)).byteLength>MAX_STORAGE_BYTES)throw Error('storage_limit');return state;}
+const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function canonical(value:unknown):string { if(Array.isArray(value))return `[${value.map(canonical).join(',')}]`; if(value && typeof value==='object')return `{${Object.entries(value).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`${JSON.stringify(k)}:${canonical(v)}`).join(',')}}`; return JSON.stringify(value); }
+export function emptyCart():CartState { return {version:1,items:[],attempts:[]}; }
+function validLot(value:any):value is Lot {
+ if(!value || typeof value!=='object' || Object.keys(value).some(k=>!['entryId','productId','variant','options','quantity'].includes(k)) || !uuid.test(value.entryId) || !Number.isInteger(value.quantity) || value.quantity<1 || value.quantity>10)return false;
+ if(value.productId==='saxophone-end-plug')return priceFor(value.productId,value.variant,'en')!==undefined && (value.options===undefined || value.options && typeof value.options==='object' && !Array.isArray(value.options) && Object.keys(value.options).length===0);
+ return value.productId==='shakuhachi' && (!value.variant || value.variant==='standard') && value.options && typeof value.options==='object' && !Array.isArray(value.options) && Object.keys(value.options).sort().join(',')==='mouthpiece,toneHoles' && ['standard','large'].includes(value.options.toneHoles) && ['balance','traditional','modern'].includes(value.options.mouthpiece);
+}
+export function restoreCart(raw:string|null):CartState {
+ try {
+  if(!raw || new TextEncoder().encode(raw).byteLength>MAX_STORAGE_BYTES)return emptyCart(); const value=JSON.parse(raw);
+  if(value.version!==1 || Object.keys(value).sort().join(',')!=='attempts,items,version' || !Array.isArray(value.items) || value.items.length>100 || !value.items.every(validLot) || new Set(value.items.map((v:Lot)=>v.entryId)).size!==value.items.length || !Array.isArray(value.attempts) || value.attempts.length>30)return emptyCart();
+  if(new Set(value.attempts.map((a:Attempt)=>a.requestKey)).size!==value.attempts.length)return emptyCart();
+  for(const a of value.attempts){
+   if(!a || Object.keys(a).some(k=>!['requestKey','locale','quote','lots','orderId','reconciled'].includes(k)) || !uuid.test(a.requestKey) || !['en','ja','th','zh-CN'].includes(a.locale) || typeof a.reconciled!=='boolean' || a.orderId!==undefined && !uuid.test(a.orderId) || !Array.isArray(a.lots) || !a.lots.length || a.lots.length>100 || !a.lots.every(validLot) || new Set(a.lots.map((lot:Lot)=>lot.entryId)).size!==a.lots.length || !a.quote || Object.keys(a.quote).sort().join(',')!=='currency,fingerprint,lines,totalAmount' || !/^[0-9a-f]{64}$/.test(a.quote.fingerprint))return emptyCart();
+   const expected=quoteCartDetails({items:cartItems({version:1,items:a.lots,attempts:[]}),locale:a.locale});
+   if(canonical({currency:a.quote.currency,lines:a.quote.lines,totalAmount:a.quote.totalAmount})!==canonical(expected))return emptyCart();
+  }
+  cartItems(value); return value;
+ } catch {return emptyCart();}
+}
+function inputKey(item:CartInput):string { return canonical({productId:item.productId,variant:item.productId==='shakuhachi'?'standard':item.variant??'',options:item.options??{}}); }
+export function cartItems(state:CartState):CartInput[] {
+ const items=new Map<string,CartInput>();
+ for(const lot of state.items){const key=inputKey(lot); const quantity=(items.get(key)?.quantity??0)+lot.quantity;if(quantity>10)throw Error('quantity_limit');items.set(key,{productId:lot.productId,...(lot.variant?{variant:lot.variant}:{}),...(lot.options?{options:lot.options}:{}),quantity});}
+ if(items.size>20)throw Error('cart_limit');return [...items.values()];
+}
+export function addCartItem(state:CartState,input:CartInput):CartState {
+ const original={...input,entryId:crypto.randomUUID()};if(!validLot(original) || state.items.length>=100)throw Error('invalid_cart');
+ const lot:Lot={productId:input.productId,variant:input.productId==='shakuhachi'?'standard':input.variant,quantity:input.quantity,entryId:original.entryId,...(input.productId==='shakuhachi'?{options:structuredClone(input.options)}:{})};
+ const next={...state,items:[...state.items,lot]};cartItems(next);return bounded(next);
+}
+export function removeCartItem(state:CartState,input:CartInput):CartState {return {...state,items:state.items.filter(lot=>inputKey(lot)!==inputKey(input))};}
+export async function submitCart(state:CartState,locale:Locale) {
+ state={...state,attempts:state.attempts.filter(a=>!a.reconciled)};
+ const items=cartItems(state);const quote=await quoteCart({items,locale});
+ let attempt=state.attempts.find(a=>!a.reconciled && a.locale===locale && a.quote.fingerprint===quote.fingerprint && canonical(a.lots)===canonical(state.items));
+ if(!attempt){if(state.attempts.length>=30)throw Error('attempt_limit');attempt={requestKey:crypto.randomUUID(),locale,quote,lots:structuredClone(state.items),reconciled:false};state={...state,attempts:[...state.attempts,attempt]};}
+ return {state:bounded(state),request:{requestKey:attempt.requestKey,locale,items}};
+}
+export function mergeCartSubmission(current:CartState,submitted:CartState,requestKey:string):CartState {
+ const attempt=submitted.attempts.find(a=>a.requestKey===requestKey);
+ if(!attempt)throw Error('unknown_submission');
+ if(current.attempts.some(a=>a.requestKey===requestKey))return current;
+ if(current.attempts.length>=30)throw Error('attempt_limit');
+ return bounded({...current,attempts:[...current.attempts,attempt]});
+}
+export function bindOrder(state:CartState,key:string,id:string):CartState {
+ if(!uuid.test(id))throw Error('invalid_order');
+ if(!state.attempts.some(a=>a.requestKey===key && !a.reconciled))throw Error('unknown_submission');
+ return {...state,attempts:state.attempts.map(a=>a.requestKey===key?{...a,orderId:id}:a)};
+}
+export function reconcilePaid(state:CartState,order:any):CartState {
+ const attempt=state.attempts.find(a=>a.orderId===order?.id && !a.reconciled);
+ if(!attempt || order.status!=='paid' || order.currency!==attempt.quote.currency || order.amountTotal!==attempt.quote.totalAmount || canonical(order.items)!==canonical(attempt.quote.lines))return state;
+ const purchased=new Map(attempt.lots.map(lot=>[lot.entryId,lot]));
+ return {...state,items:state.items.map(lot=>({...lot,quantity:Math.max(0,lot.quantity-(purchased.get(lot.entryId) && inputKey(purchased.get(lot.entryId)!)===inputKey(lot)?purchased.get(lot.entryId)!.quantity:0))})).filter(lot=>lot.quantity>0),attempts:state.attempts.map(a=>a===attempt?{...a,reconciled:true}:a)};
+}

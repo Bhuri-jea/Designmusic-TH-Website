@@ -1,327 +1,45 @@
 <script lang="ts">
-  import { Calendar, Clock, PenTool, Image as ImageIcon, ChevronRight, ChevronLeft, CheckCircle2, AlertCircle, UploadCloud } from 'lucide-svelte';
-  import { ui, defaultLang } from '../../i18n/ui';
-
-  // State
-  let step = $state(1);
-  let instrument = $state('');
-  let service = $state('');
-  let selectedDate = $state('');
-  let selectedTime = $state('');
-  let bookingEmailUrl = $state('');
-  
-  // Details & Uploads
-  let notes = $state('');
-  let uploadedImages = $state<string[]>([]); // To hold preview URLs
-  let isDragging = $state(false);
-
-  // Options
-  const instruments = ['Saxophone (Soprano)', 'Saxophone (Alto)', 'Saxophone (Tenor)', 'Saxophone (Baritone)', 'Bassoon', 'Other'];
-  
-  const services = [
-    { name: 'Basic (Pad & Cork adjustment)', basePrice: 1000 },
-    { name: 'Standard (Cleaning & Spring/Pad replacement)', basePrice: 3500 },
-    { name: 'Overhaul (Full restoration)', basePrice: 5000 },
-    { name: 'Custom/Assessment', basePrice: 0 }
-  ];
-  let availableServices = $derived(instrument === 'Bassoon' ? services.filter(s => !s.name.startsWith('Basic')) : services);
-  
-  // Calculate estimated price based on service and instrument
-  let estimatedPrice = $derived.by(() => {
-    if (!service) return null;
-    const srv = services.find(s => s.name === service);
-    if (!srv || srv.basePrice === 0) return 'TBD upon inspection';
-    
-    let multiplier = 1;
-    if (instrument === 'Saxophone (Tenor)') multiplier = 1.2;
-    if (instrument === 'Saxophone (Baritone)') multiplier = 1.5;
-    
-    const currency = 'THB';
-    return `~ ${(srv.basePrice * multiplier).toLocaleString()} ${currency}`;
-  });
-
-  const timeBlocks = [
-    '10:00 - 11:00',
-    '11:00 - 12:00',
-    '13:00 - 14:00',
-    '14:00 - 15:00',
-    '15:00 - 16:00',
-    '16:00 - 17:00',
-    '17:00 - 18:00'
-  ];
-
-  // Helper to get next 14 days for the date picker
-  let availableDates = $derived.by(() => {
-    const dates = [];
-    let d = new Date();
-    d.setDate(d.getDate() + 1); // Start from tomorrow
-    
-    for (let i = 0; i < 14; i++) {
-      if (d.getDay() !== 0) { // Skip Sundays
-        dates.push({
-          value: [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-'),
-          display: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-        });
-      }
-      d.setDate(d.getDate() + 1);
-    }
-    return dates;
-  });
-
-  function nextStep() {
-    if (step === 1 && (!instrument || !service)) return alert('Please select an instrument and service type.');
-    if (step === 2 && (!selectedDate || !selectedTime)) return alert('Please select a date and time slot.');
-    step++;
-  }
-
-  function prevStep() {
-    step--;
-  }
-
-  // Image upload handlers
-  function handleDrop(e: DragEvent) {
-    e.preventDefault();
-    isDragging = false;
-    if (e.dataTransfer?.files) {
-      handleFiles(Array.from(e.dataTransfer.files));
-    }
-  }
-
-  function handleFileInput(e: Event) {
-    const target = e.target as HTMLInputElement;
-    if (target.files) {
-      handleFiles(Array.from(target.files));
-    }
-  }
-
-  function handleFiles(files: File[]) {
-    const validFiles = files.filter(f => f.type.startsWith('image/'));
-    validFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          uploadedImages = [...uploadedImages, e.target.result as string];
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  function handleSubmit(e: Event) {
-    e.preventDefault();
-    
-    // Fallback: Generate a mailto link since there's no backend specified yet
-    const subject = encodeURIComponent(`Repair Booking: ${instrument} - ${service}`);
-    const body = encodeURIComponent(`
-Booking Details:
-Date: ${selectedDate}
-Time: ${selectedTime}
-Instrument: ${instrument}
-Service: ${service}
-Estimated Price: ${estimatedPrice}
-
-Condition Notes:
-${notes}
-
-Photos selected in the form: ${uploadedImages.length}. They are not attached to this email; please attach them manually.
-    `);
-    
-  bookingEmailUrl = `mailto:designmusicthailand@gmail.com?subject=${subject}&body=${body}`;
-    step = 4;
-  }
+ import {onMount,tick} from 'svelte';
+ import {ui} from '../../i18n/ui';
+ import {localizedPath} from '../../utils/navigation';
+ import type {Locale} from '../../lib/catalog';
+ let {lang='en'}=$props<{lang?:Locale}>();
+ const t=(key:string)=>ui[lang][key as keyof typeof ui.en] || ui.en[key as keyof typeof ui.en];
+ let step=$state(1),instrument=$state(''),service=$state(''),selectedDate=$state(''),slot=$state(''),notes=$state(''),status=$state(''),loading=$state(true),pending=$state(false),saved=$state<any>(null);
+ let slots=$state<{startAt:string,endAt:string}[]>([]),availabilitySource=$state('database'),heading=$state<HTMLHeadingElement>();
+ let lastFingerprint='',requestKey='';
+ const instruments=['soprano','alto','tenor','baritone','bassoon','other'];
+ const services=['basic','standard','overhaul','assessment'];
+ const dateKey=(value:string)=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
+ const dateLabel=(value:string)=>new Intl.DateTimeFormat(lang,{timeZone:'Asia/Bangkok',weekday:'short',month:'short',day:'numeric'}).format(new Date(value));
+ const timeLabel=(value:string)=>new Intl.DateTimeFormat(lang,{timeZone:'Asia/Bangkok',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(value));
+ let dates=$derived([...new Map(slots.map(s=>[dateKey(s.startAt),s.startAt])).entries()]);
+ let estimate=$derived((service==='basic'?1000:service==='standard'?3500:service==='overhaul'?5000:0)*(instrument==='tenor'?1.2:instrument==='baritone'?1.5:1));
+ async function availability(){loading=true;try{const res=await fetch('/api/booking-availability',{cache:'no-store'});const data=await res.json();if(!res.ok || data.timeZone!=='Asia/Bangkok' || !Array.isArray(data.slots) || !['database','google-calendar'].includes(data.source))throw Error();slots=data.slots;availabilitySource=data.source;if(slot && !slots.some(s=>s.startAt===slot))slot='';}catch{status=t('booking.calendarSourceError');}finally{loading=false;}}
+ onMount(availability);
+ async function move(next:number){if(next>step && (step===1 && (!instrument || !service) || step===2 && !slot)){status=t('booking.select');return;}status='';step=next;await tick();heading?.focus();}
+ async function submit(){if(pending)return;pending=true;status='';try{const input={slot,instrument,service,notes,locale:lang};const fingerprint=JSON.stringify(input);if(fingerprint!==lastFingerprint){requestKey=crypto.randomUUID();lastFingerprint=fingerprint;}const res=await fetch('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestKey,...input})});const data=await res.json();if(res.status===409){await availability();slot='';step=2;status=t('booking.collision');return;}if(res.status===401){status=t('flow.signInRequired');return;}if(!res.ok || !data.booking?.id || data.booking.status!=='confirmed')throw Error();saved=data.booking;step=4;await tick();heading?.focus();}catch{status=t('flow.failed');}finally{pending=false;}}
 </script>
-
 <div class="max-w-3xl mx-auto bg-neutral-950 border border-white/10 rounded-md overflow-hidden">
-  
-  <!-- Progress Header -->
-  <div class="flex border-b border-white/10">
-    <div class={`flex-1 text-center py-4 text-xs font-medium tracking-widest uppercase transition-colors ${step >= 1 ? 'text-white border-b-2 border-white' : 'text-neutral-500'}`}>1. Service</div>
-    <div class={`flex-1 text-center py-4 text-xs font-medium tracking-widest uppercase transition-colors ${step >= 2 ? 'text-white border-b-2 border-white' : 'text-neutral-500'}`}>2. Time</div>
-    <div class={`flex-1 text-center py-4 text-xs font-medium tracking-widest uppercase transition-colors ${step >= 3 ? 'text-white border-b-2 border-white' : 'text-neutral-500'}`}>3. Details</div>
-  </div>
-
-  <div class="p-8 md:p-12">
-    
-    <!-- STEP 1: Instrument & Service -->
-    {#if step === 1}
-      <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div>
-          <h3 class="font-serif text-2xl text-white mb-4 flex items-center gap-3"><PenTool class="w-6 h-6 opacity-70" /> Select Instrument</h3>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {#each instruments as inst}
-              <button 
-                class={`p-4 text-left rounded-xl border transition-all ${instrument === inst ? 'bg-white text-black border-white' : 'bg-transparent text-neutral-300 border-white/20 hover:border-white/50'}`}
-                onclick={() => {
-                  if (instrument !== inst) {
-                    instrument = inst;
-                    service = '';
-                  }
-                }}
-              >
-                {inst}
-              </button>
-            {/each}
-          </div>
-        </div>
-
-        <div>
-          <h3 class="font-serif text-2xl text-white mb-4">Required Service</h3>
-          <div class="grid grid-cols-1 gap-4">
-            {#each availableServices as srv}
-              <button 
-                class={`p-4 text-left rounded-xl border transition-all flex justify-between items-center ${service === srv.name ? 'bg-white text-black border-white' : 'bg-transparent text-neutral-300 border-white/20 hover:border-white/50'}`}
-                onclick={() => service = srv.name}
-              >
-                <span>{srv.name}</span>
-              </button>
-            {/each}
-          </div>
-        </div>
-
-        <!-- Dynamic Price Estimation -->
-        {#if instrument && service}
-          <div class="p-6 bg-white/5 border border-white/10 rounded-xl mt-8 animate-in fade-in slide-in-from-bottom-2">
-            <div class="flex justify-between items-end mb-3">
-              <span class="text-neutral-400 font-medium tracking-widest uppercase text-xs">{t('booking.estimated')}</span>
-              <span class="text-3xl font-serif text-white">{estimatedPrice}</span>
-            </div>
-            <div class="flex gap-2 text-neutral-500 text-xs font-light bg-black/40 p-3 rounded-lg">
-              <AlertCircle class="w-4 h-4 shrink-0" />
-              <p>Disclaimer: This is an estimated base price. The final repair fee depends strictly on the physical condition of your instrument upon inspection.</p>
-            </div>
-          </div>
-        {/if}
-
-        <div class="flex justify-end pt-6">
-          <button class="btn btn-primary gap-2" onclick={nextStep}>Next Step <ChevronRight class="w-4 h-4" /></button>
-        </div>
-      </div>
-    {/if}
-
-    <!-- STEP 2: Date & Time -->
-    {#if step === 2}
-      <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div>
-          <h3 class="font-serif text-2xl text-white mb-4 flex items-center gap-3"><Calendar class="w-6 h-6 opacity-70" /> Select Date</h3>
-          <div class="flex overflow-x-auto pb-4 gap-3 snap-x scrollbar-hide">
-            {#each availableDates as date}
-              <button 
-                class={`shrink-0 snap-start p-4 w-28 text-center rounded-xl border transition-all ${selectedDate === date.value ? 'bg-white text-black border-white shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)]' : 'bg-transparent text-neutral-300 border-white/20 hover:border-white/50'}`}
-                onclick={() => selectedDate = date.value}
-              >
-                <div class="text-xs uppercase tracking-widest opacity-70 mb-1">{date.display.split(',')[0]}</div>
-                <div class="font-medium">{date.display.split(',')[1]}</div>
-              </button>
-            {/each}
-          </div>
-        </div>
-
-        <div>
-          <h3 class="font-serif text-2xl text-white mb-4 flex items-center gap-3"><Clock class="w-6 h-6 opacity-70" /> Select 1-Hour Time Block</h3>
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {#each timeBlocks as time}
-              <button 
-                class={`p-4 text-center rounded-xl border transition-all ${selectedTime === time ? 'bg-white text-black border-white shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)]' : 'bg-transparent text-neutral-300 border-white/20 hover:border-white/50'}`}
-                onclick={() => selectedTime = time}
-              >
-                {time}
-              </button>
-            {/each}
-          </div>
-        </div>
-
-        <div class="flex justify-between pt-6">
-          <button class="btn btn-ghost gap-2" onclick={prevStep}><ChevronLeft class="w-4 h-4" /> Back</button>
-          <button class="btn btn-primary gap-2" onclick={nextStep}>Next Step <ChevronRight class="w-4 h-4" /></button>
-        </div>
-      </div>
-    {/if}
-
-    <!-- STEP 3: Details & Images -->
-    {#if step === 3}
-      <form class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500" onsubmit={handleSubmit}>
-        
-        <div class="space-y-2">
-          <label for="notes" class="text-xs font-medium tracking-widest uppercase text-neutral-400">Describe the issue / Instrument Condition</label>
-          <textarea id="notes" bind:value={notes} rows="3" class="w-full bg-black/50 border border-white/20 rounded-xl p-4 text-white placeholder-neutral-600 focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all" placeholder="E.g., The low Bb key is sticking and there's a small dent near the bell..."></textarea>
-        </div>
-
-        <!-- Image Upload Drag & Drop -->
-        <div class="space-y-2">
-          <label class="text-xs font-medium tracking-widest uppercase text-neutral-400">Upload Photos of Damage</label>
-          <div 
-            class={`w-full border-2 border-dashed rounded-xl p-8 text-center transition-all ${isDragging ? 'border-white bg-white/10' : 'border-white/20 bg-black/30 hover:border-white/40 hover:bg-black/50'}`}
-            ondragover={(e) => { e.preventDefault(); isDragging = true; }}
-            ondragleave={() => isDragging = false}
-            ondrop={handleDrop}
-          >
-            <UploadCloud class="w-8 h-8 text-neutral-500 mx-auto mb-3" />
-            <p class="text-sm text-neutral-300 mb-1">Drag and drop images here, or</p>
-            <label class="text-sm font-medium text-white cursor-pointer hover:underline">
-              browse your files
-              <input type="file" multiple accept="image/*" class="hidden" onchange={handleFileInput} />
-            </label>
-          </div>
-          
-          <!-- Image Previews -->
-          {#if uploadedImages.length > 0}
-            <div class="flex gap-4 mt-4 overflow-x-auto py-2">
-              {#each uploadedImages as img, i}
-                <div class="relative w-20 h-20 shrink-0 rounded-sm overflow-hidden border border-white/20 bg-neutral-900">
-                  <img src={img} alt="Upload preview" class="w-full h-full object-contain" />
-                  <button type="button" class="absolute top-1 right-1 bg-black/60 rounded-full p-1 hover:bg-red-500/80 transition-colors" onclick={() => uploadedImages.splice(i, 1)}>
-                    <CheckCircle2 class="w-3 h-3 text-white hidden" /> <!-- We reuse the icon slot for a close or check -->
-                    <span class="text-white text-[10px] leading-none block px-1">&times;</span>
-                  </button>
-                </div>
-              {/each}
-            </div>
-          {/if}
-        </div>
-
-        <!-- Summary box -->
-        <div class="p-6 bg-white/5 border border-white/10 rounded-xl mt-8">
-          <h4 class="font-medium tracking-widest uppercase text-xs text-neutral-400 mb-4">Booking Summary</h4>
-          <div class="grid grid-cols-2 gap-y-4 gap-x-2 text-sm font-light">
-            <div><span class="text-neutral-500 block text-[10px] uppercase tracking-widest mb-1">Date & Time</span> <span class="text-white">{selectedDate} <br/> {selectedTime}</span></div>
-            <div><span class="text-neutral-500 block text-[10px] uppercase tracking-widest mb-1">Instrument</span> <span class="text-white">{instrument}</span></div>
-            <div><span class="text-neutral-500 block text-[10px] uppercase tracking-widest mb-1">Service</span> <span class="text-white">{service.split('(')[0]}</span></div>
-            <div><span class="text-neutral-500 block text-[10px] uppercase tracking-widest mb-1">Est. Price</span> <span class="text-white font-medium">{estimatedPrice}</span></div>
-          </div>
-        </div>
-
-        <div class="flex justify-between pt-6">
-          <button type="button" class="btn btn-ghost gap-2" onclick={prevStep}><ChevronLeft class="w-4 h-4" /> Back</button>
-          <button type="submit" class="btn btn-primary">Prepare Email</button>
-        </div>
-      </form>
-    {/if}
-
-    <!-- STEP 4: Email draft -->
-    {#if step === 4}
-      <div class="text-center py-12 space-y-6">
-        <h2 class="font-serif text-3xl text-white">Request Ready to Send</h2>
-        <p class="text-neutral-400 font-light text-lg max-w-md mx-auto">
-          Review and send the prepared email to submit your request. Your appointment is not confirmed until we reply. Uploaded photos are not attached; please add them to the email manually.
-        </p>
-        <div class="pt-8 flex flex-col sm:flex-row gap-4 justify-center">
-          <a href={bookingEmailUrl} class="btn btn-primary">Open Email Draft</a>
-          <a href="/repair-services" class="btn btn-secondary">Return to Services</a>
-        </div>
-        <button type="button" class="text-sm text-neutral-400 underline underline-offset-4" onclick={() => step = 3}>Edit Request</button>
-      </div>
-    {/if}
-
-  </div>
+ <div class="flex border-b border-white/10">{#each ['booking.service','booking.time','booking.details'] as key,index}<div class="flex-1 text-center py-4 text-xs tracking-widest uppercase" class:text-neutral-500={step<index+1}>{index+1}. {t(key)}</div>{/each}</div>
+ <div class="p-6 md:p-10 space-y-6">
+ <h2 bind:this={heading} tabindex="-1" class="font-serif text-2xl">{t(step===1?'booking.service':step===2?'booking.time':step===3?'booking.details':'booking.confirmed')}</h2>
+ {#if step===1}
+ <fieldset><legend class="sr-only">{t('booking.select')}</legend><div class="grid grid-cols-2 sm:grid-cols-3 gap-3">{#each instruments as id}<button class="p-4 border rounded-xl" class:bg-white={instrument===id} class:text-black={instrument===id} aria-pressed={instrument===id} onclick={()=>{instrument=id;service='';}}>{t('booking.'+id)}</button>{/each}</div></fieldset>
+ <fieldset><legend class="mb-3 text-neutral-400">{t('booking.service')}</legend><div class="grid sm:grid-cols-2 gap-3">{#each services.filter(s=>!(instrument==='bassoon' && s==='basic')) as id}<button class="p-4 border rounded-xl text-left" class:bg-white={service===id} class:text-black={service===id} aria-pressed={service===id} onclick={()=>service=id}>{t(id==='assessment'?'booking.assessmentLabel':'booking.'+id)}</button>{/each}</div></fieldset>
+ {#if instrument && service}<p>{t('booking.estimated')}: {estimate?'~ '+estimate.toLocaleString(lang)+' THB':t('booking.assessment')}</p><p class="text-sm text-neutral-400">{t('booking.estimateHelp')}</p>{/if}
+ {:else if step===2}
+ <p class="text-neutral-400">{t(availabilitySource==='google-calendar'?'booking.calendarLinked':'booking.calendarFallback')} · Asia/Bangkok · UTC+7</p>
+ {#if loading}<p role="status">{t('flow.loading')}</p>{:else if !slots.length}<p>{t('booking.none')}</p><button class="btn" onclick={availability}>{t('flow.retry')}</button>{:else}
+ <label for="booking-date" class="block">{t('booking.time')}</label><select id="booking-date" class="select w-full" bind:value={selectedDate} onchange={()=>slot=''}><option value="">—</option>{#each dates as [key,start]}<option value={key}>{dateLabel(start)}</option>{/each}</select>
+ <div class="grid grid-cols-2 gap-3">{#each slots.filter(s=>dateKey(s.startAt)===selectedDate) as available}<button class="p-4 border rounded-xl" class:bg-white={slot===available.startAt} class:text-black={slot===available.startAt} aria-pressed={slot===available.startAt} onclick={()=>slot=available.startAt}>{timeLabel(available.startAt)} – {timeLabel(available.endAt)}</button>{/each}</div>{/if}
+ {:else if step===3}
+ <p>{t('booking.'+instrument)} · {t(service==='assessment'?'booking.assessmentLabel':'booking.'+service)}</p><p>{dateLabel(slot)} · {timeLabel(slot)} · Asia/Bangkok (UTC+7)</p>
+ <label for="booking-notes" class="block">{t('booking.notes')}</label><textarea id="booking-notes" class="textarea w-full min-h-32" maxlength="2000" bind:value={notes}></textarea><p class="text-sm text-neutral-400">{t('booking.photoHelp')}</p>
+ {:else if saved}
+ <p>{t('booking.confirmed')}</p><p class="break-all">{saved.id}</p><p>{dateLabel(saved.startAt)} · {timeLabel(saved.startAt)} – {timeLabel(saved.endAt)} · Asia/Bangkok</p><a class="btn" href={localizedPath('/profile',lang)}>{t('flow.account')}</a>
+ {/if}
+ <p id="booking-status" role="status" class="text-neutral-300">{status}</p>{#if status===t('flow.signInRequired')}<a class="underline" href={localizedPath('/login',lang)+'?returnTo='+encodeURIComponent(localizedPath('/booking',lang))}>{t('flow.login')}</a>{/if}
+ {#if step<4}<div class="flex justify-between gap-4">{#if step>1}<button class="btn btn-ghost" disabled={pending} onclick={()=>move(step-1)}>{t('booking.back')}</button>{/if}<button class="btn btn-primary ml-auto" disabled={pending || loading} aria-describedby="booking-status" onclick={()=>step===3?submit():move(step+1)}>{pending?t('flow.saving'):t(step===3?'booking.confirm':'booking.next')}</button></div>{/if}
+ </div>
 </div>
-
-<style>
-  /* Hide scrollbar for the horizontal date picker */
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-</style>

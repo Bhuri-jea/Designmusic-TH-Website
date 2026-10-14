@@ -7,7 +7,7 @@ import { HttpError } from '../src/lib/server/http.ts';
 import { SupabaseRequestError } from '../src/lib/server/supabase.ts';
 import type { OrderRecord } from '../src/lib/server/order-state.ts';
 const customer = {
-    id: '11111111-1111-4111-8111-111111111111', googleSubject: 'google-1', email: 'buyer@example.test', name: 'Buyer', phone: null
+    id: '11111111-1111-4111-8111-111111111111', googleSubject: 'google-1', email: 'buyer@example.test', name: 'Buyer', phone: null, shippingAddress: null
 };
 const key = '22222222-2222-4222-8222-222222222222';
 const values: Record<string, string> = {
@@ -479,4 +479,16 @@ test('a late provider rejection after timeout stays handled and cannot release s
     await new Promise(resolve=>setTimeout(resolve, 10));
     assert.equal(result.errors, 1);
     assert.equal(f.calls.filter(call=>call.name==='apply_stripe_event').length, 0);
+});
+
+test('a budget-timed-out database read defers remaining rows even if clock reports a fractional remainder', async () => {
+    const f=fixture();
+    await checkout(new Request('https://shop.example.test'),body,f.deps);
+    f.deps.select=async<T>()=>[{id:key},{id:key}] as T[];
+    let reads=0,elapsed=0;
+    f.deps.rpc=async<T>()=>{reads++;elapsed=13.5;return new Promise<T>(()=>{});};
+    const result=await reconcilePayments(f.deps,{budgetMs:15,elapsedNow:()=>elapsed});
+    assert.equal(reads,1);
+    assert.equal(result.errors,1);
+    assert.equal(result.deferred,1);
 });

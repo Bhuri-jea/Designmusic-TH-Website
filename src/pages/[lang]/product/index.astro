@@ -2,6 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import { products } from '../../../lib/products';
 import { isSupportedLocale } from '../../../lib/server/locales';
+import { localizeProduct } from '../../../i18n/products';
 
 export function getStaticPaths() {
   return [
@@ -51,6 +52,7 @@ const translations = {
 };
 
 const copy = translations[lang] ?? translations.en;
+const localizedProducts = allProducts.map(product => localizeProduct(product, lang));
 ---
 
 <Layout title={copy.pageTitle}>
@@ -67,7 +69,7 @@ const copy = translations[lang] ?? translations.en;
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-      {allProducts.map((p, i) => (
+      {localizedProducts.map((p, i) => (
         <a
           href={`/${lang}/product/${p.slug}`}
           class="card group transition-colors hover:border-white/30"
@@ -97,5 +99,3 @@ const copy = translations[lang] ?? translations.en;
     </div>
   </div>
 </Layout>
-
-

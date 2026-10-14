@@ -61,7 +61,9 @@ export const products: ProductDefinition[] = [
     thumbnail: '/images/ShakuhachiPoster2.jpg',
     heroImage: '/images/ShakuhachiPoster1.jpg',
     galleryImages: [
+      '/images/ShakuhachiPoster1.jpg',
       '/images/ShakuhachiPoster2.jpg',
+      '/images/ShakuhachiPoster3.jpg',
     ],
     shortDesc:
       'Resin-crafted Shakuhachi with interchangeable mouthpieces and adjustable pitch control.',
