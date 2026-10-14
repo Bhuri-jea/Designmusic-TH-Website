@@ -16,7 +16,7 @@
     "@astrojs/node": "^10.0.5",
     "@astrojs/svelte": "^8.0.5",
     "@astrojs/vercel": "^10.0.4",
-    "@auth/core": "^0.37.4",
+    "@auth/core": "^0.41.3",
     "@sentry/astro": "^10.53.1",
     "@spotlightjs/astro": "^3.2.6",
     "@stripe/stripe-js": "^9.2.0",
