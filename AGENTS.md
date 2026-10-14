@@ -2,7 +2,7 @@
 
 ## Project Commands
 
-- Requires Node `22.x`; install locked dependencies with `npm ci --legacy-peer-deps`.
+- Requires Node `24.x`; install locked dependencies with `npm ci --legacy-peer-deps`.
 - Run the site with `npm run dev` and build it with `npm run build`.
 - Preview a production build with `npm run preview`.
 - Run Astro diagnostics with `npm run astro -- check`.

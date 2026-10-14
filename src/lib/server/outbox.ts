@@ -20,9 +20,9 @@ async function bounded<T>(operation: (signal: AbortSignal) => Promise<T>, timeou
   })]);
  } finally { clearTimeout(timer); }
 }
-async function boundedJson(response: Response): Promise<unknown> {
+async function boundedJson(response: Response, maxBytes = 4096): Promise<unknown> {
  if (response.status !== 200 || !/^application\/json(?:\s*;|$)/i.test(response.headers.get('content-type') ?? '')) throw Error('transport_response');
- if (Number(response.headers.get('content-length') ?? 0) > 4096) { await response.body?.cancel(); throw Error('transport_response'); }
+ if (Number(response.headers.get('content-length') ?? 0) > maxBytes) { await response.body?.cancel(); throw Error('transport_response'); }
  if (!response.body) throw Error('transport_response');
  const reader = response.body.getReader();
  const chunks: Uint8Array[] = []; let length = 0;
@@ -30,13 +30,34 @@ async function boundedJson(response: Response): Promise<unknown> {
   while (true) {
    const part = await reader.read(); if (part.done) break;
    length += part.value.byteLength;
-   if (length > 4096) { await reader.cancel(); throw Error('transport_response'); }
+   if (length > maxBytes) { await reader.cancel(); throw Error('transport_response'); }
    chunks.push(part.value);
   }
  } finally { reader.releaseLock(); }
  const data = new Uint8Array(length); let offset = 0;
  for (const chunk of chunks) { data.set(chunk, offset); offset += chunk.byteLength; }
  return JSON.parse(new TextDecoder().decode(data));
+}
+async function sendGoogleRequest(body: Record<string, unknown>, env: Env, transport: Fetch, timeoutMs: number, maxResponseBytes: number): Promise<unknown> {
+ const endpoint = googleEndpoint(env('GOOGLE_SHEETS_WEBHOOK_URL'));
+ const secret = env('GOOGLE_SHEETS_WEBHOOK_SECRET');
+ if (!secret) throw new HttpError(503, 'transport_configuration_unavailable');
+ return bounded(async signal => {
+  let response = await transport(endpoint, {
+   method: 'POST', headers: { 'content-type': 'application/json' },
+   body: JSON.stringify({ reportSecret: secret, ...body }),
+   redirect: 'manual', credentials: 'omit', signal,
+  });
+  if (response.status === 302 || response.status === 303) {
+   const location = response.headers.get('location');
+   let target: URL;
+   try { target = new URL(location!); } catch { throw Error('transport_redirect'); }
+   if (!location || target.protocol !== 'https:' || target.hostname !== 'script.googleusercontent.com' || target.port || target.username || target.password || target.hash) throw Error('transport_redirect');
+   await response.body?.cancel();
+   response = await transport(target, { method: 'GET', redirect: 'manual', credentials: 'omit', referrerPolicy: 'no-referrer', signal });
+  }
+  return boundedJson(response, maxResponseBytes);
+ }, Math.min(timeoutMs, 12000));
 }
 function googleEndpoint(value: string | undefined) {
  let url: URL;
@@ -45,24 +66,34 @@ function googleEndpoint(value: string | undefined) {
  return url;
 }
 export async function sendGoogleReport(payload: Record<string, unknown>, env: Env = getEnv, transport: Fetch = fetch, timeoutMs = 12000) {
- const endpoint = googleEndpoint(env('GOOGLE_SHEETS_WEBHOOK_URL'));
+ const ack = await sendGoogleRequest({
+  bookingId: payload.bookingId, startAt: payload.startAt, endAt: payload.endAt,
+  timeZone: 'Asia/Bangkok', customer: payload.customer, instrument: payload.instrument,
+  service: payload.service, notes: payload.notes, status: payload.status ?? 'confirmed',
+  version: payload.version ?? 1,
+ }, env, transport, timeoutMs, 4096);
+ if (!ack || typeof ack !== 'object' || Array.isArray(ack) || Object.keys(ack).sort().join(',') !== 'bookingId,ok' || (ack as { ok?: unknown }).ok !== true || (ack as { bookingId?: unknown }).bookingId !== payload.bookingId) throw Error('transport_acknowledgment');
+}
+
+export type CalendarSlot = { startAt: string; endAt: string };
+export async function filterGoogleCalendarAvailability(slots: CalendarSlot[], env: Env = getEnv, transport: Fetch = fetch): Promise<CalendarSlot[] | null> {
+ const url = env('GOOGLE_SHEETS_WEBHOOK_URL');
  const secret = env('GOOGLE_SHEETS_WEBHOOK_SECRET');
- if (!secret) throw new HttpError(503, 'transport_configuration_unavailable');
- await bounded(async signal => {
-  const body = { reportSecret: secret, bookingId: payload.bookingId, startAt: payload.startAt, endAt: payload.endAt, timeZone: 'Asia/Bangkok', customer: payload.customer, instrument: payload.instrument, service: payload.service, notes: payload.notes };
-  let response = await transport(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), redirect: 'manual', credentials: 'omit', signal });
-  if (response.status === 302 || response.status === 303) {
-   const location = response.headers.get('location');
-   let target: URL;
-   try { target = new URL(location!); } catch { throw Error('transport_redirect'); }
-   if (!location || target.protocol !== 'https:' || target.hostname !== 'script.googleusercontent.com' || target.port || target.username || target.password || target.hash) throw Error('transport_redirect');
-   await response.body?.cancel();
-   // Fresh GET deliberately carries no body, POST headers, cookies or secret to the content host.
-   response = await transport(target, { method: 'GET', redirect: 'manual', credentials: 'omit', referrerPolicy: 'no-referrer', signal });
-  }
-  const ack = await boundedJson(response);
-  if (!ack || typeof ack !== 'object' || Array.isArray(ack) || Object.keys(ack).sort().join(',') !== 'bookingId,ok' || (ack as { ok?: unknown }).ok !== true || (ack as { bookingId?: unknown }).bookingId !== payload.bookingId) throw Error('transport_acknowledgment');
- }, Math.min(12000, timeoutMs));
+ if (!url && !secret) return null;
+ if (!url || !secret) throw new HttpError(503, 'transport_configuration_unavailable');
+ const ack = await sendGoogleRequest({ action: 'availability', slots }, env, transport, 12000, 16384);
+ if (!ack || typeof ack !== 'object' || Array.isArray(ack) ||
+  Object.keys(ack).sort().join(',') !== 'availableStartAt,ok' ||
+  (ack as { ok?: unknown }).ok !== true || !Array.isArray((ack as { availableStartAt?: unknown }).availableStartAt)) {
+  throw Error('transport_acknowledgment');
+ }
+ const requested = new Set(slots.map(slot => slot.startAt));
+ const available = new Set<string>();
+ for (const value of (ack as { availableStartAt: unknown[] }).availableStartAt) {
+  if (typeof value !== 'string' || !requested.has(value) || available.has(value)) throw Error('transport_acknowledgment');
+  available.add(value);
+ }
+ return slots.filter(slot => available.has(slot.startAt));
 }
 async function sendEmail(job: Job, deps: OutboxDependencies, timeoutMs: number) {
  const key = deps.env('RESEND_API_KEY');

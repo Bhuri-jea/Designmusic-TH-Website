@@ -11,7 +11,7 @@ import BookingForm from '../../components/ui/BookingForm.svelte';
     </a>
 
     <div class="text-center mb-16" data-aos="fade-up">
-      <span class="font-serif tracking-[0.2em] text-xs uppercase text-neutral-500 mb-4 block">リピアの予約</span>
+      <span class="font-serif tracking-[0.2em] text-xs uppercase text-neutral-500 mb-4 block">修理のご予約</span>
       <h1 class="font-serif text-5xl md:text-6xl font-light mb-6 tracking-tight">予約 <span class="italic text-neutral-400">する</span></h1>
       <p class="text-lg font-light text-neutral-400 max-w-2xl mx-auto">
         楽器のドロップオフまたは当社の専門家による査定を受けるための便利な1時間のタイムスロットを選択してください。
@@ -19,7 +19,7 @@ import BookingForm from '../../components/ui/BookingForm.svelte';
     </div>
 
     <div data-aos="fade-up" data-aos-delay="100">
-      <BookingForm client:load />
+      <BookingForm lang="ja" client:load />
     </div>
   </div>
 </Layout>

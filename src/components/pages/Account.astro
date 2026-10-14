@@ -1,0 +1,13 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import LoginPanel from '../account/LoginPanel.svelte';
+interface Props { lang?: 'en' | 'ja' | 'th' | 'zh-CN'; signup?: boolean }
+const { lang = 'en', signup = false } = Astro.props;
+const titles = { en: 'Account', ja: 'アカウント', th: 'บัญชี', 'zh-CN': '账户' };
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+---
+<Layout title={titles[lang]} lang={lang}>
+  <div class="max-w-xl mx-auto px-6 py-32 relative z-10 flex flex-col items-center justify-center min-h-[70vh] pl-1">
+    <LoginPanel lang={lang} initialSignup={signup} client:load />
+  </div>
+</Layout>

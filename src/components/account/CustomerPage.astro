@@ -1,0 +1,10 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ProfilePanel from './ProfilePanel.svelte';import OrderPanel from './OrderPanel.svelte';
+import {ui} from '../../i18n/ui';import {getCurrentLang} from '../../utils/navigation';
+interface Props {mode:'profile'|'success'|'cart-cancelled'}
+const {mode}=Astro.props;const lang=getCurrentLang(Astro.url);Astro.response.headers.set('Cache-Control','private, no-store');
+---
+<Layout title={ui[lang][mode==='profile'?'flow.account':'flow.payment']} lang={lang}>
+{mode==='profile'?<ProfilePanel lang={lang} client:load/>:<OrderPanel lang={lang} cancelled={mode==='cart-cancelled'} orderId={Astro.url.searchParams.get('order_id')} client:load/>}
+</Layout>

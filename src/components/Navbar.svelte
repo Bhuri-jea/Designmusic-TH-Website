@@ -1,9 +1,13 @@
 <script lang="ts">
   import { ShoppingCart, Menu, X, Globe, User } from 'lucide-svelte';
   import { cart } from '../store/cart.svelte';
-  import { fade, fly } from 'svelte/transition';
   import { ui, defaultLang } from '../i18n/ui';
+  import { localizeProduct } from '../i18n/products';
   import { products } from '../lib/products';
+  import {onMount} from 'svelte';
+  import {formatPrice,type Locale} from '../lib/catalog';
+  import {localizedPath,switchLocale} from '../utils/navigation';
+  import {runCheckout, CheckoutError} from '../lib/checkout-client';
 
   let { lang = 'en', currentPath = '/', session = null } = $props<{ lang?: keyof typeof ui, currentPath?: string, session?: any }>();
 
@@ -11,54 +15,44 @@
     return ui[lang]?.[key] || ui[defaultLang][key];
   }
 
-  function getPath(path: string) {
-    if (lang === defaultLang) return path;
-    return `/${lang}${path === '/' ? '' : path}`;
-  }
-
-  let isMenuOpen = $state(false);
-  let isLangOpen = $state(false);
-
-  function toggleMenu() { isMenuOpen = !isMenuOpen; }
-  function toggleCart() { cart.isOpen = !cart.isOpen; }
-
-  function getLangPath(newLang: string) {
-    let pathWithoutLang = currentPath;
-    const langs = ['ja', 'zh-CN', 'th'];
-    for (const l of langs) {
-      if (currentPath === `/${l}` || currentPath.startsWith(`/${l}/`)) {
-        pathWithoutLang = currentPath.substring(l.length + 1) || '/';
-        break;
-      }
-    }
-    if (!pathWithoutLang.startsWith('/')) pathWithoutLang = '/' + pathWithoutLang;
-    if (newLang === defaultLang) return pathWithoutLang;
-    return `/${newLang}${pathWithoutLang === '/' ? '' : pathWithoutLang}`;
-  }
-
+  function getPath(path:string){return localizedPath(path,lang as Locale);}
+  function getLangPath(locale:Locale){return switchLocale(currentPath,locale);}
+  let isMenuOpen=$state(false),isLangOpen=$state(false);
+  let menuDialog=$state<HTMLDialogElement>(),cartDialog=$state<HTMLDialogElement>(),languageTrigger=$state<HTMLButtonElement>(),cartTrigger=$state<HTMLButtonElement>(),menuTrigger=$state<HTMLButtonElement>();
+  let checkoutStatus=$state('');
+  let signInRequired=$state(false);
+  function closeMenu(){isMenuOpen=false;menuDialog?.close();menuTrigger?.focus();}
+  function toggleMenu(){if(isMenuOpen)closeMenu();else isMenuOpen=true;}
+  function closeCart(){cart.isOpen=false;cartDialog?.close();cartTrigger?.focus();}
+  function toggleCart(){if(cart.isOpen)closeCart();else cart.isOpen=true;}
+  function optionLabel(key:string,value:string){const token=key==='toneHoles'?`product.tone.${value}`:key==='mouthpiece'?`product.mouth.${value}`:'';return token?ui[lang]?.[token as keyof typeof ui.en]||value:value;}
+  function variantLabel(value:string){const token=value==='twoColor'?'product.endplug.twocolor':value==='plain'?'product.endplug.plain':'product.endplug.custom';return ui[lang]?.[token]||ui.en[token];}
+  onMount(()=>{
+    cart.init(lang as Locale);
+    const onKeydown=(event:KeyboardEvent)=>{if(event.key==='Escape' && isLangOpen){isLangOpen=false;languageTrigger?.focus();}};
+    document.addEventListener('keydown',onKeydown);
+    return ()=>document.removeEventListener('keydown',onKeydown);
+  });
+  $effect(()=>{cart.locale=lang as Locale;});
+  $effect(()=>{if(cart.isOpen && cartDialog && !cartDialog.open){cartDialog.showModal();}if(isMenuOpen && menuDialog && !menuDialog.open){menuDialog.showModal();}if(cart.isOpen || isMenuOpen){const old=document.body.style.overflow;document.body.style.overflow='hidden';return ()=>{document.body.style.overflow=old;};}});
   let isCheckingOut = $state(false);
 
-  function currencyForLang(lang: string) {
-    if (lang === 'th') return 'THB';
-    if (lang === 'ja') return 'JPY';
-    if (lang === 'zh-CN') return 'RMP'; // Tip: Check if you want to use CNY/RMB instead of RMP
-    return 'USD';
-  }
-
   async function handleCheckout() {
+    if (isCheckingOut) return;
+    checkoutStatus='';signInRequired=false;
     isCheckingOut = true;
     try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: cart.items })
-      });
-      const data = await res.json();
-      if (data.url) { window.location.href = data.url; }
-      else { alert(data.error || 'Failed to checkout'); }
+      const url=await runCheckout(cart,lang as Locale);
+      window.location.assign(url);
     } catch (err) {
-      console.error(err);
-      alert('Checkout error');
+      const code=err instanceof CheckoutError?err.code:err instanceof Error?err.message:'';
+      signInRequired=code==='sign_in_required';
+      checkoutStatus=signInRequired?t('flow.signInRequired'):
+        code==='storage_unavailable'||code==='storage_limit'?t('flow.storage'):
+        code==='attempt_limit'?t('flow.attemptLimit'):
+        code==='database_conflict'||code==='invalid_cart'?t('flow.stock'):
+        code==='checkout_requires_review'||code==='checkout_not_active'||code==='checkout_conflict'?t('flow.review'):
+        code==='payment_configuration_unavailable'?t('flow.unavailable'):t('flow.failed');
     } finally {
       isCheckingOut = false;
     }
@@ -68,11 +62,11 @@
 <nav class="fixed top-0 w-full z-50 bg-neutral-950 border-b border-white/10">
   <div class="max-w-7xl mx-auto px-4 md:px-6 h-20 flex items-center justify-between">
     <div class="flex items-center gap-4">
-      <button class="md:hidden p-2 text-white hover:bg-white/10 rounded-sm transition-colors" aria-label="Open menu" onclick={toggleMenu}>
+      <button class="md:hidden p-2 text-white hover:bg-white/10 rounded-sm transition-colors" bind:this={menuTrigger} aria-label={t('flow.menu')} aria-expanded={isMenuOpen} onpointerenter={(event) => { if (event.pointerType === 'mouse') isMenuOpen = true; }} onclick={() => isMenuOpen = true}>
         <Menu class="h-6 w-6" />
       </button>
       <a href={getPath('/')} class="text-2xl font-serif tracking-widest text-white hover:text-glow transition-all">
-        <span class="font-light">Design</span><span class="font-bold">Music</span>
+        <span class="font-light">Design</span><span class="font-light">Music</span>
       </a>
     </div>
 
@@ -81,12 +75,12 @@
 
       <div class="relative group">
         <a href={getPath('/product')} class="text-sm tracking-widest uppercase text-neutral-300 hover:text-white transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1px] after:bg-white hover:after:w-full after:transition-all">{t('nav.products')}</a>
-        <div class="absolute left-0 top-full pt-2 hidden group-hover:block z-50 min-w-[200px]">
+        <div class="absolute left-0 top-full pt-2 hidden group-hover:block group-focus-within:block z-50 min-w-[200px]">
           <div class="bg-neutral-900 border border-white/10 rounded-md shadow-lg overflow-hidden">
             {#each products as p}
               <a href={getPath(`/product/${p.slug}`)} class="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-white/10 transition-colors">
-                <img src={p.thumbnail} alt={p.name} class="w-6 h-6 rounded object-cover shrink-0" loading="lazy" />
-                <span>{p.name}</span>
+                <img src={p.thumbnail} alt={localizeProduct(p, lang as Locale).name} class="w-6 h-6 rounded object-cover shrink-0" loading="lazy" />
+                <span>{localizeProduct(p, lang as Locale).name}</span>
               </a>
             {/each}
           </div>
@@ -95,38 +89,39 @@
 
       <div class="relative group">
         <a href={getPath('/repair-services')} class="text-sm tracking-widest uppercase text-neutral-300 hover:text-white transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1px] after:bg-white hover:after:w-full after:transition-all">{t('nav.services')}</a>
-        <div class="absolute left-0 top-full pt-2 hidden group-hover:block z-50 min-w-[200px]">
+        <div class="absolute left-0 top-full pt-2 hidden group-hover:block group-focus-within:block z-50 min-w-[200px]">
           <div class="bg-neutral-900 border border-white/10 rounded-md shadow-lg overflow-hidden">
-            <a href={getPath('/repair-services')} class="block px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors">Overview</a>
-            <a href={getPath('/booking')} class="block px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors">Book Appointment</a>
+            <a href={getPath('/repair-services')} class="block px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors">{t('nav.services')}</a>
+            <a href={getPath('/booking')} class="block px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors">{t('flow.book')}</a>
           </div>
         </div>
       </div>
     </div>
 
     <div class="flex items-center gap-2">
-      <div class="relative">
-        <button class="p-2 text-white hover:bg-white/10 rounded-sm transition-colors flex items-center gap-2" aria-label="Choose language" aria-expanded={isLangOpen} onclick={() => isLangOpen = !isLangOpen}>
+      <div class="relative" role="group" aria-label={t('flow.language')} onpointerenter={(event) => { if (event.pointerType === 'mouse') isLangOpen = true; }} onpointerleave={(event) => { if (event.pointerType === 'mouse') isLangOpen = false; }}>
+        <button class="p-2 text-white hover:bg-white/10 rounded-sm transition-colors flex items-center gap-2" bind:this={languageTrigger} aria-label={t('flow.language')} aria-expanded={isLangOpen} onclick={() => isLangOpen = true}>
           <Globe class="h-5 w-5" />
         </button>
         {#if isLangOpen}
-          <div class="fixed inset-0 z-40" onclick={() => isLangOpen = false} role="button" tabindex="0" onkeydown={(e) => e.key === 'Escape' && (isLangOpen = false)}></div>
-          <div class="absolute top-full right-0 mt-2 w-40 bg-neutral-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 py-2" transition:fade={{duration: 200}}>
+          <div class="absolute top-full right-0 w-40 pt-2 z-50">
+            <div class="bg-neutral-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-2">
             <a href={getLangPath('en')} class="block w-full text-left px-4 py-3 hover:bg-white/10 text-sm tracking-widest text-white transition-colors" onclick={() => isLangOpen = false}>English</a>
             <a href={getLangPath('ja')} class="block w-full text-left px-4 py-3 hover:bg-white/10 text-sm tracking-widest text-white transition-colors" onclick={() => isLangOpen = false}>日本語</a>
             <a href={getLangPath('zh-CN')} class="block w-full text-left px-4 py-3 hover:bg-white/10 text-sm tracking-widest text-white transition-colors" onclick={() => isLangOpen = false}>中文</a>
             <a href={getLangPath('th')} class="block w-full text-left px-4 py-3 hover:bg-white/10 text-sm tracking-widest text-white transition-colors" onclick={() => isLangOpen = false}>ภาษาไทย</a>
+            </div>
           </div>
         {/if}
       </div>
-      <a href={getPath(session ? '/profile' : '/login')} class="p-2 text-white hover:bg-white/10 rounded-full transition-colors hidden sm:block">
+      <a aria-label={t('flow.account')} href={getPath(session ? '/profile' : '/login')} class="p-2 text-white hover:bg-white/10 rounded-full transition-colors hidden sm:block">
         {#if session?.user?.image}
           <img src={session.user.image} alt="User avatar" class="w-6 h-6 rounded-full" />
         {:else}
           <User class="h-5 w-5" />
         {/if}
       </a>
-      <button class="relative p-2 text-white hover:bg-white/10 rounded-sm transition-colors" aria-label="Open cart" onclick={toggleCart}>
+      <button class="relative p-2 text-white hover:bg-white/10 rounded-sm transition-colors" bind:this={cartTrigger} aria-label={t('flow.cart')} onclick={toggleCart}>
         <ShoppingCart class="h-6 w-6" />
         {#if cart.count > 0}
           <span class="absolute top-0 right-0 w-4 h-4 badge-primary text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -139,8 +134,8 @@
 </nav>
 
 {#if isMenuOpen}
-  <div class="fixed inset-0 z-[60] max-h-[100dvh] overflow-y-auto bg-neutral-950 flex flex-col items-center justify-start py-20" transition:fade={{duration: 150}}>
-    <button class="absolute top-6 right-6 p-2 text-white hover:bg-white/10 rounded-sm" aria-label="Close menu" onclick={toggleMenu}>
+  <dialog bind:this={menuDialog} oncancel={(event)=>{event.preventDefault();closeMenu();}} aria-label={t('flow.menu')} class="fixed inset-0 m-0 w-full max-w-none h-[100dvh] z-[60] max-h-[100dvh] overflow-y-auto bg-neutral-950 flex flex-col items-center justify-start py-20">
+    <button class="absolute top-6 right-6 p-2 text-white hover:bg-white/10 rounded-sm" aria-label={t('flow.close')} onclick={toggleMenu}>
       <X class="h-8 w-8" />
     </button>
     <div class="flex flex-col items-center gap-8 text-2xl font-serif uppercase">
@@ -150,7 +145,7 @@
         <div class="mt-3 flex flex-col space-y-3">
           {#each products as p}
             <a href={getPath(`/product/${p.slug}`)} class="text-lg text-neutral-400 hover:text-white transition-colors" onclick={toggleMenu}>
-              {p.name}
+              {localizeProduct(p, lang as Locale).name}
             </a>
           {/each}
         </div>
@@ -158,12 +153,12 @@
       <div class="relative text-center">
         <a href={getPath('/repair-services')} class="text-white hover:text-neutral-400" onclick={toggleMenu}>{t('nav.services')}</a>
         <div class="mt-3 flex flex-col space-y-3">
-          <a href={getPath('/repair-services')} class="text-lg text-neutral-400 hover:text-white transition-colors" onclick={toggleMenu}>Overview</a>
-          <a href={getPath('/booking')} class="text-lg text-neutral-400 hover:text-white transition-colors" onclick={toggleMenu}>Book Appointment</a>
+          <a href={getPath('/repair-services')} class="text-lg text-neutral-400 hover:text-white transition-colors" onclick={toggleMenu}>{t('nav.services')}</a>
+          <a href={getPath('/booking')} class="text-lg text-neutral-400 hover:text-white transition-colors" onclick={toggleMenu}>{t('flow.book')}</a>
         </div>
       </div>
       <a href={getPath(session ? '/profile' : '/login')} class="text-white hover:text-neutral-400" onclick={toggleMenu}>
-        {session ? 'Profile' : 'Account'}
+        {t('flow.account')}
       </a>
     </div>
     <div class="mt-10 flex flex-wrap justify-center gap-x-5 gap-y-2 border-t border-white/10 pt-6 text-sm">
@@ -172,15 +167,14 @@
       <a href={getLangPath('zh-CN')} class="text-neutral-300 hover:text-[#c2aa6a]" onclick={toggleMenu}>中文</a>
       <a href={getLangPath('th')} class="text-neutral-300 hover:text-[#c2aa6a]" onclick={toggleMenu}>ภาษาไทย</a>
     </div>
-  </div>
+  </dialog>
 {/if}
 
 {#if cart.isOpen}
-  <div class="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm" transition:fade={{duration: 300}} onclick={toggleCart}></div>
-  <div class="fixed top-0 right-0 w-full sm:w-[400px] h-full bg-neutral-950 border-l border-white/10 z-[70] flex flex-col shadow-2xl" transition:fly={{x: 400, duration: 400, opacity: 1}}>
+  <dialog bind:this={cartDialog} oncancel={(event)=>{event.preventDefault();closeCart();}} aria-labelledby="cart-title" class="fixed top-0 right-0 m-0 ml-auto max-h-none w-full sm:w-[400px] h-full bg-neutral-950 border-l border-white/10 z-[70] flex flex-col shadow-2xl">
     <div class="p-6 border-b border-white/10 flex justify-between items-center bg-black/50">
-      <h2 class="font-serif text-2xl tracking-widest uppercase text-white">{t('cart.title')}</h2>
-      <button class="p-2 text-white hover:bg-white/10 rounded-full" onclick={toggleCart}>
+      <h2 id="cart-title" class="font-serif text-2xl tracking-widest uppercase text-white">{t('cart.title')}</h2>
+      <button class="p-2 text-white hover:bg-white/10 rounded-full" aria-label={t('flow.close')} onclick={toggleCart}>
         <X class="h-6 w-6" />
       </button>
     </div>
@@ -194,29 +188,32 @@
       {:else}
         {#each cart.items as item}
           <div class="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col gap-2 relative">
-            <button class="absolute top-4 right-4 text-neutral-400 hover:text-white" onclick={() => cart.remove(item.id, item.options)}>
+            <button class="absolute top-4 right-4 text-neutral-400 hover:text-white" aria-label={t('flow.remove')} onclick={() => cart.remove(item)}>
               <X class="h-4 w-4" />
             </button>
             <h4 class="font-serif text-lg text-white pr-6">{item.name}</h4>
+            {#if item.productId==='saxophone-end-plug' && item.variant}<p class="text-sm text-neutral-400">{variantLabel(item.variant)}</p>{/if}
             {#if item.options}
-              <p class="text-sm text-neutral-400 font-light">{Object.values(item.options).join(', ')}</p>
+              <p class="text-sm text-neutral-400 font-light">{Object.entries(item.options).map(([key,value])=>optionLabel(key,value)).join(', ')}</p>
             {/if}
             <div class="flex justify-between items-center mt-2">
-              <span class="text-white font-medium">{item.price} {currencyForLang(lang)}</span>
-              <span class="text-xs text-neutral-400 bg-white/10 px-2 py-1 rounded-full">Qty: {item.quantity}</span>
+              <span class="text-white font-medium">{formatPrice(item.price,lang as Locale)}</span>
+              <span class="text-xs text-neutral-400 bg-white/10 px-2 py-1 rounded-full">{t('cart.quantity')}: {item.quantity}</span>
             </div>
           </div>
         {/each}
       {/if}
     </div>
 
+    <p class="px-6 text-sm text-neutral-300" role="status">{checkoutStatus || (!cart.storageAvailable?t('flow.storage'):'')}</p>
+    {#if signInRequired}<a class="px-6 underline" href={getPath('/login')}>{t('flow.login')}</a>{/if}
     {#if cart.items.length > 0}
       <div class="p-6 border-t border-white/10 bg-black/50">
         <div class="flex justify-between items-center mb-6 text-xl">
           <span class="font-light tracking-widest uppercase text-neutral-400">{t('cart.total')}</span>
-          <span class="font-serif text-white">{cart.total} {currencyForLang(lang)}</span>
+          <span class="font-serif text-white">{formatPrice(cart.total,lang as Locale)}</span>
         </div>
-        <button class="btn btn-primary w-full disabled:opacity-50 tracking-widest uppercase text-sm font-medium py-4" onclick={handleCheckout} disabled={isCheckingOut}>
+        <button class="btn btn-primary w-full disabled:opacity-50 tracking-widest uppercase text-sm font-medium py-4" onclick={handleCheckout} disabled={isCheckingOut || !cart.storageAvailable}>
           {#if isCheckingOut}
             {t('cart.processing')}
           {:else}
@@ -225,5 +222,6 @@
         </button>
       </div>
     {/if}
-  </div>
+  </dialog>
 {/if}
+<style>dialog::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(4px)}@media(prefers-reduced-motion:reduce){:global(*){transition-duration:0ms!important;animation-duration:0ms!important}}</style>

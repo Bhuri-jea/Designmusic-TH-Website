@@ -3,12 +3,10 @@ import Credentials from '@auth/core/providers/credentials';
 import { defineConfig } from 'auth-astro';
 import { getEnv } from './src/lib/server/env.ts';
 import { captureGoogleSubject } from './src/lib/server/identity.ts';
-
-const emailLoginEmail = getEnv('EMAIL_LOGIN_EMAIL')?.trim().toLowerCase();
-const emailLoginPassword = getEnv('EMAIL_LOGIN_PASSWORD');
-const emailLoginName = getEnv('EMAIL_LOGIN_NAME')?.trim() || 'Design Music Customer';
+import { authenticateEmail } from './src/lib/server/email-auth.ts';
 
 export default defineConfig({
+  session: { strategy: 'jwt', maxAge: 24 * 60 * 60 },
   providers: [
     Google({ clientId: getEnv('GOOGLE_CLIENT_ID') ?? '', clientSecret: getEnv('GOOGLE_CLIENT_SECRET') ?? '' }),
     Credentials({
@@ -18,27 +16,14 @@ export default defineConfig({
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        if (!emailLoginEmail || !emailLoginPassword) return null;
-        const submittedEmail = String(credentials?.email ?? '').trim().toLowerCase();
-        const submittedPassword = String(credentials?.password ?? '');
-
-        if (submittedEmail === emailLoginEmail && submittedPassword === emailLoginPassword) {
-          return {
-            id: 'email-user',
-            name: emailLoginName,
-            email: emailLoginEmail,
-            image: null,
-          };
-        }
-
-        return null;
+        return authenticateEmail(credentials ?? {});
       },
     }),
   ],
   callbacks: {
     jwt: ({ token, account, user }) => {
       const nextToken = captureGoogleSubject(token, account, user);
-      if (user?.email && typeof user.email === 'string' && !nextToken.email) {
+      if (user?.email && typeof user.email === 'string') {
         nextToken.email = user.email;
       }
       return nextToken;
@@ -46,6 +31,7 @@ export default defineConfig({
     session: ({ session, token }) => ({
       ...session,
       googleSubject: typeof token.googleSubject === 'string' ? token.googleSubject : undefined,
+      supabaseSubject: typeof token.supabaseSubject === 'string' ? token.supabaseSubject : undefined,
       user: {
         ...session.user,
         email: session.user?.email ?? (typeof token.email === 'string' ? token.email : undefined),

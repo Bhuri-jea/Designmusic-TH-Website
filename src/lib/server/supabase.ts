@@ -13,16 +13,19 @@ export class SupabaseRequestError extends HttpError {
 
 function supabaseConfig() {
   const url = getEnv('SUPABASE_URL');
-  const key = getEnv('SUPABASE_SERVICE_ROLE_KEY');
+  const key = getEnv('SUPABASE_SECRET_KEY') ?? getEnv('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !key) throw new Error('Supabase server configuration is unavailable');
   return { url: url.replace(/\/$/, ''), key };
 }
 
 async function request<T>(path: string, init: RequestInit): Promise<T> {
   const { url, key } = supabaseConfig();
+  const headers: Record<string, string> = { apikey: key, 'content-type': 'application/json' };
+  // Modern API keys are not JWTs. The gateway resolves their role from apikey.
+  if (!key.startsWith('sb_secret_')) headers.authorization = `Bearer ${key}`;
   const response = await fetch(`${url}/rest/v1/${path}`, {
     ...init,
-    headers: { apikey: key, authorization: `Bearer ${key}`, 'content-type': 'application/json', ...init.headers },
+    headers: { ...headers, ...init.headers },
   });
   if (!response.ok) {
     let code: string | undefined;

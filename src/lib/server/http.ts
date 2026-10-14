@@ -23,9 +23,16 @@ export function errorResponse(error: unknown): Response {
   return jsonResponse({ error: 'service_unavailable' }, 503);
 }
 
-export async function readSameOriginJson(request: Request, maxBytes = MAX_JSON_BYTES): Promise<Record<string, unknown>> {
+export function assertSameOrigin(request: Request): void {
   const origin = request.headers.get('origin');
-  if (!origin || new URL(origin).origin !== new URL(request.url).origin) throw new HttpError(403, 'origin_not_allowed');
+  let matches = false;
+  try { matches = Boolean(origin && new URL(origin).origin === new URL(request.url).origin); }
+  catch { matches = false; }
+  if (!matches) throw new HttpError(403, 'origin_not_allowed');
+}
+
+export async function readSameOriginJson(request: Request, maxBytes = MAX_JSON_BYTES): Promise<Record<string, unknown>> {
+  assertSameOrigin(request);
   if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) throw new HttpError(415, 'json_required');
   const declaredLength = Number(request.headers.get('content-length') ?? 0);
   if (declaredLength > maxBytes) throw new HttpError(413, 'body_too_large');
@@ -54,6 +61,5 @@ export async function readSameOriginJson(request: Request, maxBytes = MAX_JSON_B
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new HttpError(400, 'invalid_profile');
   return body as Record<string, unknown>;
 }
-
 
 

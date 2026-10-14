@@ -1,19 +1,5 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import CustomerPage from '../components/account/CustomerPage.astro';
+export const prerender=false;
 ---
-
-<Layout title="Payment Successful">
-  <div class="max-w-3xl mx-auto px-6 py-40 text-center relative z-10" data-aos="zoom-in">
-    <div class="flex justify-center mb-10">
-      <div class="p-6 rounded-full bg-white/5 border border-white/10 shadow-[0_0_40px_-10px_rgba(255,255,255,0.2)]">
-        <svg viewBox="0 0 24 24" aria-hidden="true" class="w-20 h-20 text-white">
-          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7" />
-          <path d="M8 12.5l2.5 2.5 5.5-6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-      </div>
-    </div>
-    <h1 class="font-serif text-5xl md:text-6xl font-light mb-6 tracking-tight text-glow">Payment <span class="italic text-neutral-400">Successful</span></h1>
-    <p class="text-xl font-light text-neutral-400 mb-12">Thank you for your purchase. We will process your order shortly.</p>
-    <a href="/" class="inline-block px-10 py-4 bg-white text-black font-medium tracking-widest uppercase rounded-full hover:bg-neutral-200 transition-colors shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)]">Return Home</a>
-  </div>
-</Layout>
+<CustomerPage mode="success"/>

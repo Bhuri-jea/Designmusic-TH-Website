@@ -20,7 +20,7 @@ function stable(value: unknown): string {
   return JSON.stringify(value);
 }
 
-export async function quoteCart({ items, locale }: { items: unknown; locale: unknown }): Promise<CartQuote> {
+export function quoteCartDetails({ items, locale }: { items: unknown; locale: unknown }): Omit<CartQuote, 'fingerprint'> {
   if (typeof locale !== 'string' || !Object.hasOwn(currencyByLocale, locale)) throw new Error('Unsupported locale');
   if (!Array.isArray(items) || items.length < 1 || items.length > 20) throw new Error('Cart must contain 1 to 20 rows');
   const currency = currencyByLocale[locale as Locale];
@@ -49,6 +49,11 @@ export async function quoteCart({ items, locale }: { items: unknown; locale: unk
   const lines = [...combined.values()].sort((a, b) => a.sku.localeCompare(b.sku));
   const totalAmount = lines.reduce((sum, line) => sum + line.unitAmount * line.quantity, 0);
   if (!Number.isSafeInteger(totalAmount)) throw new Error('Cart total exceeds safe integer range');
+  return { currency, lines, totalAmount };
+}
+
+export async function quoteCart(input: {items:unknown;locale:unknown}):Promise<CartQuote> {
+  const {currency,lines,totalAmount}=quoteCartDetails(input);
   const canonical = stable({ currency, lines });
   const digest = await globalThis.crypto.subtle.digest('SHA-256', encoder.encode(canonical));
   const fingerprint = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');

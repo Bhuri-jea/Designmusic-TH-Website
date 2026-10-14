@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sendGoogleReport, dispatchOutbox, runScheduler, type OutboxDependencies } from '../src/lib/server/outbox.ts';
+import { filterGoogleCalendarAvailability, sendGoogleReport, dispatchOutbox, runScheduler, type OutboxDependencies } from '../src/lib/server/outbox.ts';
 import { notification } from '../src/lib/server/notifications.ts';
 const id = '22222222-2222-4222-8222-222222222222';
 const payload = { bookingId: id, startAt: '2026-10-13T03:00:00Z', endAt: '2026-10-13T04:00:00Z', timeZone: 'Asia/Bangkok', customer: { name: '<Name>', email: 'buyer@example.test', phone: '=123' }, instrument: 'alto', service: 'basic', notes: '<script>bad</script>', locale: 'ja', recipient: 'buyer@example.test' };
@@ -28,6 +28,23 @@ test('Google rejects untrusted redirects, additional hops and malformed/oversize
     await assert.rejects(sendGoogleReport(payload, n => config[n], async () => new Response(body, { headers: { 'content-type': 'application/json' } })));
   for (const endpoint of ['https://script.google.com/macros/s/x/exec?secret=bad', 'https://script.google.com:444/macros/s/x/exec', 'https://script.google.com.evil.test/macros/s/x/exec'])
     await assert.rejects(sendGoogleReport(payload, n => n === 'GOOGLE_SHEETS_WEBHOOK_URL' ? endpoint : config[n], async () => ack()));
+});
+test('Calendar availability sends bounded private requests and accepts only requested unique slot IDs', async () => {
+  const slots = [
+    { startAt: '2026-10-13T03:00:00.000Z', endAt: '2026-10-13T04:00:00.000Z' },
+    { startAt: '2026-10-13T04:00:00.000Z', endAt: '2026-10-13T05:00:00.000Z' },
+  ];
+  let sent: Record<string, unknown> = {};
+  const available = await filterGoogleCalendarAvailability(slots, n => config[n], async (_url, init) => {
+    sent = JSON.parse(String(init?.body));
+    return new Response(JSON.stringify({ ok: true, availableStartAt: [slots[1].startAt] }), { headers: { 'content-type': 'application/json' } });
+  });
+  assert.deepEqual(available, [slots[1]]);
+  assert.deepEqual(sent, { reportSecret: 'secret', action: 'availability', slots });
+  for (const values of [[slots[0].startAt, slots[0].startAt], ['unrequested']]) {
+    await assert.rejects(filterGoogleCalendarAvailability(slots, n => config[n], async () =>
+      new Response(JSON.stringify({ ok: true, availableStartAt: values }), { headers: { 'content-type': 'application/json' } })));
+  }
 });
 function fixture(topic = 'booking_google') {
   const calls: { name: string; args: Record<string, unknown> }[] = [];

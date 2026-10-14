@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "cross-env ASTRO_DISABLE_NODE_VERSION_CHECK=true astro preview",
+    "preview": "astro preview",
     "astro": "astro",
     "test": "node --experimental-strip-types --experimental-test-isolation=none --test tests/*.test.ts"
   },

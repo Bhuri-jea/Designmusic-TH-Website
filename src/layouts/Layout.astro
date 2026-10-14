@@ -14,7 +14,7 @@ interface Props {
 const { pathname } = Astro.url;
 const segments = pathname.split('/').filter(Boolean);
 const detected = ['ja', 'zh-CN', 'th'].includes(segments[0]) ? segments[0] : 'en';
-const { title, lang = detected as Props['lang'], currentPath = pathname } = Astro.props;
+const { title, lang = detected as Props['lang'], currentPath = pathname + Astro.url.search } = Astro.props;
 const session = await getOptionalSession(Astro.request);
 const navbarSession = session ? { user: { name: session.user?.name ?? null, image: session.user?.image ?? null } } : null;
 ---

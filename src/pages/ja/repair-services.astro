@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
 ---
 
 <Layout title="修理サービス">
@@ -10,6 +11,7 @@ import Layout from '../../layouts/Layout.astro';
         台湾での集中的な修理研修と10年以上の実務経験を積み重ねた専門知識を活かし、各楽器の音色、レスポンス、個性を引き出すための修理に尽力しています。
       </p>
     </div>
+    <RepairAvailability lang="ja" client:load />
 
     <!-- Alert / Notice -->
     <div class="alert shadow-lg max-w-2xl mx-auto mb-16" data-aos="fade-up" data-aos-delay="100">

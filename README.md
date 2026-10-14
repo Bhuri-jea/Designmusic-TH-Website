@@ -26,7 +26,7 @@ Tests run native Node validators and orchestration with controlled external tran
 
 ## Service setup
 
-See [integration setup](docs/integration-setup.md), [booking mirror and mail setup](docs/google-sheets-booking-webhook.md), and the complete server-only variable reference in [.env.example](.env.example).
+Start with the [installation and Vercel deployment manual](docs/deployment-manual.md). See [integration setup](docs/integration-setup.md), [booking mirror and mail setup](docs/google-sheets-booking-webhook.md), and the complete server-only variable reference in [.env.example](.env.example).
 
 Google subject resolves a stable customer UUID. Supabase stores customer profiles, bookings, orders, inventory and delivery jobs. Canonical server prices are independent USD/JPY/THB values: en/zh-CN charge USD, ja JPY, th THB. Stripe Checkout is one-time card payment, with verified webhook updates. Returning from Stripe does not prove payment.
 
