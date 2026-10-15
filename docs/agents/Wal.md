@@ -17,6 +17,8 @@ Keep the website buildable, previewable and deployable. Handle focused implement
 
 ## Verification and reporting
 
+Investigate the owner's 2026-10-15 Vercel build messages recorded in [vercel-build-warnings-2026-10-15.md](../vercel-build-warnings-2026-10-15.md). These include a repeated npm `cache-dir` warning, a Sentry CLI install-script warning, and an Astro dynamic-route warning. Confirm the deployment's final status, fix root causes where needed, and report fresh build evidence to Pete.
+
 For production-facing changes, run `npm run astro -- check`, then `npm run build`. Check the smallest meaningful browser flow and preview. Use test-mode payments and dummy customer data for integration checks. Report changed files, commands and results, visible preview, unverified external settings and risks. Preserve the extensive uncommitted work in this repository.
 
 Do not start website implementation until the owner reviews and approves these agent briefs and the work plan.
