@@ -92,7 +92,6 @@
     <section class="bg-white/5 border border-white/10 rounded-3xl p-6">
      <h2 class="font-serif text-2xl">{instrumentLabel(booking)} · {serviceLabel(booking)}</h2>
      <p class="text-neutral-300 mt-2">{dateTime(booking.startAt)} · Asia/Bangkok (UTC+7)</p>
-     <p class="text-xs text-neutral-500 break-all mt-2">{booking.id}</p>
      <div class="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
       <label class="sr-only" for={`slot-${booking.id}`}>{t('booking.time')}</label>
       <select id={`slot-${booking.id}`} class="select w-full" bind:value={selected[booking.id]} disabled={pending === booking.id}>
