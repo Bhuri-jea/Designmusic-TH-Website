@@ -35,7 +35,7 @@
  <div class="grid grid-cols-2 gap-3">{#each slots.filter(s=>dateKey(s.startAt)===selectedDate) as available}<button class="p-4 border rounded-xl" class:bg-white={slot===available.startAt} class:text-black={slot===available.startAt} aria-pressed={slot===available.startAt} onclick={()=>slot=available.startAt}>{timeLabel(available.startAt)} – {timeLabel(available.endAt)}</button>{/each}</div>{/if}
  {:else if step===3}
  <p>{t('booking.'+instrument)} · {t(service==='assessment'?'booking.assessmentLabel':'booking.'+service)}</p><p>{dateLabel(slot)} · {timeLabel(slot)} · Asia/Bangkok (UTC+7)</p>
- <label for="booking-notes" class="block">{t('booking.notes')}</label><textarea id="booking-notes" class="textarea w-full min-h-32" maxlength="2000" bind:value={notes}></textarea><p class="text-sm text-neutral-400">{t('booking.photoHelp')}</p>
+ <label for="booking-notes" class="block">{t('booking.notes')}</label><textarea id="booking-notes" class="booking-notes w-full min-h-32" maxlength="2000" bind:value={notes}></textarea><p class="text-sm text-neutral-400">{t('booking.photoHelp')}</p>
  {:else if saved}
  <p>{t('booking.confirmed')}</p><p class="break-all">{saved.id}</p><p>{dateLabel(saved.startAt)} · {timeLabel(saved.startAt)} – {timeLabel(saved.endAt)} · Asia/Bangkok</p><a class="btn" href={localizedPath('/profile/bookings',lang)}>{t('flow.manageBookings')}</a>
  {/if}
@@ -64,5 +64,21 @@
  .booking-date-select:focus-visible {
   outline: 2px solid #c2aa6a;
   outline-offset: 2px;
+ }
+
+ .booking-notes {
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #728084;
+  border-radius: 0.5rem;
+  background: #282e30;
+  color: #f1eee4;
+  color-scheme: dark;
+  resize: vertical;
+ }
+
+ .booking-notes:focus-visible {
+  outline: 2px solid #c2aa6a;
+  outline-offset: 2px;
+  border-color: #c2aa6a;
  }
 </style>
