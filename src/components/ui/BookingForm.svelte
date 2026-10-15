@@ -31,7 +31,7 @@
  {:else if step===2}
  <p class="text-neutral-400">{t(availabilitySource==='google-calendar'?'booking.calendarLinked':'booking.calendarFallback')} · Asia/Bangkok · UTC+7</p>
  {#if loading}<p role="status">{t('flow.loading')}</p>{:else if availabilityFailed}<p role="alert">{t('booking.calendarSourceError')}</p><button class="btn" onclick={availability}>{t('flow.retry')}</button>{:else if !slots.length}<p>{t('booking.none')}</p><button class="btn" onclick={availability}>{t('flow.retry')}</button>{:else}
- <label for="booking-date" class="block">{t('booking.time')}</label><select id="booking-date" class="select w-full" bind:value={selectedDate} onchange={()=>slot=''}><option value="">—</option>{#each dates as [key,start]}<option value={key}>{dateLabel(start)}</option>{/each}</select>
+ <label for="booking-date" class="block">{t('booking.time')}</label><select id="booking-date" class="booking-date-select" bind:value={selectedDate} onchange={()=>slot=''}><option value="">—</option>{#each dates as [key,start]}<option value={key}>{dateLabel(start)}</option>{/each}</select>
  <div class="grid grid-cols-2 gap-3">{#each slots.filter(s=>dateKey(s.startAt)===selectedDate) as available}<button class="p-4 border rounded-xl" class:bg-white={slot===available.startAt} class:text-black={slot===available.startAt} aria-pressed={slot===available.startAt} onclick={()=>slot=available.startAt}>{timeLabel(available.startAt)} – {timeLabel(available.endAt)}</button>{/each}</div>{/if}
  {:else if step===3}
  <p>{t('booking.'+instrument)} · {t(service==='assessment'?'booking.assessmentLabel':'booking.'+service)}</p><p>{dateLabel(slot)} · {timeLabel(slot)} · Asia/Bangkok (UTC+7)</p>
@@ -43,3 +43,26 @@
  {#if step<4}<div class="flex justify-between gap-4">{#if step>1}<button class="btn btn-ghost" disabled={pending} onclick={()=>move(step-1)}>{t('booking.back')}</button>{/if}<button class="btn btn-primary ml-auto" disabled={pending || loading} aria-describedby="booking-status" onclick={()=>step===3?submit():move(step+1)}>{pending?t('flow.saving'):t(step===3?'booking.confirm':'booking.next')}</button></div>{/if}
  </div>
 </div>
+
+<style>
+ .booking-date-select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgb(255 255 255 / 0.3);
+  border-radius: 0.25rem;
+  background-color: #171a1b;
+  color: #f1eee4;
+  color-scheme: dark;
+ }
+
+ .booking-date-select option {
+  background-color: #171a1b;
+  color: #f1eee4;
+ }
+
+ .booking-date-select:focus-visible {
+  outline: 2px solid #c2aa6a;
+  outline-offset: 2px;
+ }
+</style>
