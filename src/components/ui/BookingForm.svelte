@@ -37,7 +37,7 @@
  <p>{t('booking.'+instrument)} · {t(service==='assessment'?'booking.assessmentLabel':'booking.'+service)}</p><p>{dateLabel(slot)} · {timeLabel(slot)} · Asia/Bangkok (UTC+7)</p>
  <label for="booking-notes" class="block">{t('booking.notes')}</label><textarea id="booking-notes" class="booking-notes w-full min-h-32" maxlength="2000" bind:value={notes}></textarea><p class="text-sm text-neutral-400">{t('booking.photoHelp')}</p>
  {:else if saved}
- <p>{t('booking.confirmed')}</p><p class="break-all">{saved.id}</p><p>{dateLabel(saved.startAt)} · {timeLabel(saved.startAt)} – {timeLabel(saved.endAt)} · Asia/Bangkok</p><a class="btn" href={localizedPath('/profile/bookings',lang)}>{t('flow.manageBookings')}</a>
+ <p>{t('booking.confirmed')}</p><p>{dateLabel(saved.startAt)} · {timeLabel(saved.startAt)} – {timeLabel(saved.endAt)} · Asia/Bangkok</p><a class="btn" href={localizedPath('/profile/bookings',lang)}>{t('flow.manageBookings')}</a>
  {/if}
  <p id="booking-status" role="status" class="text-neutral-300">{status}</p>{#if status===t('flow.signInRequired')}<a class="underline" href={localizedPath('/login',lang)+'?returnTo='+encodeURIComponent(localizedPath('/booking',lang))}>{t('flow.login')}</a>{/if}
  {#if step<4}<div class="flex justify-between gap-4">{#if step>1}<button class="btn btn-ghost" disabled={pending} onclick={()=>move(step-1)}>{t('booking.back')}</button>{/if}<button class="btn btn-primary ml-auto" disabled={pending || loading} aria-describedby="booking-status" onclick={()=>step===3?submit():move(step+1)}>{pending?t('flow.saving'):t(step===3?'booking.confirm':'booking.next')}</button></div>{/if}
