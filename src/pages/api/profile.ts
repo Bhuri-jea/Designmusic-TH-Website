@@ -1,5 +1,6 @@
 import type { APIContext, APIRoute } from 'astro';
 import type { Customer, ShippingAddress } from '../../lib/server/customer.ts';
+import { isIsoCountryCode } from '../../lib/iso-countries.ts';
 import { requireCustomer, updateCustomerProfile } from '../../lib/server/customer.ts';
 import { errorResponse, HttpError, jsonResponse, readSameOriginJson } from '../../lib/server/http.ts';
 
@@ -26,7 +27,7 @@ function parseShippingAddress(value: unknown): ShippingAddress | null {
   normalized.country = normalized.country.toUpperCase();
   if (keys.every(key => normalized[key] === '')) return null;
   if (!normalized.line1 || normalized.line1.length > 200 || !normalized.city || normalized.city.length > 120 ||
-    !normalized.postal_code || normalized.postal_code.length > 32 || !/^[A-Z]{2}$/.test(normalized.country) ||
+    !normalized.postal_code || normalized.postal_code.length > 32 || !isIsoCountryCode(normalized.country) ||
     normalized.line2.length > 200 || normalized.state.length > 120 ||
     keys.some(key => /[\u0000-\u001f\u007f]/.test(normalized[key]))) throw new HttpError(400, 'invalid_profile');
   return normalized;

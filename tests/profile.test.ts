@@ -49,6 +49,9 @@ test('shipping address rejects partial or malformed data and clears when all fie
   const invalid = await send({ line1: '1 Main Road', line2: '', city: '', state: '', postal_code: '', country: '' });
   assert.equal(invalid.status, 400);
   assert.equal(savedAddress, 'unchanged');
+  const unknownCountry = await send({ line1: '1 Main Road', line2: '', city: 'Bangkok', state: '', postal_code: '10120', country: 'ZZ' });
+  assert.equal(unknownCountry.status, 400);
+  assert.equal(savedAddress, 'unchanged');
   const empty = await send({ line1: '', line2: '', city: '', state: '', postal_code: '', country: '' });
   assert.equal(empty.status, 200);
   assert.equal(savedAddress, null);
