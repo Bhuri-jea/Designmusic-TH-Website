@@ -2,6 +2,29 @@
 
 /* Shared, restrained components */
 @layer components {
+  .select {
+    width: 100%;
+    min-width: 0;
+    min-height: 3rem;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid #728084;
+    border-radius: 0.5rem;
+    background-color: #282e30;
+    color: #f1eee4;
+    color-scheme: dark;
+  }
+  .select option {
+    background-color: #282e30;
+    color: #f1eee4;
+  }
+  .select:focus-visible {
+    outline: 2px solid #c2aa6a;
+    outline-offset: 2px;
+  }
+  .select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
   .btn {
     @apply inline-flex items-center justify-center px-6 py-3 rounded-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
   }

@@ -6,11 +6,12 @@
 
 Build on the existing Astro + Svelte 5 + Tailwind CSS 4 site. Customers sign in with Google OAuth; Supabase is the primary source for customer profiles, repair bookings, orders and payment state. Google Sheets receives repair-booking times and internal reports. Stripe-hosted Checkout takes eligible payments. Catalog prices are independent values in USD, JPY and THB; a Thai Stripe account settles funds in THB. Customer information and server-verified status may be displayed in the DOM, but the DOM is never a source of authority for identity or payment.
 
-## 4 main tasks
+## 5 main tasks
 |1. Sign in system with Google OAuth.|
-|2. Database system with supabase (email, order and stock management, notification email system to buyer and seller)|
-|3. Google Sheets (link with google drive) receives repair-booking customer informatim and time slot then connect with google calendar to update the schedule (I will adjust the available slot later).|
-|4. Stripe-hosted Checkout for credit cards payments. Link the payment detail with Database -> check and comfirm the available stock -> clear checkout and prepare for shipping label -> and deduct the stock|
+|2. Database system with supabase (email, order and stock management, notification email system to buyer and seller). Generate or modify necessary table in Supabase to test run this project (if not possible, make detail step-by-step manual).|
+|3. Design login (profile) page for user. User can add information such as address and phone number here. User can comfirm booked appointment (for repair services) and can manage (cancel or modify) the booking.
+|4. Google Sheets (link with google drive) receives repair-booking customer informatim and time slot then connect with google calendar to update the schedule (I will adjust the available slot later). Generate manual to connet google sheet and calendar for this.|
+|5. Stripe-hosted Checkout for credit cards payments. Link the payment detail with Database -> check and comfirm the available stock -> clear checkout and prepare for shipping label -> and deduct the stock|
 
 ## What is already in the folder
 
