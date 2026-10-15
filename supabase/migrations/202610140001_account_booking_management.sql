@@ -93,6 +93,9 @@ begin
     raise exception 'booking_not_found' using errcode = 'P0002';
   end if;
   if booking_row.last_change_key = p_change_key then
+    if booking_row.start_at <> p_start_at or booking_row.end_at <> p_end_at then
+      raise exception 'booking_conflict' using errcode = '23505';
+    end if;
     return jsonb_build_object(
       'id', booking_row.id, 'customerId', booking_row.customer_id, 'requestKey', booking_row.request_key,
       'fingerprint', booking_row.fingerprint, 'startAt', booking_row.start_at, 'endAt', booking_row.end_at,

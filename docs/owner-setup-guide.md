@@ -18,7 +18,7 @@ For installation and a real Vercel deployment, follow [the installation manual](
 | Payment transactions, fees, refunds, payouts | Stripe | Stripe Dashboard → Payments, Balances and Reports |
 | Delivery to Calendar, Sheets and email | Supabase `outbox` | Table Editor; inspect jobs that remain pending, failed or review |
 
-Supabase is the operational database. Calendar and Sheets receive booking copies; changing a Calendar event does **not** change the website's available slots. The current Google script exports bookings, not the full customer list or sales ledger. The seller tools manage stock and paid shipments; automatic accounting-package integration is not implemented.
+Supabase is the operational database. Calendar and Sheets receive booking copies; when the Calendar bridge is configured, busy Calendar events also block overlapping website slots. Calendar edits do not change saved database bookings or create new opening hours. The current Google script exports bookings, not the full customer list or sales ledger. The seller tools manage stock and paid shipments; automatic accounting-package integration is not implemented.
 
 ## 1. Configure your website settings
 
@@ -45,8 +45,9 @@ The two Supabase keys serve different purposes. Do not substitute the service-ro
    - `supabase/migrations/202610120002_orders_inventory_outbox.sql`
    - `supabase/migrations/202610120003_bookings.sql`
    - `supabase/migrations/202610120004_admin.sql`
+   - `supabase/migrations/202610140001_account_booking_management.sql`
 3. If the database already contains tables or customers, inspect what is applied before running anything. These scripts are not all safe to rerun.
-4. This checkout also contains `202610120003_inventory_one_each.sql` and `202610130001_bookings.sql`. **Do not run the entire folder blindly:** the first sets every stock count to one; the second is another booking-table definition. Neither belongs in the selected four-file setup above.
+4. This checkout also contains `202610120003_inventory_one_each.sql` and `202610130001_bookings.sql`. **Do not run the entire folder blindly:** the first sets every stock count to one; the second is another booking-table definition. Neither belongs in the selected five-file setup above.
 5. Use the authorized `/admin` stock tool for actual counted quantities. Table Editor → `inventory` lets you inspect `on_hand` and `reserved`. Do not change `reserved` manually to make stock appear available. Never set `on_hand` below `reserved`.
 
 Example: `on_hand = 10`, `reserved = 2` means eight units can still be sold. Checkout reserves stock; verified successful Stripe payment commits the deduction. A canceled browser tab alone does not release an uncertain order.
@@ -101,7 +102,7 @@ Keep the existing Google login in the website; enabling Supabase's separate Goog
 7. Copy the deployed `/exec` URL into `GOOGLE_SHEETS_WEBHOOK_URL`. Enter the identical shared secret as `GOOGLE_SHEETS_WEBHOOK_SECRET`.
 8. The script creates the `Repair Bookings` tab and headers on first successful delivery. Open the Sheet to view booking ID, UTC start/end, timezone, name, email, phone, instrument, service and notes. Calendar displays the event in its selected time zone.
 
-The database prevents duplicate bookings. The Calendar copy does not control availability and does not send attendee invitations. The current rules offer one-hour Bangkok slots at 10, 11, 13, 14, 15, 16 and 17, from tomorrow through 14 days ahead, excluding Sundays. Changing business hours later requires updating the website/database rules together.
+The database prevents duplicate website bookings. When the Calendar bridge is configured, busy events also remove overlapping website slots; add a busy event to block a time or day. Calendar cannot add hours outside the site's rules, and deleting a mirrored event does not cancel a database booking. If Calendar cannot be checked, new availability is unavailable until it recovers. The Calendar copy sends no attendee invitations. The current rules offer one-hour Bangkok slots at 10, 11, 13, 14, 15, 16 and 17, from tomorrow through 14 days ahead, excluding Sundays. Changing business hours later requires updating the website/database rules together.
 
 See [Apps Script web app deployment](https://developers.google.com/apps-script/guides/web). Detailed request and retry behavior remains in the project's `docs/google-sheets-booking-webhook.md`.
 

@@ -9,24 +9,29 @@
  let { lang } = $props<{ lang: Locale }>();
  let bookings = $state<Booking[] | null>(null), slots = $state<Slot[]>([]);
  let selected = $state<Record<string, string>>({}), pending = $state<string | null>(null);
- let status = $state(''), error = $state(false), calendarSource = $state('database');
+ let status = $state(''), bookingError = $state(false), availabilityError = $state(false);
  const t = (key: string) => ui[lang][key as keyof typeof ui.en] || ui.en[key as keyof typeof ui.en];
  const dateTime = (value: string) => new Intl.DateTimeFormat(lang, { timeZone: 'Asia/Bangkok', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
  const slotLabel = (slot: Slot) => `${dateTime(slot.startAt)} – ${new Intl.DateTimeFormat(lang, { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(slot.endAt))}`;
- async function load() {
-  error = false;
+ async function loadBookings() {
+  bookingError = false;
   try {
-   const [bookingResponse, availabilityResponse] = await Promise.all([
-    fetch('/api/bookings', { cache: 'no-store' }),
-    fetch('/api/booking-availability', { cache: 'no-store' }),
-   ]);
-   const bookingData = await bookingResponse.json(), availabilityData = await availabilityResponse.json();
-   if (!bookingResponse.ok || !availabilityResponse.ok || !Array.isArray(bookingData.bookings) || !Array.isArray(availabilityData.slots)) throw Error();
+   const bookingResponse = await fetch('/api/bookings', { cache: 'no-store' });
+   const bookingData = await bookingResponse.json();
+   if (!bookingResponse.ok || !Array.isArray(bookingData.bookings)) throw Error();
    bookings = bookingData.bookings;
-   slots = availabilityData.slots;
-   calendarSource = availabilityData.source;
-  } catch { error = true; }
+  } catch { bookingError = true; }
  }
+ async function loadAvailability() {
+  availabilityError = false;
+  try {
+   const availabilityResponse = await fetch('/api/booking-availability', { cache: 'no-store' });
+   const availabilityData = await availabilityResponse.json();
+   if (!availabilityResponse.ok || !Array.isArray(availabilityData.slots)) throw Error();
+   slots = availabilityData.slots;
+  } catch { slots = []; availabilityError = true; }
+ }
+ async function load() { await Promise.all([loadBookings(), loadAvailability()]); }
  onMount(() => { void load(); });
  async function reschedule(booking: Booking) {
   if (pending) return;
@@ -56,6 +61,7 @@
    if (!response.ok) throw Error();
    bookings = (bookings ?? []).map(item => item.id === booking.id ? data.booking : item);
    status = t('booking.cancelledStatus');
+   await loadAvailability();
   } catch { status = t('flow.failed'); }
   finally { pending = null; }
  }
@@ -69,8 +75,13 @@
   <a class="btn btn-ghost" href={localizedPath('/profile', lang)}>{t('flow.account')}</a>
  </div>
  <p class="text-sm text-neutral-400 mb-8">{t('booking.availabilityHelp')}</p>
- {#if error}
-  <div role="alert" class="alert">{t('flow.unavailable')} <button class="underline" onclick={load}>{t('flow.retry')}</button></div>
+ {#if availabilityError}
+  <div role="alert" class="alert mb-6">{t('booking.calendarSourceError')} <button class="underline" onclick={loadAvailability}>{t('flow.retry')}</button></div>
+ {:else if bookings?.some(booking => booking.status === 'confirmed' && Date.parse(booking.startAt) > Date.now()) && !slots.length}
+  <p class="mb-6">{t('booking.none')}</p>
+ {/if}
+ {#if bookingError}
+  <div role="alert" class="alert">{t('flow.unavailable')} <button class="underline" onclick={loadBookings}>{t('flow.retry')}</button></div>
  {:else if bookings === null}
   <p role="status">{t('flow.loading')}</p>
  {:else if !bookings.some(booking => booking.status === 'confirmed' && Date.parse(booking.startAt) > Date.now())}

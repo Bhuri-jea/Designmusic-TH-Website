@@ -84,8 +84,10 @@ export async function rescheduleBooking(request: Request, id: string, body: Reco
   if (!slot) throw new HttpError(400, 'invalid_booking');
   const booking = (await ownedBookings(request, id, deps))[0];
   if (booking.status !== 'confirmed' || Date.parse(booking.startAt) <= deps.now()) throw new HttpError(409, 'booking_not_modifiable');
-  const availability = await bookingAvailability(deps);
-  if (!availability.slots.some(candidate => candidate.startAt === slot.startAt)) throw new HttpError(409, 'booking_conflict');
+  if (booking.startAt !== slot.startAt) {
+    const availability = await bookingAvailability(deps);
+    if (!availability.slots.some(candidate => candidate.startAt === slot.startAt)) throw new HttpError(409, 'booking_conflict');
+  }
   let updated: BookingRecord;
   try {
     updated = await deps.rpc<BookingRecord>('reschedule_booking', {
@@ -93,7 +95,8 @@ export async function rescheduleBooking(request: Request, id: string, body: Reco
       p_start_at: slot.startAt, p_end_at: slot.endAt,
     });
   } catch (error) { mutationError(error); }
-  if (!updated || updated.id !== id.toLowerCase() || updated.customerId !== customer.id || updated.status !== 'confirmed') {
+  if (!updated || updated.id !== id.toLowerCase() || updated.customerId !== customer.id || updated.status !== 'confirmed' ||
+    updated.startAt !== slot.startAt || updated.endAt !== slot.endAt) {
     throw new HttpError(409, 'booking_conflict');
   }
   return publicBooking(updated);

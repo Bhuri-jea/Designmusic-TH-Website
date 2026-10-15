@@ -40,6 +40,6 @@
     {/each}
    </ul>
   {/if}
-  <a class="btn btn-primary mt-6" href={localizedPath('/booking', lang)}>{t('flow.book')}</a>
+  {#if !loading && !failed && slots.length}<a class="btn btn-primary mt-6" href={localizedPath('/booking', lang)}>{t('flow.book')}</a>{/if}
  </div>
 </section>

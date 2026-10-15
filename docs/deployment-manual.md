@@ -2,6 +2,8 @@
 
 Prepared 14 October 2026. Follow these steps in order. Account configuration and deployment are performed by you; this document does not mean the live services have been tested.
 
+For the current code-versus-production status and release gates, see [launch readiness](launch-readiness-status.md). As checked on 15 October, the Vercel project has `designmusic-th.com` and `designmusic-th-website-*.vercel.app` aliases; `designmusic-th.vercel.app` is **not** listed. Choose the final origin before copying any callback, webhook or scheduler URL below.
+
 ## 1. Prepare your website and accounts
 
 You need GitHub, Vercel, Supabase, a Google account that owns the Calendar/Sheet, Stripe and a verified email sender. Start with a separate test database and Stripe test credentials.
@@ -39,6 +41,7 @@ Local origin: http://127.0.0.1:4322. Production origin: your final HTTPS domain,
 | 2 | supabase/migrations/202610120002_orders_inventory_outbox.sql | Orders, inventory, event processing and delivery jobs |
 | 3 | supabase/migrations/202610120003_bookings.sql | Booking slots, atomic reservation and reporting jobs |
 | 4 | supabase/migrations/202610120004_admin.sql | Seller stock and shipment tools; apply only after this file is present and reviewed |
+| 5 | supabase/migrations/202610140001_account_booking_management.sql | Saved shipping addresses and customer reschedule/cancel controls |
 
 Do not run the whole migrations folder automatically. This checkout has also contained 202610120003_inventory_one_each.sql, a sample that assigns one item to every SKU, and 202610130001_bookings.sql, an alternate booking definition. Neither is part of the setup above. A .sql.clean draft is not a migration. Preserve these originals; do not apply them to manufacture stock or recreate tables.
 
@@ -61,7 +64,7 @@ In Supabase Authentication:
 
 1. In Google Cloud create/select a project, configure the Google Auth Platform consent screen and add your test users while it is in testing mode.
 2. Create an OAuth client of type Web application.
-3. Add the exact authorized redirect URI: https://designmusic-th.vercel.app/api/auth/callback/google. For local testing use http://127.0.0.1:4322/api/auth/callback/google. These must match the browser origin exactly.
+3. Add the exact authorized redirect URI for your chosen public origin, for example `https://designmusic-th.com/api/auth/callback/google` if that domain is your final site. For local testing use `http://127.0.0.1:4322/api/auth/callback/google`. These must match the browser origin exactly.
 4. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the server, along with AUTH_SECRET.
 5. Before public launch, complete Google's applicable publishing/verification requirements and test with an account outside your development login.
 
@@ -80,7 +83,7 @@ There is no finished owner editor for weekly hours, holidays or blackout dates. 
 3. For a database already installed, write/apply a new forward migration replacing that function. Editing an old SQL file alone does not update the live database.
 4. Keep application and SQL rules identical. Run booking tests; test day boundaries, Sundays and two customers selecting the same slot before deploying.
 
-Do not use manual Calendar edits to open or close a website slot. Calendar is a mirror; Supabase controls availability. Do not delete a booking row to hide a Calendar event; cancellation/holiday administration requires a deliberate feature rather than bypassing reservation rules.
+The website starts with the hours above and removes slots already booked in Supabase. Once the private Calendar bridge is configured, it also removes slots overlapping busy Calendar events, including all-day events. Add a busy event to block a time or day; Calendar events cannot open hours outside the website/database rules. If the configured Calendar cannot be checked, availability fails closed until the connection recovers. New bookings and time changes remain enforced by Supabase, and a simultaneous manual Calendar edit can still race with a reservation. Cancel or reschedule a website booking from the customer's `/profile/bookings` page; deleting its Calendar copy does not change the database booking.
 
 ## 5. Connect Google Sheets and Calendar
 
@@ -119,7 +122,7 @@ Set CRON_SECRET and configure an HTTP scheduler with:
 | Setting | Value |
 |---|---|
 | Method | POST |
-| URL | https://designmusic-th.vercel.app/api/cron/outbox |
+| URL | `YOUR_APP_ORIGIN/api/cron/outbox`, for example `https://designmusic-th.com/api/cron/outbox` |
 | Header | Authorization: Bearer YOUR_CRON_SECRET |
 | Interval | Every five minutes to start |
 | Timeout | At least 120 seconds |
@@ -155,7 +158,7 @@ Never commit real .env values or paste them into chat. Keep shipping destination
 
 ### Stripe before selling
 
-Use Stripe test keys first. Create a webhook endpoint https://designmusic-th.vercel.app/api/stripe-webhook for checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed and checkout.session.expired. Set the signing secret from that exact endpoint/mode as STRIPE_WEBHOOK_SECRET, then redeploy. Verify test payment, duplicate event handling, order ownership and stock behavior before changing to live keys and explicitly setting PAYMENT_LIVE_ENABLED=true.
+Use Stripe test keys first. Create a webhook endpoint at `YOUR_APP_ORIGIN/api/stripe-webhook` (for example `https://designmusic-th.com/api/stripe-webhook`) for checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed and checkout.session.expired. Set the signing secret from that exact endpoint/mode as STRIPE_WEBHOOK_SECRET, then redeploy. Verify test payment, duplicate event handling, order ownership and stock behavior before changing to live keys and explicitly setting PAYMENT_LIVE_ENABLED=true.
 
 Charges use independently set USD/JPY/THB prices. THB settlement, fees and conversion are managed by the Thai Stripe account; do not assume a catalog amount equals a bank deposit. Use Stripe financial reports for fees/refunds/payouts. [Stripe webhooks](https://docs.stripe.com/webhooks), [Balance reports](https://docs.stripe.com/reports/balance).
 

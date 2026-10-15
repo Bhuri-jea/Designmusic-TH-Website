@@ -1,0 +1,31 @@
+# DesignMusic launch readiness
+
+Checked 15 October 2026 against the local source and the connected Vercel project. **A READY deployment is present, but the site is not yet verified for taking real orders or reservations.** Vercel reports a production build of Git commit `31dc372`; the local checkout also has uncommitted changes. Secret values, database schema, provider accounts and real transactions were not inspected.
+
+## What the current code provides
+
+| Need | Current implementation | Remaining acceptance check |
+| --- | --- | --- |
+| Customer accounts | Google and email login, profile and saved shipping address | Configure and test both providers, confirmation email, and account ownership |
+| Buy by card | Server-priced USD/JPY/THB cart, Stripe card Checkout, signed webhook, order and stock reservation, customer order status | Configure Stripe test mode and webhook; complete a test purchase through fulfillment before enabling live mode |
+| Repair reservations | Bangkok-time availability, atomic Supabase booking, customer cancel/reschedule page, private Google Calendar busy-time filtering and queued Calendar/Sheet copies | Apply database schema; connect the private bridge and scheduler; test booking, busy event, reschedule, cancellation and duplicate-slot prevention |
+| Owner stock and orders | `/admin` edits on-hand stock and shows paid shipments, preparation documents, tracking entry and failed delivery jobs | Add the owner Google subject, count real stock, and verify a paid test order appears. The page does **not** show every unpaid/failed order or provide full financial accounting. Use Supabase and Stripe dashboards for those records. |
+| Customer database | Supabase customers, profile, orders and bookings; read-only reporting SQL | Apply migrations and verify actual records and staff access. The Google Sheet mirrors bookings only; full customer Sheet sync is not implemented. |
+| Calendar editing | Owner can edit the private Google Calendar; busy events block overlapping offered slots | Current opening days/hours are fixed in code and SQL. There is no owner screen for changing weekly hours, holidays or slot rules. |
+| Payment settlement | Website charges the locale's catalog currency; Stripe handles payment and payout reporting | Verify the Thai Stripe account's currencies, fees, THB payout and bank details. Additional payment methods can follow launch. |
+
+## Release gates, in order
+
+1. **Choose the final public origin.** Vercel currently lists `designmusic-th.com` and several `designmusic-th-website-*.vercel.app` aliases, but **not** `designmusic-th.vercel.app`, which appears in the older setup instructions. Set `APP_ORIGIN`, Google OAuth redirect, Supabase redirects, Stripe webhook and scheduler URL to the same chosen origin. Confirm HTTPS and public access. Do not use the old callback URL unless that domain is actually attached.
+2. **Deploy the intended revision.** Review the local changes, reconcile the checkout with `origin/main`, run tests/check/build in a working Node 24 environment, then commit and deploy. A Vercel `READY` build alone does not prove the customer flows work. Recheck production after every environment-variable change.
+3. **Install and verify Supabase.** The owner last described the project as empty; this has not been reconfirmed from the database. If still empty, apply the five selected migrations in [the installation manual](deployment-manual.md) in order. Do not apply sample one-each stock or alternate booking SQL. Verify tables, grants, ownership, and booking/stock transactions. Keep unknown stock at zero until counted and entered through `/admin`.
+4. **Finish production configuration.** Vercel currently lists `APP_ORIGIN`, Google credentials, three Supabase variables and `AUTH_SECRET`. Their values are hidden and unverified. It does **not** list `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `PAYMENT_LIVE_ENABLED`, `SHIPPING_ALLOWED_COUNTRIES`, `ADMIN_GOOGLE_SUBJECTS`, `GOOGLE_SHEETS_WEBHOOK_URL`, `GOOGLE_SHEETS_WEBHOOK_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `SELLER_EMAIL` or `CRON_SECRET`. Add those as the matching services are tested; never paste secrets into chat.
+5. **Connect operations.** Configure Supabase email confirmation/SMTP, the Google OAuth callback, seller Google subject, private Calendar/Sheet Apps Script, notification sender and authenticated POST scheduler. Test an edited busy event, a booking and its later change/cancellation, the resulting database record, one Calendar event, one Sheet row and delivery-job status. Google Calendar is a scheduling view; Supabase remains the booking authority.
+6. **Prove a test sale.** Set actual product stock and supported destinations, verify each currency's prices and shipping terms, then run a Stripe **test-mode** card payment. Check signed webhook, exactly one paid order, stock reduction, customer status, seller shipment, tracking and notifications. Check failed/expired payment recovery too. The historical Thailand Post table is for parcel preparation; checkout currently adds **no shipping fee**. Decide and publish how postage will be charged or handled before live sales.
+7. **Publish customer terms and test the public site.** The footer's Privacy Policy and Terms of Service links currently point to `#`; there are no corresponding pages. Publish the business's actual privacy, returns/cancellation, shipping and contact terms before taking personal data and live payments. Then test English, Japanese, Thai and Chinese on mobile and desktop, including sign-in, booking, card checkout, and owner tools. These are owner-approved business terms, not text the code can infer.
+
+## After first launch
+
+An owner order dashboard covering **all** order states, a screen for changing booking opening hours/holidays, automatic full-customer Sheet sync, automated accounting imports and additional payment methods are separate enhancements. Supabase Table Editor, Google Calendar, Stripe Dashboard and the existing `/admin` page cover the stated day-one operations once the release gates above pass.
+
+Use [the installation manual](deployment-manual.md) for exact setup steps and [the owner guide](owner-setup-guide.md) for daily database, calendar, stock and finance access.
