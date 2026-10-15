@@ -117,3 +117,32 @@ test('rescheduling uses current availability and cancellation stays owner-scoped
   assert.equal(calls[1].args.p_customer_id, key);
   await assert.rejects(rescheduleBooking(request, key, { changeKey: 'bad', slot: nextSlot }, deps), /invalid_booking/);
 });
+
+test('reschedule retries can reach the idempotent RPC after their new slot becomes occupied', async () => {
+  const nextSlot = '2026-10-13T04:00:00.000Z';
+  let currentSlot = body.slot;
+  let availabilityChecks = 0;
+  let rpcCalls = 0;
+  const deps: BookingDependencies = {
+    now: () => now,
+    customer: async () => ({ id: key, googleSubject: 'google-stable', email: 'server@example.test', name: 'Name', phone: null, shippingAddress: null }),
+    select: async <T>(_table: string, filters: Record<string, string>) => {
+      if (filters.select === 'start_at') return [{ start_at: currentSlot }] as T[];
+      return [{ id: key, customer_id: key, start_at: currentSlot, end_at: new Date(Date.parse(currentSlot) + 3600000).toISOString(), instrument: 'alto', service: 'basic', notes: '', locale: 'en', status: 'confirmed', created_at: '2026-10-12T00:00:00Z' }] as T[];
+    },
+    calendarAvailability: async slots => { availabilityChecks++; return slots; },
+    rpc: async <T>(_name: string, args: Record<string, unknown>) => {
+      rpcCalls++;
+      if (rpcCalls === 1) currentSlot = args.p_start_at as string;
+      return { id: key, customerId: key, requestKey: key, fingerprint: '', startAt: currentSlot,
+        endAt: new Date(Date.parse(currentSlot) + 3600000).toISOString(), instrument: 'alto', service: 'basic', notes: '', locale: 'en', status: 'confirmed', createdAt: '2026-10-12T00:00:00Z' } as T;
+    },
+  };
+  const request = new Request('https://shop.test');
+  const change = { changeKey: key, slot: nextSlot };
+  assert.equal((await rescheduleBooking(request, key, change, deps)).startAt, nextSlot);
+  assert.equal((await rescheduleBooking(request, key, change, deps)).startAt, nextSlot);
+  assert.equal(availabilityChecks, 1);
+  assert.equal(rpcCalls, 2);
+  await assert.rejects(rescheduleBooking(request, key, { changeKey: key, slot: body.slot }, deps), /booking_conflict/);
+});

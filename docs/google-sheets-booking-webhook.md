@@ -1,10 +1,10 @@
 # Booking mirror and transactional delivery setup
 
-Bookings are confirmed by the database transaction. Google Sheets and Calendar are asynchronous mirrors; an unavailable transport cannot discard a booking. No email or Google request is sent during local setup/tests. Configure and verify real destinations separately before enabling the scheduler.
+Bookings are confirmed by the database transaction. Google Sheets and Calendar receive asynchronous booking updates; the same private Calendar is checked for busy times before showing availability. An unavailable reporting transport cannot discard a saved booking, but an unavailable configured Calendar blocks new availability checks. No email or Google request is sent during local setup/tests. Configure and verify real destinations separately before enabling the scheduler.
 
 ## Database and booking API
 
-Apply customer migration 001, order/inventory/outbox 002, then `202610120003_bookings.sql` in an owner-approved environment. Explicitly select migration files. The one-unit stock sample now lives under `docs/examples/` and is excluded from migrations: all nine initial stock counts stay zero until actual counts are known.
+For a new empty project, apply `202610120001_customers.sql`, `202610120002_orders_inventory_outbox.sql`, `202610120003_bookings.sql`, `202610120004_admin.sql`, then `202610140001_account_booking_management.sql` in order. Inspect an existing project's schema before applying anything. Explicitly select migration files; the one-unit stock sample and alternate booking definition are not part of this setup. All nine initial stock counts stay zero until actual counts are known.
 
 `POST /api/bookings` accepts same-origin bounded JSON `{requestKey,slot,instrument,service,notes?,locale?}`, with a UUID request key, a UTC ISO start instant, canonical machine IDs, at most 2000 note characters and one of en/ja/zh-CN/th (default en). Google subject resolves ownership; the browser supplies no customer ID or email. The server checks database bookings and, when configured, Calendar event overlap before creating the booking. SQL independently checks tomorrow through 14 Bangkok calendar days, excludes Sundays, and allows exactly one hour at 10,11,13,14,15,16,17. Bassoon has no Basic service.
 
