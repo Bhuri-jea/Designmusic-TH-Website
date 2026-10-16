@@ -1,5 +1,5 @@
 import { getEnv } from './env.ts';
-import { rpc } from './supabase.ts';
+import { rpc, SupabaseRequestError } from './supabase.ts';
 import { HttpError, jsonResponse, errorResponse } from './http.ts';
 import { notification } from './notifications.ts';
 import { reconcilePayments } from './reconciliation.ts';
@@ -21,7 +21,8 @@ async function bounded<T>(operation: (signal: AbortSignal) => Promise<T>, timeou
  } finally { clearTimeout(timer); }
 }
 async function boundedJson(response: Response, maxBytes = 4096): Promise<unknown> {
- if (response.status !== 200 || !/^application\/json(?:\s*;|$)/i.test(response.headers.get('content-type') ?? '')) throw Error('transport_response');
+ if (response.status !== 200) throw Error(`transport_http_${response.status}`);
+ if (!/^application\/json(?:\s*;|$)/i.test(response.headers.get('content-type') ?? '')) throw Error('transport_response');
  if (Number(response.headers.get('content-length') ?? 0) > maxBytes) { await response.body?.cancel(); throw Error('transport_response'); }
  if (!response.body) throw Error('transport_response');
  const reader = response.body.getReader();
@@ -36,7 +37,20 @@ async function boundedJson(response: Response, maxBytes = 4096): Promise<unknown
  } finally { reader.releaseLock(); }
  const data = new Uint8Array(length); let offset = 0;
  for (const chunk of chunks) { data.set(chunk, offset); offset += chunk.byteLength; }
- return JSON.parse(new TextDecoder().decode(data));
+ try { return JSON.parse(new TextDecoder().decode(data)); }
+ catch { throw Error('transport_response'); }
+}
+function safeFailureCode(error: unknown, completing: boolean): string {
+ if (completing) {
+  if (error instanceof SupabaseRequestError && /^(?:[A-Z0-9]{5}|PGRST\d{3})$/.test(error.databaseCode ?? '')) return `completion_database_${error.databaseCode}`;
+  return 'completion_failed';
+ }
+ if (error instanceof HttpError && error.code === 'transport_configuration_unavailable') return error.code;
+ if (!(error instanceof Error)) return 'transport_failed';
+ if (/^transport_http_[1-5]\d\d$/.test(error.message)) return error.message;
+ if (['transport_timeout', 'transport_response', 'transport_redirect', 'transport_acknowledgment', 'invalid_notification_payload', 'invalid_notification_topic'].includes(error.message)) return error.message;
+ if (error instanceof TypeError && error.message === 'fetch failed') return 'transport_fetch_failed';
+ return 'transport_failed';
 }
 async function sendGoogleRequest(body: Record<string, unknown>, env: Env, transport: Fetch, timeoutMs: number, maxResponseBytes: number): Promise<unknown> {
  const endpoint = googleEndpoint(env('GOOGLE_SHEETS_WEBHOOK_URL'));
@@ -122,14 +136,17 @@ export async function dispatchOutbox(deps = outboxDependencies, options: OutboxO
  for (let index = 0; index < batch.length; index++) {
   if (!remaining()) { result.deferred += batch.length - index; break; }
   const job = batch[index];
+  let completing = false;
   try {
    if (job.topic === 'booking_google') await sendGoogleReport(job.payload, deps.env, deps.fetch, Math.min(12000, remaining()));
    else await sendEmail(job, deps, Math.min(10000, remaining()));
-   await bounded(() => deps.rpc('complete_outbox', { p_id: job.id, p_worker_id: worker }), remaining());
+   completing = true;
+   const completed = await bounded(() => deps.rpc<boolean>('complete_outbox', { p_id: job.id, p_worker_id: worker }), remaining());
+   if (completed !== true) throw Error('completion_failed');
    result.sent++;
   } catch (error) {
    result.errors++;
-   const code = error instanceof HttpError && error.code === 'transport_configuration_unavailable' ? error.code : 'transport_failed';
+   const code = safeFailureCode(error, completing);
    if (remaining()) {
     try { await bounded(() => deps.rpc('fail_outbox', { p_id: job.id, p_worker_id: worker, p_error: code }), remaining()); }
     catch { /* An expired/stale lease cannot mutate another worker's claim. Reclamation repairs uncertainty. */ }

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { filterGoogleCalendarAvailability, sendGoogleReport, dispatchOutbox, runScheduler, type OutboxDependencies } from '../src/lib/server/outbox.ts';
 import { notification } from '../src/lib/server/notifications.ts';
+import { SupabaseRequestError } from '../src/lib/server/supabase.ts';
 const id = '22222222-2222-4222-8222-222222222222';
 const payload = { bookingId: id, startAt: '2026-10-13T03:00:00Z', endAt: '2026-10-13T04:00:00Z', timeZone: 'Asia/Bangkok', customer: { name: '<Name>', email: 'buyer@example.test', phone: '=123' }, instrument: 'alto', service: 'basic', notes: '<script>bad</script>', locale: 'ja', recipient: 'buyer@example.test' };
 const config: Record<string, string> = { GOOGLE_SHEETS_WEBHOOK_URL: 'https://script.google.com/macros/s/deploy/exec', GOOGLE_SHEETS_WEBHOOK_SECRET: 'secret', RESEND_API_KEY: 'test-key', EMAIL_FROM: 'sender@example.test', SELLER_EMAIL: 'seller@example.test', CRON_SECRET: 'cron-secret' };
@@ -70,8 +71,19 @@ test('missing configuration and ambiguous responses retain jobs, never complete;
     else f.deps.fetch = async () => { if (mode === 'ambiguous') throw Error('secret private provider URL'); return new Response('{"ok":true,"bookingId":"wrong"}'); };
     assert.equal((await dispatchOutbox(f.deps)).sent, 0);
     assert.equal(f.calls.some(c => c.name === 'complete_outbox'), false);
-    assert.equal(f.calls.find(c => c.name === 'fail_outbox')?.args.p_error, mode === 'missing' ? 'transport_configuration_unavailable' : 'transport_failed');
+    assert.equal(f.calls.find(c => c.name === 'fail_outbox')?.args.p_error, mode === 'missing' ? 'transport_configuration_unavailable' : mode === 'wrong' ? 'transport_response' : 'transport_failed');
   }
+});
+test('dispatcher retains safe provider response diagnostics without provider body or secrets', async () => {
+ for (const [topic, status, expected] of [
+  ['booking_buyer', 403, 'transport_http_403'],
+  ['booking_google', 500, 'transport_http_500'],
+ ] as const) {
+  const f = fixture(topic);
+  f.deps.fetch = async () => new Response('private provider error and secret', { status, headers: { 'content-type': 'text/plain' } });
+  assert.equal((await dispatchOutbox(f.deps)).errors, 1);
+  assert.equal(f.calls.find(c => c.name === 'fail_outbox')?.args.p_error, expected);
+ }
 });
 test('localized notification templates escape customer text and send only transactional snapshot data', () => {
   const en = notification('booking_buyer', { ...payload, locale: 'en' }, n => config[n]);
@@ -82,6 +94,28 @@ test('localized notification templates escape customer text and send only transa
   assert.doesNotMatch(ja.html, /<script>/);
   assert.equal(notification('booking_seller', payload, n => config[n]).to, 'seller@example.test');
   assert.match(notification('order_paid_buyer', { locale: 'th', recipient: 'buyer@example.test', orderId: id, currency: 'thb', amountTotal: 20000, items: [{ name: '<plug>', quantity: 1 }] }, n => config[n]).html, /&lt;plug&gt;/);
+});
+test('delivery and database completion failures remain distinct without exposing error details', async () => {
+ for (const [error, expected] of [
+  [new SupabaseRequestError(502, 'PGRST202'), 'completion_database_PGRST202'],
+  [new SupabaseRequestError(502, 'secret private error'), 'completion_failed'],
+  [new Error('private database URL'), 'completion_failed'],
+  [null, 'completion_failed'],
+ ] as const) {
+  const f = fixture('booking_buyer');
+  const original = f.deps.rpc;
+  f.deps.rpc = async <T>(name: string, args: Record<string, unknown>) => {
+   if (name === 'complete_outbox') { if (error) throw error; return false as T; }
+   return original<T>(name, args);
+  };
+  assert.equal((await dispatchOutbox(f.deps)).sent, 0);
+  assert.equal(f.sends.length, 1);
+  assert.equal(f.calls.find(c => c.name === 'fail_outbox')?.args.p_error, expected);
+ }
+ const f = fixture('booking_buyer');
+ f.deps.fetch = async () => { throw new TypeError('fetch failed'); };
+ assert.equal((await dispatchOutbox(f.deps)).sent, 0);
+ assert.equal(f.calls.find(c => c.name === 'fail_outbox')?.args.p_error, 'transport_fetch_failed');
 });
 test('dispatcher caps batch and elapsed budget; scheduler requires protected Bearer and stays private', async () => {
   const f = fixture();
