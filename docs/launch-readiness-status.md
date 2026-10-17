@@ -1,5 +1,52 @@
 # DesignMusic launch readiness
 
+## Current checkpoint — 17 October 2026 (Asia/Tokyo)
+
+This checkpoint supersedes the historical 15 October audit below. Stripe work is paused at the owner's request while waiting for the account owner; do not activate live payments.
+
+### Verified with the owner
+
+- Supabase selected migrations were applied; Google sign-in/profile access works.
+- Resend booking delivery works after replacing the API key.
+- Calendar cancellation was repaired by using Apps Script `Calendar.Events.remove`; the formerly failing cancellation job completed.
+- The previous 28 outbox jobs are all `done`.
+- A five-minute Apps Script trigger ran automatically. A new owner test booking produced its email, Google Sheet row and Calendar event without a manual worker call.
+- The remaining payment reconciliation warning is separate from booking delivery. Stripe credentials, webhook and payment acceptance are not verified.
+
+### Remaining before full shop launch
+
+#### Local work update — 17 October, account/booking follow-up
+
+- Implemented safe existing return-path handling for both login methods; short-lived tab-local booking draft recovery (30 minutes), consumed on restoration, with fresh availability checks.
+- Added shared dark input/textarea styles, date/new-time labels in all four locales, guarded reschedule selection and distinct non-modifiable/conflict recovery.
+- Profile fields are disabled while saving; profile/orders/booking summary have independent retries. Booking summaries now identify upcoming, past and cancelled appointments. Address requirements are explicit.
+- Removed the unused `getStaticPaths` from the server-rendered localized product list; existing locale validation remains.
+- Owner selected two Google admin accounts. Awaiting `ADMIN_GOOGLE_SUBJECTS` setup and access verification; identities are not hardcoded in source. Stock/prices are ready for the owner to supply but have not been received or changed.
+- Verification: 110 native tests passed. Final Astro check reported 0 errors/0 warnings (6 existing hints); `git diff --check` passed. Client/server production compilation passed, but Vercel packaging still failed with `The URL must be of scheme file` in the external C: dependency junction. The ignored static-path declaration was removed after that build; Vercel CI must verify final packaging.
+- Local browser: English service selection advanced to the availability error/retry state; Japanese booking rendered at narrow width. Local backend configuration did not provide slots, so live slot selection, authenticated profile, native select popup and full sign-in recovery remain unverified. No live bookings or stock were changed.
+- Pending: owner inputs/policy approval, authenticated/live checks, full browser matrix and GitHub release. Stripe remains paused. Profile session-expiry recovery beyond a retry and the full accessibility matrix remain open.
+
+The numbered list below is the original launch checklist; the implementation items above supersede its older source observations.
+
+1. Configure and verify seller access to `/admin`, stock editing and operational views. Real stock quantities remain owner-supplied; do not invent them. Paid shipments/tracking need the later Stripe test sale.
+2. Confirm independent USD/JPY/THB prices, actual inventory, supported shipping countries and customer-facing postage terms. The historical ThaiPost table remains preparation-only and adds no checkout fee.
+3. Finish the UX findings in `ux-review-2026-10-16.md`: login return path/draft recovery, profile save behavior, appointment status/history, field labels/styles and recoverable error states. Recheck current code before each fix. Login still targets profile; footer privacy/terms links still point to `#` in the current source.
+4. Publish owner-approved privacy, terms, shipping/returns and repair cancellation information. No dedicated privacy/terms routes were found in the current source.
+5. Verify remaining live flows: email/password signup and confirmation delivery, saved address persistence, rescheduling and Calendar busy-time blocking, mobile/desktop in four locales, owner/customer access boundaries. The confirmed new-booking test does not certify every failure/concurrency case.
+6. Preserve the deployed Apps Script cancellation fix and scheduler in GitHub: local script/test changes remain uncommitted. Review dependency alerts and complete release checks. The most recent scheduler test suite passed 106 tests; this checkpoint did not rerun tests or certify a new build.
+7. Resume Stripe only when the owner is ready: test-mode credentials/webhook, successful and failed/expired payment, order/stock/fulfillment checks, then a separately approved live activation.
+
+Suggested next task while Stripe is paused: seller `/admin` access and actual stock configuration, followed by the outstanding account/booking UX work.
+
+### Later enhancements, not part of the verified booking flow
+
+- Full customer database sync to Google Sheets (the current Sheet mirrors bookings).
+- Complete accounting and an owner order list spanning all payment states.
+- An owner UI for weekly opening hours/holidays; current slot rules are fixed in code/SQL, with Calendar busy-time filtering.
+- Additional payment methods.
+
+## Historical audit — 15 October 2026
+
 Checked 15 October 2026 against the local source and the connected Vercel project. **A READY deployment is present, but the site is not yet verified for taking real orders or reservations.** Vercel reports a production build of Git commit `31dc372`; the local checkout also has uncommitted changes. Secret values, database schema, provider accounts and real transactions were not inspected.
 
 ## What the current code provides

@@ -23,7 +23,8 @@ function fixture() {
    Calendar: { Events: { get: (_calendar: string, eventId: string) => { assert.equal(locked,true); operations.push('calendar'); if (!events.has(eventId)) throw Error('404 Not Found'); return events.get(eventId); },
      insert: (event: any, calendar: string, options: any) => { assert.equal(locked,true); assert.equal(calendar,'calendar'); assert.equal(options.sendUpdates,'none'); assert.equal(event.visibility,'private'); assert.equal('attendees' in event,false); if(calendarFails) throw Error('calendar failed'); insertions++; events.set(event.id,event); return event; },
      patch: (event: any, calendar: string, eventId: string, options: any) => { assert.equal(locked,true); assert.equal(calendar,'calendar'); assert.equal(options.sendUpdates,'none'); if(calendarFails) throw Error('calendar failed'); events.set(eventId,{...events.get(eventId),...event}); },
-     delete: (calendar: string, eventId: string, options: any) => { assert.equal(locked,true); assert.equal(calendar,'calendar'); assert.equal(options.sendUpdates,'none'); if(calendarFails) throw Error('calendar failed'); events.delete(eventId); },
+     // Apps Script renames REST delete methods to remove.
+     remove: (calendar: string, eventId: string, options: any) => { assert.equal(locked,true); assert.equal(calendar,'calendar'); assert.equal(options.sendUpdates,'none'); if(calendarFails) throw Error('calendar failed'); events.delete(eventId); },
      list: (_calendar: string, options: any) => { assert.equal(locked,true); assert.equal(_calendar,'calendar'); assert.equal(options.singleEvents,true); return { items: Array.from(events.values()) }; },
    } },
  });

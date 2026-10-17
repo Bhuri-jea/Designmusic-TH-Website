@@ -32,6 +32,18 @@ Buyer and seller messages use immutable booking/order snapshots, HTML escaping, 
 
 ## Authenticated POST scheduler
 
+### Five-minute scheduler in the existing Apps Script project
+
+1. Open the booking Apps Script project → Project Settings → Script properties. Add `WEBSITE_CRON_SECRET` with the same private value as the production Vercel `CRON_SECRET`. Save. This is separate from `BOOKING_REPORT_SECRET`.
+2. In Editor, add a new Script file named `WebsiteScheduler`. Copy all of `scripts/google-outbox-scheduler.gs` into that file and save. Preserve the existing booking webhook file.
+3. Select `processWebsiteJobs` in the function dropdown and click Run. Authorize external requests as the existing script owner. This performs one real worker batch; verify the execution log shows zero outbox errors. A Stripe warning is expected until payment setup is completed and is separate from booking delivery.
+4. Open Triggers (clock icon). Check that there is no existing trigger for `processWebsiteJobs`. Add one with function `processWebsiteJobs`, deployment `Head`, event source `Time-driven`, type `Minutes timer`, interval `Every 5 minutes`. Select immediate failure notification where offered, then Save. If another scheduler already calls this endpoint, retire it before enabling this one.
+5. After approximately five to ten minutes, check Executions for a Time-driven `processWebsiteJobs` run. Confirm its counts and status, then check a fresh owner test booking reaches `done` without a manual worker call. Incomplete Stripe setup remains a warning; a completed trigger alone does not prove payment reconciliation succeeded.
+
+This trigger uses saved project code and does not require a new web app deployment or a Vercel redeploy. The webhook itself still requires a new deployed version when its code changes. The scheduler deliberately holds no ScriptLock, because the website calls back into this project's `doPost`, which needs that lock. It makes one POST per run, does not follow redirects or retry inside the same invocation, and logs sanitized counts only. To pause it, delete its time-driven trigger; keep the booking web app deployment.
+
+Reference: [Google installable triggers](https://developers.google.com/apps-script/guides/triggers/installable), [supported minute intervals](https://developers.google.com/apps-script/reference/script/clock-trigger-builder#everyMinutes(Integer)).
+
 Configure a separate private `CRON_SECRET`. Use an HTTP scheduler that sends **POST** to `https://<site>/api/cron/outbox` with `Authorization: Bearer <CRON_SECRET>`; a GET-based scheduler alone is incompatible. A five-minute interval is a reasonable starting point. Do not put this header/secret in browser code or URLs. There is no immediate transport side effect from the booking API.
 
 The scheduler first allows payment reconciliation up to 25 seconds, then dispatches at most five outbox jobs within 70 seconds, totaling at most 95 seconds plus response overhead. The hosting route duration must allow this budget (at least 100 seconds); deployment/runtime configuration is a separate release check. Each run gets a fresh UUID lease owner. Task 2 RPCs enforce five-minute leases and reject stale/wrong-owner completion/failure; provider dedupe keys stay stable across lease owners.

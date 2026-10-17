@@ -2,6 +2,8 @@
   import { onMount, untrack } from 'svelte';
   import { signIn } from 'auth-astro/client';
   import { accountCopy } from '../../i18n/account';
+  import { safeCallback } from '../../utils/navigation';
+  import type { Locale } from '../../lib/catalog';
   let { lang = 'en', initialSignup = false } = $props<{ lang?: string; initialSignup?: boolean }>();
   let profilePath = $derived(['ja', 'th', 'zh-CN'].includes(lang) ? '/' + lang + '/profile' : '/profile');
   let copy = $derived(accountCopy[lang as keyof typeof accountCopy] ?? accountCopy.en);
@@ -12,9 +14,12 @@
   let confirmation = $state('');
   let status = $state('');
   let busy = $state(false);
+  let returnPath = $state('');
   const runtimeSignIn = signIn as unknown as (provider: string, options: Record<string, string | boolean>) => Promise<Response | void>;
 
   onMount(() => {
+    const locale: Locale = lang === 'ja' || lang === 'th' || lang === 'zh-CN' ? lang : 'en';
+    returnPath = safeCallback(new URLSearchParams(window.location.search).get('returnTo'), locale);
     // Supabase verifies the confirmation link; fragment tokens never grant a site session.
     if (window.location.hash.includes('access_token=') || window.location.hash.includes('error=')) {
       const failed = window.location.hash.includes('error=');
@@ -31,7 +36,7 @@
   async function googleLogin() {
     busy = true;
     status = copy.busy;
-    try { await runtimeSignIn('google', { callbackUrl: profilePath, redirect: true }); }
+    try { await runtimeSignIn('google', { callbackUrl: returnPath || profilePath, redirect: true }); }
     catch { status = copy.unavailable; }
     finally { busy = false; }
   }
@@ -51,7 +56,7 @@
         switchMode(false);
         status = copy.sent;
       } else {
-        const response = await runtimeSignIn('credentials', { email, password, redirect: false, callbackUrl: profilePath });
+        const response = await runtimeSignIn('credentials', { email, password, redirect: false, callbackUrl: returnPath || profilePath });
         if (response instanceof Response) status = copy.invalid;
       }
     } catch { status = copy.unavailable; }

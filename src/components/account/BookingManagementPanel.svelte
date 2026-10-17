@@ -29,6 +29,9 @@
    const availabilityData = await availabilityResponse.json();
    if (!availabilityResponse.ok || !Array.isArray(availabilityData.slots)) throw Error();
    slots = availabilityData.slots;
+   for (const id of Object.keys(selected)) {
+    if (!slots.some(slot => slot.startAt === selected[id])) selected[id] = '';
+   }
   } catch { slots = []; availabilityError = true; }
  }
  async function load() { await Promise.all([loadBookings(), loadAvailability()]); }
@@ -36,7 +39,7 @@
  async function reschedule(booking: Booking) {
   if (pending) return;
   const slot = selected[booking.id];
-  if (!slot) { status = t('booking.select'); return; }
+  if (!slots.some(candidate => candidate.startAt === slot) || slot === booking.startAt) { status = t('booking.chooseTime'); return; }
   pending = booking.id; status = '';
   try {
    const response = await fetch(`/api/bookings/${encodeURIComponent(booking.id)}`, {
@@ -44,12 +47,18 @@
     body: JSON.stringify({ changeKey: crypto.randomUUID(), slot }),
    });
    const data = await response.json();
-   if (!response.ok) throw Error(response.status === 409 ? 'conflict' : 'failed');
+   if (response.status === 409) {
+    selected[booking.id] = '';
+    await load();
+    status = t(data.error === 'booking_not_modifiable' ? 'booking.notModifiable' : 'booking.collision');
+    return;
+   }
+   if (!response.ok) throw Error('failed');
    bookings = (bookings ?? []).map(item => item.id === booking.id ? data.booking : item);
    selected[booking.id] = '';
    status = t('booking.timeUpdated');
    await load();
-  } catch (cause) { status = cause instanceof Error && cause.message === 'conflict' ? t('booking.collision') : t('flow.failed'); }
+  } catch { status = t('flow.failed'); }
   finally { pending = null; }
  }
  async function cancel(booking: Booking) {
@@ -92,13 +101,13 @@
     <section class="bg-white/5 border border-white/10 rounded-3xl p-6">
      <h2 class="font-serif text-2xl">{instrumentLabel(booking)} · {serviceLabel(booking)}</h2>
      <p class="text-neutral-300 mt-2">{dateTime(booking.startAt)} · Asia/Bangkok (UTC+7)</p>
-     <div class="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
-      <label class="sr-only" for={`slot-${booking.id}`}>{t('booking.time')}</label>
-      <select id={`slot-${booking.id}`} class="select w-full" bind:value={selected[booking.id]} disabled={pending === booking.id}>
-       <option value="">—</option>
-       {#each slots as slot (slot.startAt)}<option value={slot.startAt}>{slotLabel(slot)}</option>{/each}
+     <label class="block mt-6 mb-2" for={`slot-${booking.id}`}>{t('booking.newTime')}</label>
+     <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
+      <select id={`slot-${booking.id}`} class="select w-full" bind:value={selected[booking.id]} disabled={pending !== null || availabilityError}>
+       <option value="">{t('booking.chooseTime')}</option>
+       {#each slots.filter(slot => slot.startAt !== booking.startAt) as slot (slot.startAt)}<option value={slot.startAt}>{slotLabel(slot)}</option>{/each}
       </select>
-      <button class="btn btn-primary" disabled={pending !== null || !slots.length} onclick={() => reschedule(booking)}>{pending === booking.id ? t('flow.saving') : t('booking.reschedule')}</button>
+      <button class="btn btn-primary" disabled={pending !== null || !slots.some(slot => slot.startAt === selected[booking.id] && slot.startAt !== booking.startAt)} onclick={() => reschedule(booking)}>{pending === booking.id ? t('flow.saving') : t('booking.reschedule')}</button>
       <button class="btn btn-ghost" disabled={pending !== null} onclick={() => cancel(booking)}>{t('booking.cancel')}</button>
      </div>
     </section>

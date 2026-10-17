@@ -2,7 +2,7 @@
 
 /* Shared, restrained components */
 @layer components {
-  .select {
+  .select, .input, .textarea {
     width: 100%;
     min-width: 0;
     min-height: 3rem;
@@ -17,14 +17,17 @@
     background-color: #282e30;
     color: #f1eee4;
   }
-  .select:focus-visible {
+  .select:focus-visible, .input:focus-visible, .textarea:focus-visible {
     outline: 2px solid #c2aa6a;
     outline-offset: 2px;
   }
-  .select:disabled {
+  .select:disabled, .input:disabled, .textarea:disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
+  .input::placeholder, .textarea::placeholder { color: #b7bfc0; opacity: 1; }
+  .textarea { resize: vertical; min-height: 8rem; }
+  .input:autofill { box-shadow: 0 0 0 1000px #282e30 inset; -webkit-text-fill-color: #f1eee4; }
   .btn {
     @apply inline-flex items-center justify-center px-6 py-3 rounded-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
   }
