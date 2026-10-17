@@ -30,11 +30,22 @@
   phone = data.phone ?? '';
   address = data.shippingAddress ?? { line1: '', line2: '', city: '', state: '', postal_code: '', country: '' };
  }
- onMount(() => {
-  load('/api/profile').then(data => applyCustomer(data.customer)).catch(() => status = t('flow.unavailable'));
-  load('/api/orders').then(data => orders = data.orders).catch(() => orderError = true);
-  load('/api/bookings').then(data => bookings = data.bookings).catch(() => bookingError = true);
- });
+ async function loadProfile() {
+  status = '';
+  try { applyCustomer((await load('/api/profile')).customer); }
+  catch { status = t('flow.unavailable'); }
+ }
+ async function loadOrders() {
+  orderError = false; orders = null;
+  try { orders = (await load('/api/orders')).orders; }
+  catch { orderError = true; }
+ }
+ async function loadBookings() {
+  bookingError = false; bookings = null;
+  try { bookings = (await load('/api/bookings')).bookings; }
+  catch { bookingError = true; }
+ }
+ onMount(() => { void loadProfile(); void loadOrders(); void loadBookings(); });
  async function save(event: SubmitEvent) {
   event.preventDefault();
   if (pending) return;
@@ -61,7 +72,7 @@
  <div class="bg-[#111415] border border-white/15 rounded-2xl p-5 sm:p-8 mb-10">
  {#if customer}
   <form class="space-y-6" onsubmit={save}>
-   <fieldset class="space-y-5">
+   <fieldset disabled={pending} class="space-y-5">
     <legend class="font-serif text-2xl mb-5">{t('flow.contactDetails')}</legend>
     <div class="grid sm:grid-cols-2 gap-5">
      <div><label class="profile-label" for="profile-name">{t('flow.name')}</label><input id="profile-name" class="profile-input" autocomplete="name" maxlength="120" required bind:value={name}/></div>
@@ -69,7 +80,7 @@
     </div>
     <div><label class="profile-label" for="profile-email">{t('flow.email')}</label><input id="profile-email" class="profile-input" type="email" readonly value={customer.email} aria-describedby="profile-email-help"/><p id="profile-email-help" class="mt-2 text-sm text-neutral-400">{t('flow.emailHelp')}</p></div>
    </fieldset>
-   <fieldset class="rounded-xl border border-white/15 bg-[#1a1f20] p-4 sm:p-6 space-y-5">
+   <fieldset disabled={pending} class="rounded-xl border border-white/15 bg-[#1a1f20] p-4 sm:p-6 space-y-5">
     <legend class="font-serif text-2xl px-2">{t('flow.shippingAddress')}</legend>
     <p class="text-sm text-neutral-300">{t('flow.shippingAddressHelp')}</p>
     <div><label class="profile-label" for="address-line1">{t('flow.addressLine1')}</label><input id="address-line1" class="profile-input" autocomplete="address-line1" maxlength="200" required={hasAddressInput} bind:value={address.line1}/></div>
@@ -84,10 +95,10 @@
    </fieldset>
    <div class="flex flex-wrap items-center gap-4"><button class="btn btn-primary w-full sm:w-auto min-w-40" disabled={pending}>{pending ? t('flow.saving') : t('flow.save')}</button><p role="status" class="text-sm text-neutral-200">{status}</p></div>
   </form>
- {:else if !status}<p role="status">{t('flow.loading')}</p>{:else}<p role="alert">{status}</p>{/if}
+ {:else if !status}<p role="status">{t('flow.loading')}</p>{:else}<p role="alert">{status}</p><button class="btn" onclick={loadProfile}>{t('flow.retry')}</button>{/if}
  </div>
- <div class="grid md:grid-cols-2 gap-8"><section class="bg-white/5 border border-white/10 rounded-3xl p-6"><h2 class="font-serif text-2xl mb-6">{t('flow.bookings')}</h2>{#if bookingError}<p>{t('flow.unavailable')}</p>{:else if bookings===null}<p>{t('flow.loading')}</p>{:else if !bookings.length}<p>{t('flow.empty')}</p>{:else}{#each bookings as booking}<div class="p-4 border-b border-white/10"><p>{t('booking.'+booking.instrument)} · {t(booking.service==='assessment'?'booking.assessmentLabel':'booking.'+booking.service)}</p><p>{time(booking.startAt)} · Asia/Bangkok</p></div>{/each}{/if}<a class="btn mt-6" href={localizedPath('/booking',lang)}>{t('flow.book')}</a><a class="btn btn-ghost mt-3" href={localizedPath('/profile/bookings',lang)}>{t('flow.manageBookings')}</a></section>
- <section class="bg-white/5 border border-white/10 rounded-3xl p-6"><h2 class="font-serif text-2xl mb-6">{t('flow.orders')}</h2>{#if orderError}<p>{t('flow.unavailable')}</p>{:else if orders===null}<p>{t('flow.loading')}</p>{:else if !orders.length}<p>{t('flow.empty')}</p>{:else}{#each orders as order}<a class="block p-4 border-b border-white/10 break-all underline" href={localizedPath('/success',lang)+'?order_id='+order.id}>{order.id}<span class="block text-sm">{t('flow.'+order.status)}</span></a>{/each}{/if}</section></div>
+ <div class="grid md:grid-cols-2 gap-8"><section class="bg-white/5 border border-white/10 rounded-3xl p-6"><h2 class="font-serif text-2xl mb-6">{t('flow.bookings')}</h2>{#if bookingError}<p role="alert">{t('flow.unavailable')}</p><button class="btn" onclick={loadBookings}>{t('flow.retry')}</button>{:else if bookings===null}<p>{t('flow.loading')}</p>{:else if !bookings.length}<p>{t('flow.empty')}</p>{:else}{#each bookings as booking}<div class="p-4 border-b border-white/10"><p>{t('booking.'+booking.instrument)} · {t(booking.service==='assessment'?'booking.assessmentLabel':'booking.'+booking.service)}</p><p>{time(booking.startAt)} · Asia/Bangkok</p><p class="mt-2 text-sm text-neutral-300">{t(booking.status === 'cancelled' ? 'booking.statusCancelled' : Date.parse(booking.startAt) <= Date.now() ? 'booking.statusPast' : 'booking.statusUpcoming')}</p></div>{/each}{/if}<a class="btn mt-6" href={localizedPath('/booking',lang)}>{t('flow.book')}</a><a class="btn btn-ghost mt-3" href={localizedPath('/profile/bookings',lang)}>{t('flow.manageBookings')}</a></section>
+ <section class="bg-white/5 border border-white/10 rounded-3xl p-6"><h2 class="font-serif text-2xl mb-6">{t('flow.orders')}</h2>{#if orderError}<p role="alert">{t('flow.unavailable')}</p><button class="btn" onclick={loadOrders}>{t('flow.retry')}</button>{:else if orders===null}<p>{t('flow.loading')}</p>{:else if !orders.length}<p>{t('flow.empty')}</p>{:else}{#each orders as order}<a class="block p-4 border-b border-white/10 break-all underline" href={localizedPath('/success',lang)+'?order_id='+order.id}>{order.id}<span class="block text-sm">{t('flow.'+order.status)}</span></a>{/each}{/if}</section></div>
 </div>
 
 <style>
@@ -95,5 +106,6 @@
  .profile-input { width: 100%; min-height: 3rem; padding: 0.7rem 0.85rem; border: 1px solid #728084; border-radius: 0.5rem; background: #282e30; color: #f1eee4; color-scheme: dark; }
  .profile-input:focus-visible { outline: 2px solid #c2aa6a; outline-offset: 2px; border-color: #c2aa6a; }
  input.profile-input:read-only { background: #1e2325; color: #cbd0cf; }
+ .profile-input:disabled { opacity: 0.65; cursor: wait; }
  .profile-input option { background: #282e30; color: #f1eee4; }
 </style>

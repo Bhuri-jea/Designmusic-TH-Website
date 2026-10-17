@@ -50,7 +50,7 @@ function doPost(e) {
       if (eventVersion > body.version) return reportJson({ ok: true, bookingId: body.bookingId });
     }
     if (body.status === 'cancelled') {
-      if (event) Calendar.Events.delete(calendarId, eventId, { sendUpdates: 'none' });
+      if (event) Calendar.Events.remove(calendarId, eventId, { sendUpdates: 'none' });
     } else {
       var eventBody = {
         summary: 'Design Music repair: ' + body.instrument + ' / ' + body.service,

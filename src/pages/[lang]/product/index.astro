@@ -4,14 +4,6 @@ import { products } from '../../../lib/products';
 import { isSupportedLocale } from '../../../lib/server/locales';
 import { localizeProduct } from '../../../i18n/products';
 
-export function getStaticPaths() {
-  return [
-    { params: { lang: 'ja' } },
-    { params: { lang: 'zh-CN' } },
-    { params: { lang: 'th' } },
-  ];
-}
-
 const { lang } = Astro.params;
 if (!isSupportedLocale(lang) || lang === 'en') return new Response(null, { status: 404 });
 const allProducts = products;
