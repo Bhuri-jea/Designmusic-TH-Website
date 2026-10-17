@@ -133,16 +133,32 @@ test('reschedule retries can reach the idempotent RPC after their new slot becom
     calendarAvailability: async slots => { availabilityChecks++; return slots; },
     rpc: async <T>(_name: string, args: Record<string, unknown>) => {
       rpcCalls++;
-      if (rpcCalls === 1) currentSlot = args.p_start_at as string;
+      if (rpcCalls === 1) currentSlot = (args.p_start_at as string).replace('.000Z', '+00:00');
       return { id: key, customerId: key, requestKey: key, fingerprint: '', startAt: currentSlot,
         endAt: new Date(Date.parse(currentSlot) + 3600000).toISOString(), instrument: 'alto', service: 'basic', notes: '', locale: 'en', status: 'confirmed', createdAt: '2026-10-12T00:00:00Z' } as T;
     },
   };
   const request = new Request('https://shop.test');
   const change = { changeKey: key, slot: nextSlot };
-  assert.equal((await rescheduleBooking(request, key, change, deps)).startAt, nextSlot);
-  assert.equal((await rescheduleBooking(request, key, change, deps)).startAt, nextSlot);
+  assert.equal(Date.parse((await rescheduleBooking(request, key, change, deps)).startAt), Date.parse(nextSlot));
+  assert.equal(Date.parse((await rescheduleBooking(request, key, change, deps)).startAt), Date.parse(nextSlot));
   assert.equal(availabilityChecks, 1);
   assert.equal(rpcCalls, 2);
   await assert.rejects(rescheduleBooking(request, key, { changeKey: key, slot: body.slot }, deps), /booking_conflict/);
+});
+
+test('reschedule validates database timestamps by instant while rejecting different times', async () => {
+  const f = fixture();
+  const nextSlot = bookingSlots(now)[1];
+  f.deps.rpc = async <T>() => ({ id: key, customerId: key, status: 'confirmed',
+    startAt: nextSlot.startAt.replace('.000Z', '+00:00'),
+    endAt: nextSlot.endAt.replace('.000Z', '+00:00'),
+  }) as T;
+  const request = new Request('https://shop.test');
+  const change = { changeKey: key, slot: nextSlot.startAt };
+  assert.equal(Date.parse((await rescheduleBooking(request, key, change, f.deps)).endAt), Date.parse(nextSlot.endAt));
+  for (const patch of [{ startAt: body.slot }, { endAt: body.slot }, { startAt: 'invalid' }, { customerId: 'foreign' }]) {
+    f.deps.rpc = async <T>() => ({ id: key, customerId: key, status: 'confirmed', ...nextSlot, ...patch }) as T;
+    await assert.rejects(rescheduleBooking(request, key, change, f.deps), /booking_conflict/);
+  }
 });

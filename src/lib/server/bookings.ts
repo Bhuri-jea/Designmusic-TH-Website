@@ -84,7 +84,9 @@ export async function rescheduleBooking(request: Request, id: string, body: Reco
   if (!slot) throw new HttpError(400, 'invalid_booking');
   const booking = (await ownedBookings(request, id, deps))[0];
   if (booking.status !== 'confirmed' || Date.parse(booking.startAt) <= deps.now()) throw new HttpError(409, 'booking_not_modifiable');
-  if (booking.startAt !== slot.startAt) {
+  // PostgreSQL JSON uses offsets such as +00:00; generated slots use ISO Z.
+  // Compare instants so a successful write/retry is not reported as occupied.
+  if (Date.parse(booking.startAt) !== Date.parse(slot.startAt)) {
     const availability = await bookingAvailability(deps);
     if (!availability.slots.some(candidate => candidate.startAt === slot.startAt)) throw new HttpError(409, 'booking_conflict');
   }
@@ -96,7 +98,7 @@ export async function rescheduleBooking(request: Request, id: string, body: Reco
     });
   } catch (error) { mutationError(error); }
   if (!updated || updated.id !== id.toLowerCase() || updated.customerId !== customer.id || updated.status !== 'confirmed' ||
-    updated.startAt !== slot.startAt || updated.endAt !== slot.endAt) {
+    Date.parse(updated.startAt) !== Date.parse(slot.startAt) || Date.parse(updated.endAt) !== Date.parse(slot.endAt)) {
     throw new HttpError(409, 'booking_conflict');
   }
   return publicBooking(updated);
