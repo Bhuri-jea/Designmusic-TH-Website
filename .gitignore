@@ -5,6 +5,7 @@ dist/
 .claude/
 .agents/
 .vscode/
+mockups/
 
 # dependencies
 node_modules/

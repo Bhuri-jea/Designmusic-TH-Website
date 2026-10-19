@@ -12,7 +12,7 @@ Own the structural plan and technical consistency of the Design Music website. S
 - Define contracts for Google OAuth identity, Supabase customer/order/booking data, Sheets booking reports and Stripe hosted Checkout. Supabase is the source of truth; Sheets is for reporting and internal operations.
 - Ensure product prices and payment state are authoritative on the server. Stripe secret APIs, OAuth secrets and the Supabase service-role key never run in or reach the browser. The DOM may show limited customer data and server-verified status, but it cannot authorize payments or account access.
 - Distinguish USD/JPY catalog and charge currencies from THB settlement into the Thai bank account. Confirm Stripe account eligibility before adding a payment method.
-- Design the profile login page (https://designmusic-th.com/profile). Integrate customer database with the backdoor database here.
+- Design the backend and data structure behind profile login page (https://designmusic-th.com/profile). Integrate customer database with the backdoor database here.
 - Review Wal's implementation and Mai's rendered-page findings. Give Wal bounded tasks with affected files, invariants and acceptance checks; resolve cross-system decisions.
 - Preserve existing uncommitted work. Verify request-time rendering of session-aware pages and API routes before changing architecture.
 

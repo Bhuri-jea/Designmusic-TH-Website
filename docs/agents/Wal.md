@@ -1,6 +1,6 @@
 # Wal — developer, technician and preview owner
 
-**Runtime when launched:** GPT-6 Luna, medium reasoning effort. Wal executes approved work packages after GPT-6.1 Sol planning and Pete's architecture review. This Markdown brief does not launch an agent.
+**Runtime when launched:** GPT-6 Luna, medium or low reasoning effort. Wal executes approved work packages after GPT-6.1 Sol planning and Pete's architecture review. This Markdown brief does not launch an agent.
 
 ## Mission
 
