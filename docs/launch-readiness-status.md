@@ -1,5 +1,18 @@
 # DesignMusic launch readiness
 
+## Current checkpoint — 19 October 2026 (Asia/Tokyo)
+
+This checkpoint supersedes payment/admin status statements in the dated history below. Stripe work resumed in **test mode**; live activation is not approved.
+
+- Owner verified test Checkout success, paid shipment visibility in admin, payment email delivery and correct stock deduction.
+- Owner verified card decline, followed by checkout expiry, reserved stock release and no payment-received email for the unpaid order.
+- Owner previously confirmed admin inventory access for the first account. Adding `designmusicthailand@gmail.com` still requires its Google subject to be appended to the production allowlist and access verified; the request alone does not confirm completion.
+- The [Stripe review](stripe-review-2026-10-19.md) records the connected sandbox and 43 local test passes separately from owner-reported deployed checks.
+- Added [payment recovery and refund procedures](payment-recovery-runbook.md) and [read-only diagnostic SQL](payment-recovery-readonly.sql). No production data or payment settings changed.
+- Remaining payment checks: deployed duplicate webhook replay, missed-event recovery, ambiguous creation recovery, all charge currencies, shipment tracking, and refund/return handling. The website does not yet synchronize refunds or enforce a refund shipment hold.
+- Local customer-service follow-up: added order-specific email drafts/copy-email in all four locales and admin hold/release with reasons and audit records. The new `202610190001_shipment_holds.sql` migration enforces holds during dispatch; it is **not yet applied or deployed**, so the live hold limitation above still applies. See [setup and acceptance steps](customer-service-refunds.md). Automatic refund synchronization remains unimplemented.
+- Tax and Terminal eligibility remain unresolved; invoicing workflow remains a separate decision. Final pricing, stock, postage terms, customer policies and broader launch checks below still require completion where not subsequently verified.
+
 ## Current checkpoint — 17 October 2026 (Asia/Tokyo)
 
 This checkpoint supersedes the historical 15 October audit below. Stripe work is paused at the owner's request while waiting for the account owner; do not activate live payments.

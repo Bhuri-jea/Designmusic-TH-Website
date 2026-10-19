@@ -1,8 +1,15 @@
 <script lang="ts">
+ import OrderSupport from './OrderSupport.svelte';
  import {onMount} from 'svelte';import {ui} from '../../i18n/ui';import {cart} from '../../store/cart.svelte';import {localizedPath} from '../../utils/navigation';import type {Locale} from '../../lib/catalog';
  let {lang,orderId,cancelled=false}=$props<{lang:Locale;orderId?:string|null;cancelled?:boolean}>();let state=$state('unknown'),order=$state<any>(null),pending=$state(false);let active=true;
  const t=(key:string)=>ui[lang][key as keyof typeof ui.en];
  async function refresh(){if(pending || !orderId || !/^[0-9a-f-]{36}$/i.test(orderId))return;pending=true;try{const res=await fetch('/api/orders?order_id='+encodeURIComponent(orderId),{cache:'no-store'});const data=await res.json();if(!active)return;if(res.status===401){state='signInRequired';return;}if(!res.ok){state='unavailable';return;}order=data.orders?.find((value:any)=>value.id===orderId);state=order && ['pending','paid','failed','expired','review'].includes(order.status)?order.status:'unknown';if(state==='paid'){cart.init(lang);cart.reconcile(order);}}catch{state='unavailable';}finally{pending=false;}}
  onMount(()=>{cart.init(lang);if(cancelled)return;let timer:ReturnType<typeof setTimeout>;let attempts=0;const poll=async()=>{await refresh();if(active && state==='pending' && ++attempts<5)timer=setTimeout(poll,3000);};poll();return ()=>{active=false;clearTimeout(timer);};});
 </script>
+
+<!-- Only an order returned by the authenticated ownership API may supply support context. -->
+{#snippet support()}
+ {#if order && !['signInRequired','unavailable','unknown'].includes(state)}<OrderSupport orderId={order.id} {lang}/>{/if}
+{/snippet}
 <div class="max-w-3xl mx-auto px-6 py-40 text-center relative z-10"><div class="flex justify-center mb-10"><div class="p-6 rounded-full bg-white/5 border border-white/10"><svg viewBox="0 0 24 24" aria-hidden="true" class="w-20 h-20"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/>{#if state==='paid'}<path d="M8 12.5l2.5 2.5 5.5-6" fill="none" stroke="currentColor" stroke-width="1.7"/>{:else}<path d="M12 6v7m0 4v1" stroke="currentColor" stroke-width="1.7"/>{/if}</svg></div></div><h1 class="font-serif text-4xl md:text-6xl mb-6">{t('flow.payment')}</h1><p class="text-lg text-neutral-400 mb-6" role="status">{pending?t('flow.loading'):t(cancelled?'flow.cancelled':'flow.'+state)}</p>{#if state==='paid'}<p class="text-neutral-400 mb-6">{t('flow.address')}</p>{/if}{#if order}<p class="break-all mb-6">{order.id}</p>{/if}{#if !cancelled && ['pending','unavailable'].includes(state)}<button class="btn mb-6" disabled={pending} onclick={refresh}>{t('flow.retry')}</button>{/if}{#if state==='signInRequired'}<a class="btn mb-6" href={localizedPath('/login',lang)+'?returnTo='+encodeURIComponent(localizedPath('/success',lang)+(orderId?'?order_id='+orderId:''))}>{t('flow.login')}</a>{/if}<div class="flex flex-wrap justify-center gap-4"><a class="btn btn-primary" href={localizedPath('/product',lang)}>{t('flow.shop')}</a><a class="btn" href={localizedPath('/profile',lang)}>{t('flow.account')}</a></div></div>
+{@render support()}
