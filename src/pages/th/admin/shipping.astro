@@ -1,0 +1,12 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import AdminShippingSettings from '../../../components/account/AdminShippingSettings.svelte';
+import { requireAdmin } from '../../../lib/server/admin';
+import { HttpError } from '../../../lib/server/http';
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+let allowed = false, message = 'เครื่องมือผู้ขายไม่พร้อมใช้งาน';
+try { await requireAdmin(Astro.request); allowed = true; }
+catch (error) { if (error instanceof HttpError) { Astro.response.status = error.status; message = error.status === 401 ? 'เข้าสู่ระบบด้วยบัญชี Google ที่ได้รับอนุญาตเพื่อจัดการร้านค้า' : error.status === 403 ? 'บัญชีนี้ไม่มีสิทธิ์ผู้ดูแลร้านค้า' : 'เครื่องมือผู้ขายไม่พร้อมใช้งาน โปรดลองอีกครั้ง'; } }
+---
+<Layout title="ตั้งค่าการจัดส่ง · จัดการร้านค้า" lang="th">{allowed ? <AdminShippingSettings client:load lang="th"/> : <div class="max-w-3xl mx-auto px-6 py-32"><h1 class="font-serif text-4xl mb-6">จัดการร้านค้า</h1><p>{message}</p><a class="btn mt-6" href="/th/login">เข้าสู่ระบบ</a></div>}</Layout>

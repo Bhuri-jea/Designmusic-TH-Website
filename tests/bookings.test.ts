@@ -1,17 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bookingSlots, bookingCalendarSlots, DEFAULT_WEEKLY_BOOKING_HOURS, validateBooking } from '../src/lib/booking.ts';
+import { bookingSlots, bookingCalendarSlots, bookingDateWindow, DEFAULT_WEEKLY_BOOKING_HOURS, validateBooking, type DailyBookingHours } from '../src/lib/booking.ts';
 import { bookingAvailability, cancelBooking, createBooking, ownedBookings, rescheduleBooking, type BookingDependencies } from '../src/lib/server/bookings.ts';
 const key = '22222222-2222-4222-8222-222222222222';
 const now = Date.parse('2026-10-12T16:59:59Z'); // 23:59:59 Monday Bangkok
 const body = { requestKey: key, slot: '2026-10-13T03:00:00.000Z', instrument: 'alto', service: 'basic', notes: '  careful  ', locale: 'ja' };
-test('Bangkok tomorrow rolls over at local midnight; weekday hours expose half-hour starts', () => {
+test('Bangkok tomorrow rolls over at local midnight; rolling two-month window exposes half-hour starts', () => {
   const slots = bookingSlots(now);
   assert.equal(slots[0].startAt, '2026-10-13T01:00:00.000Z');
-  assert.equal(slots.at(-1)?.startAt, '2026-11-12T10:00:00.000Z');
-  assert.equal(slots.length, 437);
-  assert.equal(bookingSlots(now + 1000)[0].startAt, '2026-10-14T01:00:00.000Z');
+  assert.equal(slots.at(-1)?.startAt, '2026-12-11T10:00:00.000Z');
+  assert.equal(slots.length, 836);
+  assert.equal(bookingSlots(now + 1000)[0].startAt, '2026-10-13T01:00:00.000Z');
+  assert.deepEqual(bookingDateWindow(now), { from: '2026-10-12', to: '2026-12-12' });
   for (const s of slots) assert.equal(Date.parse(s.endAt) - Date.parse(s.startAt), 3600000);
+});
+test('calendar month bounds include today and clamp month-end dates in Bangkok', () => {
+  assert.deepEqual(bookingDateWindow(Date.parse('2026-10-31T12:00:00Z')), { from: '2026-10-31', to: '2026-12-31' });
+  assert.deepEqual(bookingDateWindow(Date.parse('2026-12-31T12:00:00Z')), { from: '2026-12-31', to: '2027-02-28' });
+  const today = Date.parse('2026-10-20T12:00:00Z'); // 19:00 Bangkok: day remains editable, starts are too early to book.
+  const calendar = bookingCalendarSlots(today);
+  assert.ok(calendar.some(slot => slot.startAt === '2026-10-20T01:00:00.000Z'));
+  assert.ok(calendar.some(slot => slot.startAt === '2026-12-18T10:00:00.000Z'));
+  assert.ok(!calendar.some(slot => slot.startAt.startsWith('2026-12-21')));
+  assert.ok(bookingSlots(today).every(slot => Date.parse(slot.startAt) > today));
 });
 test('booking canonical IDs, strict schema, notes bounds and locale determine fingerprint', async () => {
   const valid = await validateBooking(body, now);
@@ -75,9 +86,49 @@ test('availability reports whether the result came from Google Calendar', async 
   assert.equal(result.source, 'google-calendar');
   assert.equal(result.slots[0].startAt, bookingSlots(now)[1].startAt);
 });
+test('admin availability remains editable when Google fails, while public availability fails closed', async () => {
+  const f = fixture();
+  f.deps.calendarAvailability = async () => { throw Error('transport_http_503'); };
+  const admin = await bookingAvailability(f.deps, { googleFailure: 'unavailable' });
+  assert.equal(admin.source, 'unavailable');
+  assert.equal(admin.availabilityError, 'google_calendar_unavailable');
+  assert.ok(admin.calendarSlots.some(slot => slot.status === 'unavailable'));
+  assert.deepEqual(admin.slots, []);
+  await assert.rejects(bookingAvailability(f.deps), /transport_http_503/);
+});
+test('public calendar omits past starts, admin calendar retains today, and database range ends after the final Bangkok day', async () => {
+  const f = fixture();
+  f.deps.calendarAvailability = async slots => slots;
+  let filtersSeen: Record<string, string> = {};
+  f.deps.select = async <T>(_table: string, filters: Record<string, string>) => {
+    filtersSeen = filters;
+    return [] as T[];
+  };
+  const publicResult = await bookingAvailability(f.deps);
+  assert.equal(publicResult.from, '2026-10-12');
+  assert.equal(publicResult.to, '2026-12-12');
+  assert.ok(publicResult.calendarSlots.every(slot => Date.parse(slot.startAt) > now));
+  assert.equal(filtersSeen.start_at, 'lt.2026-12-12T17:00:00.000Z');
+  const adminResult = await bookingAvailability(f.deps, { includePast: true });
+  assert.ok(adminResult.calendarSlots.some(slot => slot.startAt.startsWith('2026-10-12')));
+});
 test('owned booking reads filter stable customer; malformed ID and missing owned record fail', async () => {
   const f = fixture();
   assert.equal((await ownedBookings(new Request('https://shop.test'), undefined, f.deps)).length, 1);
+  let newestOrder = '';
+  f.deps.select = async <T>(_table: string, filters: Record<string, string>) => {
+    newestOrder = filters.order;
+    return [{ id: key, customer_id: key, archived_at: null, start_at: body.slot, end_at: '2026-10-13T04:00:00Z', instrument: 'alto', service: 'basic', notes: 'careful', locale: 'ja', status: 'confirmed', created_at: '2026-10-12T00:00:00Z' }] as T[];
+  };
+  assert.equal((await ownedBookings(new Request('https://shop.test'), undefined, f.deps)).length, 1);
+  assert.equal(newestOrder, 'created_at.desc');
+  let archivedFilter = '';
+  f.deps.select = async <T>(_table: string, filters: Record<string, string>) => {
+    archivedFilter = filters.archived_at;
+    return [] as T[];
+  };
+  assert.deepEqual(await ownedBookings(new Request('https://shop.test'), undefined, f.deps), []);
+  assert.equal(archivedFilter, 'is.null');
   await assert.rejects(ownedBookings(new Request('https://shop.test'), 'bad', f.deps));
   f.deps.select = async () => [];
   await assert.rejects(ownedBookings(new Request('https://shop.test'), key, f.deps), /booking_not_found/);
@@ -92,7 +143,7 @@ test('rescheduling uses current availability and cancellation stays owner-scoped
     select: async <T>(_table: string, filters: Record<string, string>) => {
       if (filters.request_key) return [] as T[];
       if (filters.select === 'start_at,end_at') return [] as T[];
-      return [{ id: key, customer_id: key, start_at: body.slot, end_at: '2026-10-13T04:00:00Z', instrument: 'alto', service: 'basic', notes: 'careful', locale: 'ja', status: 'confirmed', created_at: '2026-10-12T00:00:00Z' }] as T[];
+      return [{ id: key, customer_id: key, archived_at: null, start_at: body.slot, end_at: '2026-10-13T04:00:00Z', instrument: 'alto', service: 'basic', notes: 'careful', locale: 'ja', status: 'confirmed', created_at: '2026-10-12T00:00:00Z' }] as T[];
     },
     calendarAvailability: async slots => slots,
     rpc: async <T>(name: string, args: Record<string, unknown>) => {
@@ -163,4 +214,4 @@ test('reschedule validates database timestamps by instant while rejecting differ
   }
 });
 
-test('date overrides change only the selected day and an empty override closes it',()=>{const overrides={'2026-10-13':{},'2026-10-14':{'12:00':'available','12:30':'available','13:00':'contact_directly','13:30':'contact_directly'}};const slots=bookingCalendarSlots(now,DEFAULT_WEEKLY_BOOKING_HOURS,31,overrides);assert.equal(slots.some(s=>s.startAt.startsWith('2026-10-13')),false);const day=slots.filter(s=>s.startAt.startsWith('2026-10-14'));assert.deepEqual(day.map(s=>s.startAt.slice(11,16)),['05:00','05:30','06:00']);assert.equal(day[2].status,'contact_directly');assert.ok(slots.some(s=>s.startAt==='2026-10-15T01:00:00.000Z'));});
+test('date overrides change only the selected day and an empty override closes it',()=>{const overrides:DailyBookingHours={'2026-10-13':{},'2026-10-14':{'12:00':'available','12:30':'available','13:00':'contact_directly','13:30':'contact_directly'}};const slots=bookingCalendarSlots(now,DEFAULT_WEEKLY_BOOKING_HOURS,overrides);assert.equal(slots.some(s=>s.startAt.startsWith('2026-10-13')),false);const day=slots.filter(s=>s.startAt.startsWith('2026-10-14'));assert.deepEqual(day.map(s=>s.startAt.slice(11,16)),['05:00','05:30','06:00']);assert.equal(day[2].status,'contact_directly');assert.ok(slots.some(s=>s.startAt==='2026-10-15T01:00:00.000Z'));});

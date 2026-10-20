@@ -5,7 +5,7 @@
  import { ISO_COUNTRY_CODES } from '../../lib/iso-countries';
  import { localizedPath } from '../../utils/navigation';
  import type { Locale } from '../../lib/catalog';
- import ShippingQuotes from './ShippingQuotes.svelte';
+ import AccountNav from './AccountNav.svelte';
 
  type ShippingAddress = { line1: string; line2: string; city: string; state: string; postal_code: string; country: string };
  let { lang } = $props<{ lang: Locale }>();
@@ -18,7 +18,6 @@
   return ISO_COUNTRY_CODES.map(code => ({ code, name: names.of(code) ?? code }))
    .sort((a, b) => collator.compare(a.name, b.name));
  });
- let orders = $state<any[] | null>(null), bookings = $state<any[] | null>(null), orderError = $state(false), bookingError = $state(false);
  const t = (key: string) => ui[lang][key as keyof typeof ui.en];
  async function load(endpoint: string) {
   const res = await fetch(endpoint, { cache: 'no-store' });
@@ -36,17 +35,7 @@
   try { applyCustomer((await load('/api/profile')).customer); }
   catch { status = t('flow.unavailable'); }
  }
- async function loadOrders() {
-  orderError = false; orders = null;
-  try { orders = (await load('/api/orders')).orders; }
-  catch { orderError = true; }
- }
- async function loadBookings() {
-  bookingError = false; bookings = null;
-  try { bookings = (await load('/api/bookings')).bookings; }
-  catch { bookingError = true; }
- }
- onMount(() => { void loadProfile(); void loadOrders(); void loadBookings(); });
+ onMount(() => { void loadProfile(); });
  async function save(event: SubmitEvent) {
   event.preventDefault();
   if (pending) return;
@@ -66,10 +55,10 @@
   finally { pending = false; }
  }
  async function logout() { await (signOut as any)({ callbackUrl: localizedPath('/', lang) }); }
- const time = (value: string) => new Intl.DateTimeFormat(lang, { timeZone: 'Asia/Bangkok', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 </script>
 <div class="max-w-4xl mx-auto px-6 py-16 md:py-24 relative z-10">
  <div class="flex flex-wrap justify-between items-start gap-4 mb-8"><div><h1 class="font-serif text-4xl break-words">{t('flow.account')}</h1><p class="mt-3 text-neutral-300 max-w-2xl">{t('flow.profileIntro')}</p></div><button class="btn btn-ghost" onclick={logout}>{t('flow.signOut')}</button></div>
+ <AccountNav {lang} active="profile" />
  <div class="bg-[#111415] border border-white/15 rounded-2xl p-5 sm:p-8 mb-10">
  {#if customer}
   <form class="space-y-6" onsubmit={save}>
@@ -98,9 +87,6 @@
   </form>
  {:else if !status}<p role="status">{t('flow.loading')}</p>{:else}<p role="alert">{status}</p><button class="btn" onclick={loadProfile}>{t('flow.retry')}</button>{/if}
  </div>
- <ShippingQuotes {lang}/>
- <div class="grid md:grid-cols-2 gap-8"><section class="bg-white/5 border border-white/10 rounded-3xl p-6"><h2 class="font-serif text-2xl mb-6">{t('flow.bookings')}</h2>{#if bookingError}<p role="alert">{t('flow.unavailable')}</p><button class="btn" onclick={loadBookings}>{t('flow.retry')}</button>{:else if bookings===null}<p>{t('flow.loading')}</p>{:else if !bookings.length}<p>{t('flow.empty')}</p>{:else}{#each bookings as booking}<div class="p-4 border-b border-white/10"><p>{t('booking.'+booking.instrument)} · {t(booking.service==='assessment'?'booking.assessmentLabel':'booking.'+booking.service)}</p><p>{time(booking.startAt)} · Asia/Bangkok</p><p class="mt-2 text-sm text-neutral-300">{t(booking.status === 'cancelled' ? 'booking.statusCancelled' : Date.parse(booking.startAt) <= Date.now() ? 'booking.statusPast' : 'booking.statusUpcoming')}</p></div>{/each}{/if}<a class="btn mt-6" href={localizedPath('/booking',lang)}>{t('flow.book')}</a><a class="btn btn-ghost mt-3" href={localizedPath('/profile/bookings',lang)}>{t('flow.manageBookings')}</a></section>
- <section class="bg-white/5 border border-white/10 rounded-3xl p-6"><h2 class="font-serif text-2xl mb-6">{t('flow.orders')}</h2>{#if orderError}<p role="alert">{t('flow.unavailable')}</p><button class="btn" onclick={loadOrders}>{t('flow.retry')}</button>{:else if orders===null}<p>{t('flow.loading')}</p>{:else if !orders.length}<p>{t('flow.empty')}</p>{:else}{#each orders as order}<article class="p-4 border-b border-white/10 break-all"><a class="underline" href={localizedPath('/success',lang)+'?order_id='+order.id}>{order.id}<span class="block text-sm">{t('flow.'+order.status)}</span></a>{#if order.shipment?.trackingNumber}<p class="mt-2 text-sm text-neutral-300">{t('order.trackingNumber')}: {order.shipment.trackingNumber}</p>{#if order.shipment.trackingUrl}<a class="mt-1 inline-block text-amber-200 underline" href={order.shipment.trackingUrl} target="_blank" rel="noreferrer">{t('order.track')}</a>{/if}{/if}</article>{/each}{/if}</section></div>
 </div>
 
 <style>

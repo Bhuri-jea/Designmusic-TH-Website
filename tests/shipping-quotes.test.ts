@@ -10,7 +10,8 @@ function fixture(){
  const deps:any={
   customer:async()=>({id,googleSubject:'owner',email:'test@example.test',name:'Test',phone:null,shippingAddress:address}),
   admin:async()=> 'seller-subject',now:()=>Date.parse('2026-10-20T00:00:00Z'),
-  config:async()=>({allowed_countries:['TH','JP'],usd_thb:35,jpy_thb:0.25}),
+  config:async()=>({allowed_countries:['TH','JP'],usd_thb:35,jpy_thb:0.25,shipping_rates:{'TH:ems_local':[{maxGrams:2000,thbMinor:10000}]}}),
+  exchangeRates:async()=>({usdThb:35,jpyThb:.25,date:'2026-10-20',source:'Frankfurter' as const}),
   inventory:async()=>[{sku:'endplug-plain',weight_grams:1500,price_usd_minor:1500,price_jpy:2500,price_thb_minor:20000}],
   rpc:async(name:string,args:any)=>{calls.push({name,args});return row;},
   pay:async(_request:Request,body:any)=>{calls.push({name:'checkout',args:body});return {orderId:id,url:'https://checkout.stripe.com/c/test'};},
@@ -26,15 +27,18 @@ test('oversize request snapshots server-priced items and saved address without r
  assert.deepEqual(f.calls[0].args.p_address,address);
  await assert.rejects(requestShippingQuote(new Request('https://shop.test'),{...body,shippingAmount:1},f.deps),/invalid_shipping_quote/);
 });
-test('quote requests require a complete matching address and more than two kilograms',async()=>{
+test('quote requests require matching address and either oversize weight or an unavailable rate',async()=>{
  const f=fixture();await assert.rejects(requestShippingQuote(new Request('https://shop.test'),{...body,country:'JP'},f.deps),/shipping_address_country_mismatch/);
  f.deps.inventory=async()=>[{sku:'endplug-plain',weight_grams:100}];
  await assert.rejects(requestShippingQuote(new Request('https://shop.test'),body,f.deps),/shipping_quote_not_required/);
  assert.equal(f.calls.length,0);
+ f.deps.config=async()=>({allowed_countries:['TH','JP'],shipping_rates:{'TH:ems_local':[{maxGrams:200,thbMinor:null},{maxGrams:300,thbMinor:7000}]}});
+ await requestShippingQuote(new Request('https://shop.test'),body,f.deps);
+ assert.equal(f.calls[0].name,'create_shipping_quote');assert.equal(f.calls[0].args.p_weight_grams,200);
 });
 test('only an authorized seller can set the fee; THB conversion freezes the five percent buffer',async()=>{
  const f=fixture();await approveShippingQuote(new Request('https://shop.test'),{quoteId:id,shippingThb:1000,note:' EMS '},f.deps);
- const args=f.calls.find(c=>c.name==='admin_approve_shipping_quote').args;
+ const args=f.calls.find(c=>c.name==='admin_approve_shipping_quote_v2').args;
  assert.equal(args.p_shipping_amount,3000);assert.equal(args.p_shipping_thb_minor,100000);assert.equal(args.p_actor,'seller-subject');assert.equal(args.p_note,'EMS');
  f.row={...f.row,orderId:id};
  await assert.rejects(approveShippingQuote(new Request('https://shop.test'),{quoteId:id,shippingThb:1000,note:''},f.deps),/shipping_quote_not_editable/);

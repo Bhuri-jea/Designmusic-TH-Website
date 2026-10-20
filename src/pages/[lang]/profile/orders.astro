@@ -1,0 +1,14 @@
+---
+import CustomerPage from '../../../components/account/CustomerPage.astro';
+import { requireCustomer } from '../../../lib/server/customer.ts';
+import { HttpError } from '../../../lib/server/http.ts';
+import { localizedPath } from '../../../utils/navigation';
+import { isSupportedLocale } from '../../../lib/server/locales';
+export const prerender = false;
+const requestedLang = Astro.params.lang;
+if (!isSupportedLocale(requestedLang) || requestedLang === 'en') return Astro.redirect('/profile/orders');
+const lang = requestedLang;
+try { await requireCustomer(Astro.request); }
+catch (error) { if (error instanceof HttpError && error.status === 401) return Astro.redirect(`${localizedPath('/login', lang)}?returnTo=${encodeURIComponent(localizedPath('/profile/orders', lang))}`); throw error; }
+---
+<CustomerPage mode="orders" />

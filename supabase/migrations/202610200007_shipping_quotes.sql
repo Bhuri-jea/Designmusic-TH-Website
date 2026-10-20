@@ -217,7 +217,7 @@ begin
  if q.order_id is not null then raise exception 'shipping_quote_payment_started' using errcode='23514';end if;
  update public.shipping_quotes set status='cancelled',version=version+1 where id=p_id;
  return public.shipping_quote_record(p_id);
-end; $;
+end; $$;
 revoke all on function public.cancel_shipping_quote(uuid,uuid) from public,anon,authenticated;
 grant execute on function public.cancel_shipping_quote(uuid,uuid) to service_role;
 commit;

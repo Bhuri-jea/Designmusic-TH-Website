@@ -1,37 +1,140 @@
 <script lang="ts">
- import {onMount} from 'svelte';import AdminBookingCalendar from './AdminBookingCalendar.svelte';import AdminShippingQuotes from './AdminShippingQuotes.svelte';import {reconcileProductDrafts,editableShippingSettings,reconcileShippingDraft} from '../../lib/admin-drafts';import {shopEmsRates,EPACKET_ZONES} from '../../lib/shipping-rates';import {historicalParcelReference} from '../../lib/parcel-reference';
- let {lang='en'}=$props<{lang?:'en'|'th'}>();const th=()=>lang==='th',T=(en:string,thai:string)=>th()?thai:en;
- let inventory=$state<any[]>([]),shipments=$state<any[]>([]),jobs=$state<any[]>([]),status=$state(''),busy=$state(false),counts=$state<Record<string,number>>({}),weights=$state<Record<string,number>>({}),prices=$state<Record<string,{usd:number;jpy:number;thb:number}>>({}),tracking=$state<Record<string,string>>({}),shippingServices=$state<Record<string,string>>({}),holdReasons=$state<Record<string,string>>({}),confirmed=$state<Record<string,boolean>>({}),settings=$state<any>({allowed_countries:[],shipping_rates:{},usd_thb:null,jpy_thb:null,pickup_enabled:true}),countryOptions=$state<{code:string;name:string}[]>([]),rateCountry=$state('TH'),rateService=$state('ems_local'),rateKg=$state(0.5),rateTHB=$state(0),inventoryBaseline:Record<string,any>={},shippingBaseline:any=null,loadSequence=0;
- function shippingServiceChoices(shipment:any){const country=shipment.address?.country;const methods=country==='TH'?['ems_local','flash']:shipment.manual_shipping_quote?['ems_world']:['epacket','ems_world'];return methods;}
- function shippingServiceLabel(service:string){return T(service==='pickup'?'Local pickup':service==='flash'?'Flash Express':service==='epacket'?'Thailand Post ePacket':service==='ems_world'?'Thailand Post EMS World':'Thailand Post EMS',service==='pickup'?'นัดรับสินค้าเอง':service==='flash'?'Flash Express':service==='epacket'?'ไปรษณีย์ไทย ePacket':service==='ems_world'?'ไปรษณีย์ไทย EMS World':'ไปรษณีย์ไทย EMS');}
- async function get(path:string){const res=await fetch('/api/admin/'+path,{cache:'no-store'});if(!res.ok)throw Error();return await res.json();}
- async function load(submittedProduct?:any,submittedShipping?:any){const sequence=++loadSequence;try{const [stock,shipping,review,store]=await Promise.all([get('inventory'),get('shipments'),get('jobs'),get('storefront')]);if(sequence!==loadSequence)return false;const localProducts=Object.fromEntries(stock.inventory.map((row:any)=>[row.sku,{onHand:counts[row.sku],usd:prices[row.sku]?.usd,jpy:prices[row.sku]?.jpy,thb:prices[row.sku]?.thb,weightKg:weights[row.sku]}]));const productMerge=reconcileProductDrafts(inventoryBaseline,stock.inventory,localProducts,submittedProduct);inventory=stock.inventory;inventoryBaseline=productMerge.baseline;counts=Object.fromEntries(Object.entries(productMerge.drafts).map(([sku,value]:any)=>[sku,value.onHand]));weights=Object.fromEntries(Object.entries(productMerge.drafts).map(([sku,value]:any)=>[sku,value.weightKg]));prices=Object.fromEntries(Object.entries(productMerge.drafts).map(([sku,value]:any)=>[sku,{usd:value.usd,jpy:value.jpy,thb:value.thb}]));shipments=shipping.shipments;shippingServices={...shippingServices,...Object.fromEntries(shipping.shipments.map((shipment:any)=>[shipment.order_id,shippingServices[shipment.order_id]??shipment.shipping_service??shipment.fulfillment_method]))};jobs=review.jobs;const shippingMerge=reconcileShippingDraft(shippingBaseline,settings,store.settings,submittedShipping);shippingBaseline=shippingMerge.baseline;settings=shippingMerge.draft;countryOptions=store.countries.map((code:string)=>({code,name:new Intl.DisplayNames([th()?'th':'en'],{type:'region'}).of(code)??code})).sort((a:any,b:any)=>a.name.localeCompare(b.name));return true;}catch{if(sequence===loadSequence)status=T('Seller tools are unavailable. Apply the required database migrations and try again.','เครื่องมือผู้ขายไม่พร้อมใช้งาน โปรดติดตั้ง migration ที่จำเป็นแล้วลองอีกครั้ง');return false;}}
- onMount(load);
- async function mutate(path:string,method:string,body:unknown,snapshots:{product?:any;shipping?:any}={}){if(busy)return;busy=true;status=T('Saving…','กำลังบันทึก…');try{const res=await fetch('/api/admin/'+path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!res.ok){status=res.status===409?T('The record changed. Reload and check its current state.','ข้อมูลเปลี่ยนแปลงแล้ว โปรดโหลดใหม่และตรวจสอบสถานะ'):T('Could not save. Check the entered details.','บันทึกไม่ได้ โปรดตรวจสอบข้อมูล');return;}if(path==='shipment-hold'&&body&&typeof body==='object'&&'orderId' in body){delete holdReasons[(body as any).orderId];holdReasons={...holdReasons};}const refreshed=await load(snapshots.product,snapshots.shipping);status=refreshed?T('Saved','บันทึกแล้ว'):T('Saved, but refresh failed. Your other edits are still here.','บันทึกแล้ว แต่โหลดข้อมูลใหม่ไม่สำเร็จ ข้อมูลที่แก้ไขส่วนอื่นยังอยู่');}catch{status=T('Could not save. Please try again.','บันทึกไม่ได้ โปรดลองอีกครั้ง');}finally{busy=false;}}
- function selected(code:string){return settings.allowed_countries.includes(code);}
- function toggleCountry(code:string){const countries=new Set(settings.allowed_countries);countries.has(code)?countries.delete(code):countries.add(code);settings={...settings,allowed_countries:[...countries].sort()};}
- function rateKey(code=rateCountry,service=rateService){return `${code}:${service}`;}
- function addRate(){if(!Number.isFinite(rateKg)||rateKg<=0||rateKg>30||!Number.isFinite(rateTHB)||rateTHB<0)return;const key=rateKey();const rows=[...(settings.shipping_rates[key]??[]),{maxGrams:Math.round(rateKg*1000),thb:rateTHB}].sort((a:any,b:any)=>a.maxGrams-b.maxGrams);settings={...settings,shipping_rates:{...settings.shipping_rates,[key]:rows}};}
- function removeRate(key:string,index:number){settings.shipping_rates[key]=settings.shipping_rates[key].filter((_:any,i:number)=>i!==index);settings={...settings,shipping_rates:{...settings.shipping_rates}};}
- function importPostalRates(){
- const rates={...settings.shipping_rates};
- for(const code of ['TH',...Object.keys(EPACKET_ZONES)]){
-  const service=code==='TH'?'ems_local':'epacket';
-  rates[code+':'+service]=shopEmsRates(code).map(band=>({maxGrams:band.maxGrams,thb:band.thbMinor/100}));
- }
- settings={...settings,shipping_rates:rates,allowed_countries:settings.allowed_countries.length?settings.allowed_countries:['TH','JP']};
- status=T('Rates imported into the form. Review destinations and save shipping settings.','นำเข้าอัตราแล้ว โปรดตรวจสอบประเทศปลายทางและบันทึกการจัดส่ง');
- }
- function saveStorefront(){const enabled=settings.allowed_countries.filter((code:string)=>settings.pickup_enabled&&code==='TH'||['ems_local','ems_world','epacket','flash'].some(service=>settings.shipping_rates[`${code}:${service}`]?.length));const submitted={...settings,allowed_countries:enabled,shipping_rates:JSON.parse(JSON.stringify(settings.shipping_rates))};mutate('storefront','PATCH',{allowedCountries:enabled,shippingRates:settings.shipping_rates,usdThb:settings.usd_thb?Number(settings.usd_thb):null,jpyThb:settings.jpy_thb?Number(settings.jpy_thb):null,pickupEnabled:settings.pickup_enabled},{shipping:submitted});}
+  import { onMount } from 'svelte';
+  import AdminBookingCalendar from './AdminBookingCalendar.svelte';
+  import AdminShippingQuotes from './AdminShippingQuotes.svelte';
+  import { adminText, type AdminLocale } from '../../lib/admin-ui-i18n';
+
+  let { lang = 'en' } = $props<{ lang?: AdminLocale }>();
+  const t = (key: Parameters<typeof adminText>[1]) => adminText(lang, key);
+  let shipments = $state<any[]>([]), jobs = $state<any[]>([]), status = $state(''), busy = $state(false);
+  let tracking = $state<Record<string, string>>({}), shippingServices = $state<Record<string, string>>({}), holdReasons = $state<Record<string, string>>({}), confirmed = $state<Record<string, boolean>>({});
+  let loadVersion = 0;
+
+  function shippingServiceChoices(shipment: any) { return shipment.address?.country === 'TH' ? ['ems_local', 'flash'] : ['epacket', 'ems_world']; }
+  function shippingServiceLabel(service: string) {
+    const labels: Record<string, { en: string; th: string }> = {
+      pickup: { en: 'Local pickup', th: 'นัดรับสินค้าเอง' }, ems_local: { en: 'Thailand Post EMS', th: 'ไปรษณีย์ไทย EMS' },
+      flash: { en: 'Flash Express', th: 'Flash Express' }, epacket: { en: 'Thailand Post ePacket', th: 'ไปรษณีย์ไทย ePacket' },
+      ems_world: { en: 'Thailand Post EMS World', th: 'ไปรษณีย์ไทย EMS World' },
+    };
+    return labels[service]?.[lang] ?? service;
+  }
+  async function get(path: string) { const response = await fetch('/api/admin/' + path, { cache: 'no-store' }); if (!response.ok) throw Error(); return response.json(); }
+  async function load(): Promise<boolean> {
+    const version = ++loadVersion;
+    try {
+      const [shipmentData, jobData] = await Promise.all([get('shipments'), get('jobs')]);
+      if (version !== loadVersion) return false;
+      shipments = shipmentData.shipments; jobs = jobData.jobs;
+      shippingServices = { ...shippingServices, ...Object.fromEntries(shipments.map((s: any) => [s.order_id, shippingServices[s.order_id] ?? s.shipping_service ?? s.fulfillment_method])) };
+      status = '';
+      return true;
+    } catch { if (version === loadVersion) status = t('unavailable'); return false; }
+  }
+  onMount(() => { void load(); });
+  const money = (minor: number | null | undefined, currency: string) => {
+    if (!Number.isFinite(minor)) return '—';
+    const code = String(currency || '').toUpperCase();
+    return new Intl.NumberFormat(lang, { style: 'currency', currency: code || 'THB', maximumFractionDigits: code === 'JPY' ? 0 : 2 }).format(Number(minor) / (code === 'JPY' ? 1 : 100));
+  };
+  function thbReference(minor: number | null | undefined, shipment: any) {
+    if (!Number.isFinite(minor)) return null;
+    const currency = String(shipment.currency ?? '').toLowerCase();
+    const amount = Number(minor) / (currency === 'jpy' ? 1 : 100);
+    if (currency === 'thb') return amount;
+    if (!Number.isFinite(shipment.reference_thb_rate) || shipment.reference_thb_rate <= 0) return null;
+    return amount * shipment.reference_thb_rate;
+  }
+  const referenceMoney = (minor: number | null | undefined, shipment: any) => {
+    const amount = thbReference(minor, shipment);
+    return amount === null ? null : new Intl.NumberFormat(lang, { style: 'currency', currency: 'THB', maximumFractionDigits: 2 }).format(amount);
+  };
+  async function mutate(path: string, method: string, body: unknown) {
+    if (busy) return;
+    busy = true; status = t('saving');
+    try {
+      const response = await fetch('/api/admin/' + path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!response.ok) { status = response.status === 409 ? t('changed') : t('saveError'); return; }
+      if (path === 'shipment-hold' && body && typeof body === 'object' && 'orderId' in body) {
+        const id = (body as any).orderId;
+        delete holdReasons[id]; holdReasons = { ...holdReasons };
+        confirmed = { ...confirmed, [id]: false };
+      }
+      status = await load() ? t('saved') : t('refreshFailed');
+    } catch { status = t('saveError'); }
+    finally { busy = false; }
+  }
+  function purpose(job: any) {
+    const topic = String(job.purpose ?? job.topic ?? '');
+    if (topic.startsWith('order_paid')) return t('orderNotice');
+    if (topic.startsWith('booking_')) return topic === 'booking_google' ? t('calendarSync') : t('bookingNotice');
+    if (topic.startsWith('shipping_quote')) return t('shippingQuote');
+    return t('jobGeneric');
+  }
+  function jobDate(value: string | null) {
+    if (!value) return '—';
+    const date = new Date(value);
+    return Number.isNaN(date.valueOf()) ? '—' : new Intl.DateTimeFormat(lang === 'th' ? 'th-TH' : 'en', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  }
+  function readableProblem(value: string) {
+    if (value === 'retry_limit') return lang === 'th' ? 'ส่งไม่สำเร็จหลังลองใหม่ครบจำนวน' : 'Delivery failed after the retry limit';
+    const http = /^http[_-]?(\d{3})$/i.exec(value);
+    if (http) return `HTTP ${http[1]}`;
+    return value.replace(/[_-]+/g, ' ').replace(/^./, character => character.toUpperCase());
+  }
 </script>
-<div class="max-w-6xl mx-auto px-4 md:px-6 py-24 space-y-10"><h1 class="font-serif text-4xl">{T('Seller preparation','จัดการร้านค้า')}</h1><p role="status" aria-live="polite">{status}</p><button class="btn" disabled={busy} onclick={load}>{T('Reload','โหลดข้อมูลใหม่')}</button>
-<section class="bg-white/5 border border-white/10 rounded-3xl p-6 space-y-5"><h2 class="font-serif text-2xl">{T('Stock, prices and gross product weight','สต๊อก ราคา และน้ำหนักรวมสินค้า')}</h2><p class="text-neutral-400">{T('Only end plugs and shakuhachi are checkout-enabled. Silicone pads are not purchasable. Set the packaged gross weight in kg; checkout uses this value for EMS. Zero means weight is not configured and checkout will stop.','ขณะนี้ซื้อผ่านระบบได้เฉพาะจุกอุดแซกโซโฟนและขลุ่ยชาคุฮาจิ แผ่นซิลิโคนยังไม่เปิดให้ซื้อ กรอกน้ำหนักรวมบรรจุภัณฑ์เป็นกิโลกรัม หากเป็นศูนย์ ระบบจะยังไม่ให้ชำระเงิน')}</p><div class="space-y-4">{#each inventory as row}<article class="rounded-2xl border border-white/10 bg-black/30 p-4 space-y-4"><h3 class="font-medium break-all">{row.sku}</h3><div class="grid grid-cols-2 md:grid-cols-4 gap-3"><label>{T('On hand','จำนวนทั้งหมด')}<input class="input w-full mt-1" type="number" min={row.reserved} step="1" bind:value={counts[row.sku]}/></label><p class="pt-1">{T('Reserved','จองแล้ว')}<br/><strong>{row.reserved}</strong></p><p class="pt-1">{T('Available','พร้อมขาย')}<br/><strong>{row.on_hand-row.reserved}</strong></p><label>{T('Gross weight (kg)','น้ำหนักรวม (กก.)')}<input class="input w-full mt-1" type="number" min="0" max="30" step="0.001" bind:value={weights[row.sku]}/></label><fieldset class="col-span-2 md:col-span-4 min-w-0 border-t border-white/10 pt-3"><legend class="font-medium px-1">{T('Price','ราคา')}</legend><div class="grid grid-cols-3 gap-3"><label class="min-w-0">THB<input class="input w-full min-w-0 mt-1" type="number" min="0.01" step="0.01" bind:value={prices[row.sku].thb}/></label><label class="min-w-0">USD<input class="input w-full min-w-0 mt-1" type="number" min="0.01" step="0.01" bind:value={prices[row.sku].usd}/></label><label class="min-w-0">JPY<input class="input w-full min-w-0 mt-1" type="number" min="1" step="1" bind:value={prices[row.sku].jpy}/></label></div></fieldset></div><div class="flex flex-wrap gap-3"><button class="btn btn-sm" disabled={busy||!Number.isInteger(counts[row.sku])||counts[row.sku]<row.reserved} onclick={()=>{const product={sku:row.sku,onHand:counts[row.sku],...prices[row.sku],weightKg:weights[row.sku]};mutate('product','PATCH',product,{product});}}>{T('Save','บันทึก')}</button></div></article>{/each}</div></section>
-<AdminBookingCalendar {lang}/><section class="bg-white/5 border border-white/10 rounded-3xl p-6 space-y-5"><h2 class="font-serif text-2xl">{T('Shipping services and local pickup','บริการจัดส่งและนัดรับสินค้าเอง')}</h2><p class="text-neutral-300">{T('Configure only destinations and services confirmed as currently available. Enter each carrier rate band in THB; Checkout uses total gross weight. USD/JPY postage is converted using the values below. EMS World is weight-based; some destinations have lower limits.','เลือกเฉพาะประเทศและบริการที่ตรวจสอบแล้วว่าพร้อมให้บริการ กรอกอัตราของแต่ละบริษัทขนส่งเป็นบาทตามช่วงน้ำหนัก ระบบจะคิดจากน้ำหนักรวม ราคา USD/JPY แปลงตามอัตราด้านล่าง EMS World คิดตามน้ำหนักและบางประเทศจำกัดน้ำหนักต่ำกว่า')}</p><div class="rounded-xl border border-amber-300/30 bg-amber-950/20 p-4 space-y-3"><button type="button" class="btn" disabled={busy} onclick={importPostalRates}>{T('Import supplied Thailand Post rates','นำเข้าอัตราไปรษณีย์ไทยที่กำหนด')}</button><p class="text-sm text-neutral-300">{T('Domestic EMS: ≤20g ฿35, ≤100g ฿50, ≤500g ฿70, ≤1kg ฿80, ≤2kg ฿100. International ePacket: supplied table dated 15 April 2022, 47 destinations. Above 2kg requires a seller quote. Existing destinations are preserved; an empty selection starts with TH and JP.','EMS ในประเทศ: ไม่เกิน 20 กรัม 35 บาท, 100 กรัม 50 บาท, 500 กรัม 70 บาท, 1 กก. 80 บาท, 2 กก. 100 บาท ต่างประเทศใช้ตาราง ePacket วันที่ 15 เมษายน 2565 สำหรับ 47 ประเทศ เกิน 2 กก. ต้องให้ร้านเสนอราคา โดยคงประเทศที่เลือกไว้ หากยังไม่ได้เลือกจะเริ่มต้นที่ไทยและญี่ปุ่น')}</p></div><label class="flex gap-3 items-center"><input type="checkbox" bind:checked={settings.pickup_enabled}/>{T('Allow no-fee pickup in Thailand','เปิดให้นัดรับสินค้าเองในประเทศไทยโดยไม่มีค่าส่ง')}</label><div class="grid md:grid-cols-2 gap-4"><label>{T('THB per USD','บาทต่อดอลลาร์สหรัฐ')}<input class="input w-full mt-1" type="number" min="0.000001" step="0.000001" bind:value={settings.usd_thb}/></label><label>{T('THB per JPY','บาทต่อเยน')}<input class="input w-full mt-1" type="number" min="0.00000001" step="0.00000001" bind:value={settings.jpy_thb}/></label></div><div class="grid sm:grid-cols-4 gap-3"><label>{T('Destination','ปลายทาง')}<select class="input w-full mt-1" bind:value={rateCountry}>{#each countryOptions as c}<option value={c.code}>{c.name} ({c.code})</option>{/each}</select></label><label>{T('Service','บริการ')}<select class="input w-full mt-1" bind:value={rateService}><option value="ems_local">Thailand Post EMS (TH)</option><option value="flash">Flash Express (TH)</option><option value="ems_world">Thailand Post EMS World</option><option value="epacket">Thailand Post ePacket</option></select></label><label>{T('Rate up to (kg)','อัตรานี้ครอบคลุมถึง (กก.)')}<input class="input w-full mt-1" type="number" min="0.001" max="30" step="0.001" bind:value={rateKg}/></label><label>{T('Rate (THB)','ค่าส่ง (บาท)')}<input class="input w-full mt-1" type="number" min="0" step="0.01" bind:value={rateTHB}/></label></div><p class="text-sm text-amber-200">{T('Use each carrier’s current rates. Enable only destinations and services you have verified.','ใช้อัตราปัจจุบันของบริษัทขนส่ง และเปิดเฉพาะประเทศกับบริการที่ตรวจสอบแล้ว')}</p><button class="btn" onclick={addRate}>{T('Add rate band','เพิ่มช่วงอัตรา')}</button><div class="space-y-4">{#each Object.entries(settings.shipping_rates) as [key,bands]}{@const [code,service]=key.split(':')}<article class="border border-white/10 rounded-xl p-4"><h3>{countryOptions.find(c=>c.code===code)?.name??code} ({code}) · {service}</h3><div class="flex flex-wrap gap-2 mt-2">{#each bands as band,i}<span class="badge">≤ {(band.maxGrams/1000).toFixed(3)} kg · ฿{Number(band.thb).toFixed(2)} <button class="ml-2" aria-label={'Remove rate '+key} onclick={()=>removeRate(key,i)}>×</button></span>{/each}</div><label class="flex gap-2 items-center mt-3"><input type="checkbox" checked={selected(code)} onchange={()=>toggleCountry(code)}/>{T('Enable destination for checkout','อนุญาตให้ชำระเงินไปประเทศนี้')}</label></article>{/each}</div><button class="btn btn-primary" disabled={busy||!settings.allowed_countries.length} onclick={saveStorefront}>{T('Save shipping settings','บันทึกการจัดส่ง')}</button></section>
-<AdminShippingQuotes {lang}/><section class="space-y-6"><h2 class="font-serif text-2xl">{T('Paid orders and fulfillment','คำสั่งซื้อที่ชำระแล้วและการจัดส่ง')}</h2>{#if !shipments.length}<p>{T('No paid shipments loaded.','ไม่มีรายการที่ชำระแล้ว')}</p>{/if}{#each shipments as shipment}{@const reference=historicalParcelReference(shipment.address?.country)}<article class="bg-white/5 border border-white/10 rounded-3xl p-6 space-y-4"><h3 class="break-all">{shipment.order_id}</h3><p class="break-words">{shipment.recipient?.name} · {shipment.address?.line1} · {shipment.address?.city} · {shipment.address?.postal_code} · {shipment.address?.country}</p><p>{T('Status','สถานะ')}: {shipment.status} · {T('Fulfillment','วิธีรับสินค้า')}: {shippingServiceLabel(shipment.shipping_service??shipment.fulfillment_method)}</p><p>{T('Shipping charge','ค่าส่ง')}: {shipment.shipping_minor} {shipment.currency?.toUpperCase()}</p>{#each shipment.items as item}<p>{item.quantity} × {item.name}</p>{/each}{#if shipment.hold}<div class="alert alert-warning"><strong>{T('Dispatch on hold.','ระงับการจัดส่ง')}</strong> {shipment.hold_reason}</div>{/if}{#if shipment.fulfillment_method!=='pickup'&&reference}<p class="text-neutral-400">{T('Historical 2022 reference for parcel preparation only; this does not set the checkout rate.','ข้อมูลเก่าปี 2022 ใช้เตรียมพัสดุเท่านั้น ไม่ใช่อัตราค่าส่งตอนชำระเงิน')}</p>{/if}{#if shipment.payment_status==='paid'&&['ready','needs_address'].includes(shipment.status)&&typeof shipment.hold==='boolean'}
-<div class="rounded-xl border border-white/15 bg-black/20 p-4 space-y-3">
- <label class="block" for={'hold-reason-'+shipment.order_id}>{shipment.hold?T('Reason for releasing this shipment','เหตุผลที่ยกเลิกการระงับ'):T('Reason for holding this shipment','เหตุผลที่ระงับการจัดส่ง')}</label>
- <textarea class="input w-full min-h-24" id={'hold-reason-'+shipment.order_id} maxlength="500" bind:value={holdReasons[shipment.order_id]} placeholder={T('Required: explain the decision for the audit history.','จำเป็น: ระบุเหตุผลเพื่อบันทึกในประวัติ')} required></textarea>
- <button type="button" class="btn" disabled={busy||!(holdReasons[shipment.order_id]??'').trim()} onclick={()=>{confirmed={...confirmed,[shipment.order_id]:false};mutate('shipment-hold','POST',{orderId:shipment.order_id,hold:!shipment.hold,reason:holdReasons[shipment.order_id].trim()});}}>{shipment.hold?T('Release shipment','ยกเลิกการระงับ'):T('Hold shipment','ระงับการจัดส่ง')}</button>
+
+<div class="mx-auto max-w-6xl space-y-8 px-4 py-24 md:px-6">
+  <div class="flex flex-wrap items-center justify-between gap-4"><h1 class="font-serif text-4xl">{t('sellerTools')}</h1><button class="btn" disabled={busy} onclick={load}>{t('reload')}</button></div>
+  <p role="status" aria-live="polite">{status}</p>
+  <nav class="flex flex-wrap gap-3" aria-label={t('sellerTools')}><a class="btn" href={lang === 'th' ? '/th/admin/products' : '/admin/products'}>{t('products')}</a><a class="btn" href={lang === 'th' ? '/th/admin/shipping' : '/admin/shipping'}>{t('shippingSettings')}</a></nav>
+  <AdminBookingCalendar {lang}/><AdminShippingQuotes {lang}/>
+  <section class="space-y-6" aria-labelledby="paid-orders-title">
+    <h2 id="paid-orders-title" class="font-serif text-2xl">{t('paidOrders')}</h2>
+    {#if !shipments.length}<p>{t('noShipments')}</p>{/if}
+    {#each shipments as shipment (shipment.order_id)}
+      {@const currency = String(shipment.currency ?? '').toUpperCase()}
+      {@const subtotal = shipment.subtotal_minor ?? (Number.isFinite(shipment.amount_total) ? shipment.amount_total - (shipment.shipping_minor ?? 0) : null)}
+      {@const rateAvailable = currency === 'THB' || Number.isFinite(shipment.reference_thb_rate) && shipment.reference_thb_rate > 0}
+      <article class="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6">
+        <p class="text-sm text-neutral-400">{t('jobOrder')}: <span class="break-all">{shipment.order_id}</span></p>
+        <p class="break-words">{shipment.recipient?.name} · {shipment.address?.line1} · {shipment.address?.city} · {shipment.address?.postal_code} · {shipment.address?.country}</p>
+        <p>{t('status')}: {shipment.status} · {t('fulfillment')}: {shippingServiceLabel(shipment.shipping_service ?? shipment.fulfillment_method)}</p>
+        <dl class="grid gap-2 border-y border-white/10 py-3 sm:grid-cols-3">
+          <div><dt class="text-sm text-neutral-400">{t('subtotal')}</dt><dd>{money(subtotal, currency)}{#if rateAvailable}<span class="ml-2 text-sm text-neutral-400">({referenceMoney(subtotal, shipment)})</span>{/if}</dd></div>
+          <div><dt class="text-sm text-neutral-400">{t('shippingCharge')}</dt><dd>{money(shipment.shipping_minor, currency)}{#if rateAvailable}<span class="ml-2 text-sm text-neutral-400">({referenceMoney(shipment.shipping_minor, shipment)})</span>{/if}</dd></div>
+          <div><dt class="text-sm text-neutral-400">{t('totalPaid')}</dt><dd class="font-semibold">{money(shipment.amount_total, currency)}{#if rateAvailable}<span class="ml-2 text-sm text-neutral-400">({referenceMoney(shipment.amount_total, shipment)})</span>{/if}</dd></div>
+        </dl>
+        {#if rateAvailable && shipment.reference_fx_date}<p class="text-sm text-neutral-400">{t('referenceDate')}: {shipment.reference_fx_date} · {shipment.reference_fx_current?(lang==='th'?'ประมาณจากอัตราปัจจุบัน':'Current reference estimate'):(lang==='th'?'อัตราที่บันทึกเมื่อสั่งซื้อ':'Reference saved at checkout')}. {lang==='th'?'ไม่ใช่ยอดสุทธิที่ Stripe โอนเข้าธนาคาร':'This is not Stripe’s net bank settlement.'}</p>{:else if currency !== 'THB'}<p class="text-sm text-neutral-400">{t('referenceUnknown')}</p>{/if}
+        {#each shipment.items as item}<p>{item.quantity} × {item.name}</p>{/each}
+        {#if shipment.hold}<div class="alert alert-warning"><strong>{t('hold')}</strong> {shipment.hold_reason}</div>{/if}
+        {#if shipment.payment_status === 'paid' && ['ready', 'needs_address'].includes(shipment.status) && typeof shipment.hold === 'boolean'}
+          <div class="space-y-3 rounded-xl border border-white/15 bg-black/20 p-4"><label class="block" for={'hold-reason-'+shipment.order_id}>{shipment.hold ? t('reasonRelease') : t('reasonHold')}</label>
+            <textarea class="input min-h-24 w-full" id={'hold-reason-'+shipment.order_id} maxlength="500" bind:value={holdReasons[shipment.order_id]} placeholder={t('holdPlaceholder')} required></textarea>
+            <button type="button" class="btn" disabled={busy || !(holdReasons[shipment.order_id] ?? '').trim()} onclick={() => mutate('shipment-hold', 'POST', { orderId: shipment.order_id, hold: !shipment.hold, reason: holdReasons[shipment.order_id].trim() })}>{shipment.hold ? t('release') : t('holdAction')}</button>
+          </div>
+        {/if}
+        {#if shipment.hold === false && shipment.status === 'ready' && shipment.fulfillment_method !== 'pickup'}
+          <label class="flex gap-3"><input type="checkbox" bind:checked={confirmed[shipment.order_id]}/><span>{t('confirmDispatch')}</span></label>
+          <label class="block">{t('shippingService')}<select class="input mt-1 w-full" value={shippingServices[shipment.order_id]} onchange={event => shippingServices = { ...shippingServices, [shipment.order_id]: event.currentTarget.value }}>{#each shippingServiceChoices(shipment) as service}<option value={service}>{shippingServiceLabel(service)}</option>{/each}</select></label>
+          <label for={'tracking-'+shipment.order_id}>{t('trackingNumber')}</label><input class="input w-full" id={'tracking-'+shipment.order_id} bind:value={tracking[shipment.order_id]}/>
+          <button class="btn btn-primary" disabled={busy || !confirmed[shipment.order_id] || !shippingServiceChoices(shipment).includes(shippingServices[shipment.order_id]) || !/^[A-Za-z0-9][A-Za-z0-9 -]{2,119}$/.test(tracking[shipment.order_id] ?? '')} onclick={() => mutate('shipments', 'POST', { orderId: shipment.order_id, shippingService: shippingServices[shipment.order_id], tracking: tracking[shipment.order_id] })}>{t('markShipped')}</button>
+        {:else if shipment.fulfillment_method === 'pickup' && shipment.status === 'ready' && shipment.hold === false}
+          <button class="btn btn-primary" disabled={busy} onclick={() => mutate('shipments', 'POST', { orderId: shipment.order_id, tracking: 'PICKUP' })}>{t('markCollected')}</button>
+        {:else if shipment.status === 'shipped'}<p>{t('trackingCollection')}: {shipment.tracking_number}</p>{#if shipment.tracking_url}<a class="underline text-amber-200" href={shipment.tracking_url} target="_blank" rel="noreferrer">{t('openTracking')}</a>{/if}{/if}
+        {#if shipment.hold_history?.length}<div class="border-t border-white/10 pt-4"><h3>{t('holdHistory')}</h3>{#each shipment.hold_history as event}<p class="mt-2 text-sm">{jobDate(event.created_at)} · {event.hold ? t('held') : t('released')} · {event.actor} · {event.reason}</p>{/each}</div>{/if}
+      </article>
+    {/each}
+  </section>
+  <section class="space-y-4" aria-labelledby="jobs-title">
+    <h2 id="jobs-title" class="font-serif text-2xl">{t('jobsTitle')}</h2>
+    {#if !jobs.length}<p>{t('noJobs')}</p>{:else}<div class="grid gap-4 md:grid-cols-2">{#each jobs as job (job.id)}
+      {@const referenceType = String(job.referenceType ?? '').toLowerCase()}
+      <article class="rounded-2xl border border-white/10 bg-white/5 p-4"><div class="flex items-start justify-between gap-4"><h3 class="font-medium">{purpose(job)}</h3><span class="badge">{job.status === 'review' ? t('review') : t('failed')}</span></div>
+        {#if job.referenceId}<p class="mt-2 text-sm">{referenceType === 'order' ? t('jobOrder') : referenceType === 'quote' ? t('jobQuote') : t('jobBooking')}: <span class="break-all">{job.referenceId}</span></p>{/if}
+        {#if job.lastError}<p class="mt-2"><span class="text-neutral-400">{t('jobProblem')}:</span> {readableProblem(job.lastError)}</p>{/if}
+        <p class="mt-2 text-sm text-neutral-400">{t('jobAttempts')}: {job.attempts} · {t('jobDate')}: {job.lastAttemptAt ? jobDate(job.lastAttemptAt) : jobDate(job.createdAt)}</p><p class="mt-1 text-xs text-neutral-500">Job {job.id}</p>
+      </article>
+    {/each}</div>{/if}
+  </section>
 </div>
-{/if}{#if shipment.hold===false&&shipment.status==='ready'&&shipment.fulfillment_method!=='pickup'}<label class="flex gap-3"><input type="checkbox" bind:checked={confirmed[shipment.order_id]}/><span>{T('I confirmed the address, weight, postage paid and selected carrier.','ตรวจสอบที่อยู่ น้ำหนัก ค่าส่งที่ชำระ และบริษัทขนส่งที่เลือกแล้ว')}</span></label><label class="block">{T('Shipping service','บริการจัดส่ง')}<select class="input w-full mt-1" value={shippingServices[shipment.order_id]} onchange={event=>shippingServices={...shippingServices,[shipment.order_id]:event.currentTarget.value}}>{#each shippingServiceChoices(shipment) as service}<option value={service}>{shippingServiceLabel(service)}</option>{/each}</select></label><label for={'tracking-'+shipment.order_id}>{T('Tracking number','หมายเลขติดตาม')}</label><input class="input w-full" id={'tracking-'+shipment.order_id} bind:value={tracking[shipment.order_id]}/><button class="btn btn-primary" disabled={busy||!confirmed[shipment.order_id]||!shippingServiceChoices(shipment).includes(shippingServices[shipment.order_id])||!/^[A-Za-z0-9][A-Za-z0-9 -]{2,119}$/.test(tracking[shipment.order_id]??'')} onclick={()=>mutate('shipments','POST',{orderId:shipment.order_id,shippingService:shippingServices[shipment.order_id],tracking:tracking[shipment.order_id]})}>{T('Mark shipped','บันทึกว่าจัดส่งแล้ว')}</button>{:else if shipment.fulfillment_method==='pickup'&&shipment.status==='ready'&&shipment.hold===false}<button class="btn btn-primary" disabled={busy} onclick={()=>mutate('shipments','POST',{orderId:shipment.order_id,tracking:'PICKUP'})}>{T('Mark collected','บันทึกรับสินค้าแล้ว')}</button>{:else if shipment.status==='shipped'}<p>{T('Tracking / collection','ติดตาม / รับสินค้า')}: {shipment.tracking_number}</p>{#if shipment.tracking_url}<a class="underline text-amber-200" href={shipment.tracking_url} target="_blank" rel="noreferrer">{T('Open tracking website','เปิดเว็บไซต์ติดตามพัสดุ')}</a>{/if}{/if}{#if shipment.hold_history?.length}<div class="border-t border-white/10 pt-4"><h4>{T('Hold and release history','ประวัติการระงับและยกเลิก')}</h4>{#each shipment.hold_history as event}<p class="text-sm mt-2">{new Date(event.created_at).toLocaleString(th()?'th-TH':'en')} · {event.hold?T('Held','ระงับ'):T('Released','ยกเลิกระงับ')} · {event.actor} · {event.reason}</p>{/each}</div>{/if}</article>{/each}</section>
-<section><h2 class="font-serif text-2xl mb-6">{T('Failed or review delivery jobs','งานส่งข้อมูลที่ผิดพลาดหรือต้องตรวจสอบ')}</h2><div class="overflow-x-auto"><table class="table"><thead><tr><th>ID</th><th>{T('Topic','หัวข้อ')}</th><th>{T('Status','สถานะ')}</th><th>{T('Attempts','จำนวนครั้ง')}</th></tr></thead><tbody>{#each jobs as job}<tr><td>{job.id}</td><td>{job.topic}</td><td>{job.status}</td><td>{job.attempts}</td></tr>{/each}</tbody></table></div></section></div>

@@ -7,6 +7,7 @@
  type Slot = { startAt:string; endAt:string; status:SlotStatus };
  let { lang = 'en' } = $props<{ lang?: Locale }>();
  let slots = $state<Slot[]>([]), source = $state('database'), loading = $state(true), failed = $state(false);
+ let windowFrom = $state(''), windowTo = $state('');
  let selectedDate = $state(''), month = $state({year:0, month:0});
  const t = (key:string) => ui[lang][key as keyof typeof ui.en] || ui.en[key as keyof typeof ui.en];
  const statusText = (status:SlotStatus) => t(status==='available'?'booking.statusAvailable':status==='booked'?'booking.statusBooked':status==='contact_directly'?'booking.statusContact':'booking.statusUnavailable');
@@ -28,13 +29,12 @@
   return [...Array(first.getUTCDay()).fill(null),...Array.from({length:count},(_,i)=>`${month.year}-${String(month.month+1).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`)];
  });
  const monthBounds = $derived.by(() => {
-  const today=dateKey(new Date().toISOString());
-  const horizon=dateKey(new Date(Date.now()+31*86400000).toISOString());
-  return {today,horizon,min:today.slice(0,7),max:horizon.slice(0,7)};
+  const from=windowFrom||dateKey(new Date().toISOString()),to=windowTo||from;
+  return {today:from,horizon:to,min:from.slice(0,7),max:to.slice(0,7)};
  });
  const selectedSlots = $derived(byDate.get(selectedDate)??[]);
  function changeMonth(delta:number){const date=new Date(Date.UTC(month.year,month.month+delta,1,12));month={year:date.getUTCFullYear(),month:date.getUTCMonth()};selectedDate='';}
- function dayStatus(key:string|null):SlotStatus { if (!key||key<=monthBounds.today||key>monthBounds.horizon) return 'unavailable'; const list=byDate.get(key)??[]; return list.length?list.reduce((best,item)=>statusRank[item.status]<statusRank[best]?item.status:best,list[0].status):'unavailable'; }
+ function dayStatus(key:string|null):SlotStatus { if (!key||key<monthBounds.today||key>monthBounds.horizon) return 'unavailable'; const list=byDate.get(key)??[]; return list.length?list.reduce((best,item)=>statusRank[item.status]<statusRank[best]?item.status:best,list[0].status):'unavailable'; }
  function dayCount(key:string|null){return key?(byDate.get(key)??[]).filter(slot=>slot.status==='available').length:0;}
  function bookingLink(slot:string){return `${localizedPath('/booking',lang)}?date=${encodeURIComponent(selectedDate)}&slot=${encodeURIComponent(slot)}`;}
  let refreshing=false;
@@ -42,11 +42,12 @@
   if(refreshing)return;refreshing=true;failed=false;
   try {
    const response=await fetch('/api/booking-availability',{cache:'no-store'}); const data=await response.json();
-   if(!response.ok||!Array.isArray(data.calendarSlots)||!['database','google-calendar'].includes(data.source))throw Error();
-   slots=data.calendarSlots;source=data.source;
-   const earliest=[...new Set(slots.map((slot:Slot)=>dateKey(slot.startAt)))].sort()[0];
-   const initial=earliest??dateKey(new Date().toISOString());
+   if(!response.ok||!Array.isArray(data.calendarSlots)||!['database','google-calendar'].includes(data.source)||typeof data.from!=='string'||typeof data.to!=='string')throw Error();
+   slots=data.calendarSlots;source=data.source;windowFrom=data.from;windowTo=data.to;
+   const initial=data.from;
    if(!month.year)month={year:Number(initial.slice(0,4)),month:Number(initial.slice(5,7))-1};
+   if(selectedDate&&selectedDate<windowFrom)selectedDate=windowFrom;
+   if(selectedDate&&selectedDate>windowTo)selectedDate=windowTo;
    if(!selectedDate)selectedDate=initial;
   } catch {failed=true;}
   finally {loading=false;refreshing=false;}
@@ -68,7 +69,7 @@
     <div class="rounded-2xl border border-white/10 bg-black/30 p-4 md:p-5">
      <div class="mb-4 flex items-center justify-between gap-3"><button class="btn btn-ghost btn-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300" aria-label={t('booking.calendarPrevious')} disabled={`${month.year}-${String(month.month+1).padStart(2,'0')}`<=monthBounds.min} onclick={()=>changeMonth(-1)}>← <span class="hidden sm:inline">{t('booking.calendarPrevious')}</span></button><h3 class="font-serif text-xl capitalize" aria-live="polite">{monthLabel}</h3><button class="btn btn-ghost btn-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300" aria-label={t('booking.calendarNext')} disabled={`${month.year}-${String(month.month+1).padStart(2,'0')}`>=monthBounds.max} onclick={()=>changeMonth(1)}><span class="hidden sm:inline">{t('booking.calendarNext')}</span> →</button></div>
      <div class="grid grid-cols-7 gap-1 text-center text-xs text-neutral-400">{#each Array.from({length:7},(_,day)=>new Intl.DateTimeFormat(lang,{weekday:'short',timeZone:'Asia/Bangkok'}).format(new Date(Date.UTC(2024,0,7+day,12)))) as label}<div class="py-2">{label}</div>{/each}</div>
-      <div class="grid grid-cols-7 gap-1">{#each monthDays as key,i}{#if !key}<div aria-hidden="true"></div>{:else}{@const state=dayStatus(key)}<button type="button" class="min-h-[4.25rem] rounded-xl border p-1 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300" class:border-amber-300={selectedDate===key} class:ring-1={selectedDate===key} class:bg-emerald-950={state==='available'} class:border-emerald-800={state==='available'} class:bg-amber-950={state==='contact_directly'} class:border-amber-900={state==='contact_directly'} class:bg-neutral-900={state==='booked'||state==='unavailable'} class:border-neutral-700={state==='booked'||state==='unavailable'} class:opacity-55={state==='unavailable'} aria-pressed={selectedDate===key} disabled={key<=monthBounds.today||key>monthBounds.horizon} aria-label={`${dateLabel(key)}: ${statusText(state)}`} onclick={()=>selectedDate=key}><span class="block font-medium">{Number(key.slice(-2))}</span><span class="mt-1 hidden text-[10px] leading-tight sm:block">{dayCount(key)>0?`${dayCount(key)} ${t('booking.calendarTimes')}`:t(state==='contact_directly'?'booking.statusContact':state==='booked'?'booking.statusBooked':'booking.statusUnavailable')}</span><span class="mt-1 block text-xs sm:hidden">{dayCount(key)>0?dayCount(key):state==='booked'?'•':state==='contact_directly'?'✉':'—'}</span></button>{/if}{/each}</div>
+      <div class="grid grid-cols-7 gap-1">{#each monthDays as key,i}{#if !key}<div aria-hidden="true"></div>{:else}{@const state=dayStatus(key)}<button type="button" class="min-h-[4.25rem] rounded-xl border p-1 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300" class:border-amber-300={selectedDate===key} class:ring-1={selectedDate===key} class:bg-emerald-950={state==='available'} class:border-emerald-800={state==='available'} class:bg-amber-950={state==='contact_directly'} class:border-amber-900={state==='contact_directly'} class:bg-neutral-900={state==='booked'||state==='unavailable'} class:border-neutral-700={state==='booked'||state==='unavailable'} class:opacity-55={state==='unavailable'} aria-pressed={selectedDate===key} disabled={key<monthBounds.today||key>monthBounds.horizon} aria-label={`${dateLabel(key)}: ${statusText(state)}`} onclick={()=>selectedDate=key}><span class="block font-medium">{Number(key.slice(-2))}</span><span class="mt-1 hidden text-[10px] leading-tight sm:block">{dayCount(key)>0?`${dayCount(key)} ${t('booking.calendarTimes')}`:t(state==='contact_directly'?'booking.statusContact':state==='booked'?'booking.statusBooked':'booking.statusUnavailable')}</span><span class="mt-1 block text-xs sm:hidden">{dayCount(key)>0?dayCount(key):state==='booked'?'•':state==='contact_directly'?'✉':'—'}</span></button>{/if}{/each}</div>
      <div class="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-neutral-300"><span><i class="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-emerald-500"></i>{t('booking.statusAvailable')}</span><span><i class="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-neutral-500"></i>{t('booking.statusBooked')}</span><span><i class="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-amber-500"></i>{t('booking.statusContact')}</span><span><i class="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-neutral-800"></i>{t('booking.statusUnavailable')}</span></div>
     </div>
     <div class="rounded-2xl border border-white/10 bg-black/30 p-4 md:p-5">

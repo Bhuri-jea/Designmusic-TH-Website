@@ -3,6 +3,7 @@
  import { cart } from '../../store/cart.svelte';
  import { formatPrice, type Locale } from '../../lib/catalog';
  import { localizedPath } from '../../utils/navigation';
+ import { shippingText } from '../../i18n/shipping';
  type Address = { line1:string; line2:string; city:string; state:string; postal_code:string; country:string };
  type Line = { name:string; quantity:number; unitAmount:number };
  type Quote = { id:string; requestKey:string; status:'requested'|'quoted'|'cancelled'; currency:'usd'|'jpy'|'thb'; amountSubtotal:number; shippingAmount:number|null; amountTotal:number|null; weightGrams:number; country:string; items:Line[]; address:Address; createdAt:string; expiresAt:string; orderId:string|null; orderStatus:string|null; sellerNote:string|null };
@@ -15,7 +16,7 @@
   ja:{title:'送料のお見積もり',intro:'2 kgを超えるご注文は送料のお見積もりが必要です。送料確定後、安全にお支払いいただけます。',loading:'送料リクエストを読み込み中…',empty:'送料リクエストはありません。',retry:'再試行',login:'ログインしてリクエストを表示',unavailable:'現在、送料リクエストを読み込めません。',expiry:'見積もり期限',weight:'重量',address:'配送先住所',subtotal:'商品',shipping:'送料',total:'合計',requested:'送料を確認しています。',quoted:'送料が確定しました。お支払いに進めます。',cancelled:'このリクエストはキャンセルされました。',cancel:'リクエストをキャンセル',cancelling:'キャンセル中…',cancelFailed:'リクエストをキャンセルできませんでした。もう一度お試しください。',pay:'安全な決済に進む',working:'決済を準備中…',expired:'見積もりの期限が切れました。新しい見積もりはお問い合わせください。',expiredPay:'見積もり期限切れのため、お支払いできません。',failed:'決済を開始できませんでした。もう一度お試しください。',invalid:'決済ページを確認できませんでした。',note:'販売者からのメモ',order:'注文'},
   'zh-CN':{title:'运费报价',intro:'超过 2 公斤的订单需要运费报价。运费确定后，您可以继续安全付款。',loading:'正在加载运费申请…',empty:'暂无运费申请。',retry:'重试',login:'登录以查看申请',unavailable:'暂时无法加载运费申请。',expiry:'报价有效期至',weight:'重量',address:'收货地址',subtotal:'商品',shipping:'运费',total:'总计',requested:'正在确认运费。',quoted:'运费已确定，可以继续付款。',cancelled:'此申请已取消。',cancel:'取消申请',cancelling:'正在取消…',cancelFailed:'无法取消此申请，请重试。',pay:'继续安全付款',working:'正在准备付款…',expired:'此报价已过期。请联系我们获取新报价。',expiredPay:'此报价已过期，无法付款。',failed:'无法开始付款，请重试。',invalid:'无法验证付款页面。',note:'卖家备注',order:'订单'},
  };
- const t=(key:keyof typeof copy.en)=>copy[lang][key];
+ const t=(key:keyof typeof copy.en)=>key==='intro'?shippingText(lang,'invoice'):copy[lang][key];
  const money=(amount:number|null,currency:Quote['currency'])=>amount===null?'—':new Intl.NumberFormat(lang,{style:'currency',currency:currency.toUpperCase(),maximumFractionDigits:currency==='jpy'?0:2}).format(amount/(currency==='jpy'?1:100));
  const date=(value:string)=>new Intl.DateTimeFormat(lang,{dateStyle:'medium',timeStyle:'short'}).format(new Date(value));
  const expired=(quote:Quote)=>Date.parse(quote.expiresAt)<=Date.now();
