@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Facebook, Instagram, Mail, Phone } from 'lucide-svelte';
+  let { lang = 'en' } = $props<{ lang?: string }>();
   const currentYear = new Date().getFullYear();
 </script>
 
@@ -10,7 +11,7 @@
       <div class="md:col-span-2">
         <h3 class="font-serif tracking-widest uppercase text-2xl mb-4"><span class="font-light">Design</span><span class="font-light">Music</span></h3>
         <p class="text-neutral-400 font-light leading-relaxed max-w-sm mb-6">
-          Embracing the Japanese philosophy of Kodawari. Uncompromising dedication to crafting perfect sound and joy.
+          {lang === 'th' ? 'ใส่ใจทุกรายละเอียดตามแนวคิดโคดาวาริของญี่ปุ่น เพื่อสร้างเสียงที่สมบูรณ์และความสุขในการเล่นดนตรี' : 'Embracing the Japanese philosophy of Kodawari. Uncompromising dedication to crafting perfect sound and joy.'}
         </p>
         <div class="flex gap-4">
           <a href="https://www.facebook.com/DesignmusicInstrumentmusicAccessories" target="_blank" rel="noreferrer" class="p-2 border border-white/20 rounded-full hover:bg-white hover:text-black transition-colors">
@@ -23,7 +24,7 @@
       </div>
 
       <div>
-        <h4 class="font-medium tracking-widest uppercase text-sm text-neutral-300 mb-6">Contact</h4>
+        <h4 class="font-medium tracking-widest uppercase text-sm text-neutral-300 mb-6">{lang === 'th' ? 'ติดต่อเรา' : 'Contact'}</h4>
         <ul class="space-y-4 font-light text-neutral-400">
           <li>
             <a href="mailto:designmusicthailand@gmail.com" class="flex items-center gap-3 hover:text-white transition-colors">
@@ -39,24 +40,24 @@
       </div>
 
       <div>
-        <h4 class="font-medium tracking-widest uppercase text-sm text-neutral-300 mb-6">Visit Us</h4>
+        <h4 class="font-medium tracking-widest uppercase text-sm text-neutral-300 mb-6">{lang === 'th' ? 'ที่ตั้งร้าน' : 'Visit Us'}</h4>
         <p class="font-light text-neutral-400 leading-relaxed mb-4">
-          98 Thung Maha Mek Housing Estate Road,<br/>
-          Sathon District, Bangkok 10120
+          {#if lang === 'th'}98 ถนนอาคารสงเคราะห์ ซอยนราธิวาส 15 แยก 4-2<br/>แขวงทุ่งมหาเมฆ เขตสาทร กรุงเทพมหานคร ประเทศไทย 10120{:else}98 Thanon Akarn Songkhro, Soi Narathiwas 15 Yak 4-2,<br/>Thung Maha Mek, Sathorn, Bangkok, Thailand 10120{/if}
         </p>
         <p class="font-light text-neutral-400 leading-relaxed">
-          Mon — Fri: 8am — 6pm<br/>
-          <span class="italic text-sm">(Reservation based)</span>
+          {lang === 'th' ? 'จันทร์–ศุกร์ 08.00–18.00 น.' : 'Mon — Fri: 8am — 6pm'}<br/>
+          <span class="italic text-sm">{lang === 'th' ? '(กรุณาจองล่วงหน้า)' : '(Reservation based)'}</span>
         </p>
       </div>
 
     </div>
 
     <div class="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-sm font-light text-neutral-500">
-      <p>Copyright © {currentYear} Design Music. All rights reserved.</p>
-      <div class="flex gap-6">
-        <a href="#" class="hover:text-white transition-colors">Privacy Policy</a>
-        <a href="#" class="hover:text-white transition-colors">Terms of Service</a>
+      <p>© {currentYear} Design Music. {lang === 'th' ? 'สงวนลิขสิทธิ์' : 'All rights reserved.'}</p>
+      <div class="flex flex-wrap justify-center gap-6">
+        <a href="/privacy" lang="th" class="hover:text-white transition-colors">นโยบายความเป็นส่วนตัว</a>
+        <a href="/terms" lang="th" class="hover:text-white transition-colors">ข้อกำหนดและเงื่อนไข</a>
+        <a href="/shipping-returns" lang="th" class="hover:text-white transition-colors">การจัดส่ง คืนสินค้า และรับประกัน</a>
       </div>
     </div>
   </div>

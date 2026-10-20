@@ -95,18 +95,28 @@ export async function filterGoogleCalendarAvailability(slots: CalendarSlot[], en
  const secret = env('GOOGLE_SHEETS_WEBHOOK_SECRET');
  if (!url && !secret) return null;
  if (!url || !secret) throw new HttpError(503, 'transport_configuration_unavailable');
- const ack = await sendGoogleRequest({ action: 'availability', slots }, env, transport, 12000, 16384);
- if (!ack || typeof ack !== 'object' || Array.isArray(ack) ||
-  Object.keys(ack).sort().join(',') !== 'availableStartAt,ok' ||
-  (ack as { ok?: unknown }).ok !== true || !Array.isArray((ack as { availableStartAt?: unknown }).availableStartAt)) {
-  throw Error('transport_acknowledgment');
- }
- const requested = new Set(slots.map(slot => slot.startAt));
- const available = new Set<string>();
- for (const value of (ack as { availableStartAt: unknown[] }).availableStartAt) {
-  if (typeof value !== 'string' || !requested.has(value) || available.has(value)) throw Error('transport_acknowledgment');
-  available.add(value);
- }
+  const available = new Set<string>();
+  const batches = Array.from({ length: Math.ceil(slots.length / 84) }, (_, index) => slots.slice(index * 84, (index + 1) * 84));
+  // Keep the 90-day browse response quick while staying well below Apps Script's
+  // concurrency limits. Four read-only checks run at a time.
+  for (let offset = 0; offset < batches.length; offset += 4) {
+   const results = await Promise.all(batches.slice(offset, offset + 4).map(async batch => ({
+    batch,
+    ack: await sendGoogleRequest({ action: 'availability', slots: batch }, env, transport, 12000, 16384),
+   })));
+   for (const { batch, ack } of results) {
+    if (!ack || typeof ack !== 'object' || Array.isArray(ack) ||
+     Object.keys(ack).sort().join(',') !== 'availableStartAt,ok' ||
+     (ack as { ok?: unknown }).ok !== true || !Array.isArray((ack as { availableStartAt?: unknown }).availableStartAt)) {
+     throw Error('transport_acknowledgment');
+    }
+    const requested = new Set(batch.map(slot => slot.startAt));
+    for (const value of (ack as { availableStartAt: unknown[] }).availableStartAt) {
+     if (typeof value !== 'string' || !requested.has(value) || available.has(value)) throw Error('transport_acknowledgment');
+     available.add(value);
+    }
+   }
+  }
  return slots.filter(slot => available.has(slot.startAt));
 }
 async function sendEmail(job: Job, deps: OutboxDependencies, timeoutMs: number) {

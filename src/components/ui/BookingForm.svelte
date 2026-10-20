@@ -19,6 +19,10 @@
  async function availability(){loading=true;availabilityFailed=false;try{const res=await fetch('/api/booking-availability',{cache:'no-store'});const data=await res.json();if(!res.ok || data.timeZone!=='Asia/Bangkok' || !Array.isArray(data.slots) || !['database','google-calendar'].includes(data.source))throw Error();slots=data.slots;availabilitySource=data.source;if(slot && !slots.some(s=>s.startAt===slot))slot='';}catch{slots=[];slot='';availabilityFailed=true;}finally{loading=false;}}
  onMount(() => {
   try {
+   const requestedDate = new URL(window.location.href).searchParams.get('date');
+   if (requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) selectedDate=requestedDate;
+   const requestedSlot = new URL(window.location.href).searchParams.get('slot');
+   if (requestedSlot && /^\d{4}-\d{2}-\d{2}T\d\d:\d\d:\d\d(?:\.\d{3})?Z$/.test(requestedSlot)) slot=requestedSlot;
    const draft = readBookingDraft(sessionStorage.getItem(BOOKING_DRAFT_KEY));
    sessionStorage.removeItem(BOOKING_DRAFT_KEY);
    if (draft) { instrument=draft.instrument;service=draft.service;slot=draft.slot;notes=draft.notes;selectedDate=dateKey(slot);step=2; }

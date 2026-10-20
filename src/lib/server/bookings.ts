@@ -1,4 +1,4 @@
-import { bookingSlots, bookingUuid, validateBooking, BOOKING_TIME_ZONE, type BookingSlot } from '../booking.ts';
+import { bookingCalendarSlots, bookingSlots, bookingUuid, validateBooking, BOOKING_TIME_ZONE, DEFAULT_WEEKLY_BOOKING_HOURS, type BookingSlot, type BookingSlotStatus, type WeeklyBookingHours } from '../booking.ts';
 import { requireCustomer, type Customer } from './customer.ts';
 import { rpc, select, SupabaseRequestError } from './supabase.ts';
 import { HttpError } from './http.ts';
@@ -11,9 +11,10 @@ export type BookingDependencies = {
   customer: (request: Request) => Promise<Customer>;
   rpc: <T>(name: string, args: Record<string, unknown>) => Promise<T>;
   select: <T>(table: string, filters: Record<string, string>) => Promise<T[]>;
+  weeklyHours?: () => Promise<WeeklyBookingHours>;
   calendarAvailability?: (slots: BookingSlot[]) => Promise<BookingSlot[] | null>;
 };
-export const bookingDependencies: BookingDependencies = { now: Date.now, customer: requireCustomer, rpc, select, calendarAvailability: filterGoogleCalendarAvailability };
+export const bookingDependencies: BookingDependencies = { now: Date.now, customer: requireCustomer, rpc, select, weeklyHours: () => rpc<WeeklyBookingHours>('booking_weekly_hours', {}), calendarAvailability: filterGoogleCalendarAvailability };
 function publicBooking(record: BookingRecord) {
   const { id, startAt, endAt, instrument, service, notes, locale, status, createdAt } = record;
   return { id, startAt, endAt, timeZone: BOOKING_TIME_ZONE, instrument, service, notes, locale, status, createdAt };
@@ -52,18 +53,32 @@ export async function ownedBookings(request: Request, id?: string, deps = bookin
   });
 }
 export async function bookingAvailability(deps = bookingDependencies) {
-  const slots = bookingSlots(deps.now());
-  const taken = await deps.select<{ start_at: string }>('bookings', {
-    select: 'start_at', status: 'eq.confirmed', start_at: `lt.${slots.at(-1)!.endAt}`,
-    end_at: `gt.${slots[0].startAt}`, limit: '100',
+  const weeklyHours = deps.weeklyHours ? await deps.weeklyHours() : DEFAULT_WEEKLY_BOOKING_HOURS;
+  const options = bookingCalendarSlots(deps.now(), weeklyHours);
+  const startAt = new Date(deps.now()).toISOString();
+  const endAt = new Date(deps.now() + 91 * 86400000).toISOString();
+  const taken = await deps.select<{ start_at: string; end_at: string }>('bookings', {
+    select: 'start_at,end_at', status: 'eq.confirmed', start_at: `lt.${endAt}`,
+    end_at: `gt.${startAt}`, limit: '1000',
   });
-  const occupied = new Set(taken.map(row => Date.parse(row.start_at)));
-  const databaseAvailable = slots.filter(slot => !occupied.has(Date.parse(slot.startAt)));
-  const calendarAvailable = deps.calendarAvailability ? await deps.calendarAvailability(databaseAvailable) : null;
+  const withBooking = options.map(slot => taken.some(row => Date.parse(row.start_at) < Date.parse(slot.endAt) && Date.parse(row.end_at) > Date.parse(slot.startAt))
+    ? { ...slot, status: 'booked' as BookingSlotStatus } : slot);
+  const candidates = withBooking.filter(slot => slot.status === 'available');
+  const calendarChecks = withBooking.filter(slot => slot.status === 'available' || slot.status === 'contact_directly');
+  const calendarAvailable = deps.calendarAvailability ? await deps.calendarAvailability(calendarChecks) : null;
+  const availableStarts = new Set(calendarAvailable?.map(slot => slot.startAt));
+  const calendarSlots = withBooking.map(slot => (slot.status === 'available' || slot.status === 'contact_directly') && calendarAvailable !== null && !availableStarts.has(slot.startAt)
+    ? { ...slot, status: 'unavailable' as BookingSlotStatus } : slot);
+  for (const booking of taken) if (!calendarSlots.some(slot => slot.startAt === booking.start_at)) {
+    calendarSlots.push({ startAt: booking.start_at, endAt: booking.end_at, status: 'booked' });
+  }
+  calendarSlots.sort((a,b)=>Date.parse(a.startAt)-Date.parse(b.startAt));
+  const bookable = calendarAvailable === null ? candidates : calendarAvailable.filter(slot => slot.status === 'available');
   return {
     timeZone: BOOKING_TIME_ZONE,
     source: calendarAvailable === null ? 'database' : 'google-calendar',
-    slots: calendarAvailable ?? databaseAvailable,
+    slots: bookable,
+    calendarSlots,
   };
 }
 
@@ -80,7 +95,8 @@ export async function rescheduleBooking(request: Request, id: string, body: Reco
   const customer = await deps.customer(request);
   if (!bookingUuid(id) || Object.keys(body).sort().join(',') !== 'changeKey,slot' ||
     !bookingUuid(body.changeKey) || typeof body.slot !== 'string') throw new HttpError(400, 'invalid_booking');
-  const slot = bookingSlots(deps.now()).find(candidate => candidate.startAt === body.slot);
+  const weeklyHours = deps.weeklyHours ? await deps.weeklyHours() : DEFAULT_WEEKLY_BOOKING_HOURS;
+  const slot = bookingSlots(deps.now(), weeklyHours).find(candidate => candidate.startAt === body.slot);
   if (!slot) throw new HttpError(400, 'invalid_booking');
   const booking = (await ownedBookings(request, id, deps))[0];
   if (booking.status !== 'confirmed' || Date.parse(booking.startAt) <= deps.now()) throw new HttpError(409, 'booking_not_modifiable');

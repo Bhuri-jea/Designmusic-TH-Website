@@ -17,7 +17,7 @@ const sdk = new Stripe('sk_test_dummy');
 const body = {
     requestKey: key, locale: 'zh-CN', items: [{
             productId: 'saxophone-end-plug', variant: 'plain', quantity: 2
-        }]
+        }], shippingCountry: 'TH', shippingMethod: 'ems_local'
 };
 function fixture() {
     let order: OrderRecord | null = null;
@@ -28,10 +28,20 @@ function fixture() {
     const creates: unknown[] = [];
     const deps: PaymentDependencies = {
         env: n => values[n], now: () => Date.now(), customer: async () => customer,
+        shippingQuote: async (_items, locale, country, method) => ({
+            currency: locale === 'ja' ? 'jpy' : locale === 'th' ? 'thb' : 'usd',
+            amount: 0, weightGrams: 20, method: method as 'ems_local', country: country as string,
+            subtotal: locale === 'ja' ? 4400 : locale === 'th' ? 104000 : 3000,
+            total: locale === 'ja' ? 4400 : locale === 'th' ? 104000 : 3000, fxMarginApplied: false
+        }),
         rpc: async <T>(name: string, args: Record<string, unknown>) => {
             calls.push({
                 name, args
             });
+            if (name === 'storefront_config') return {
+                allowed_countries: ['TH'], pickup_enabled: true,
+                shipping_rates: { 'TH:ems_local': [{ maxGrams: 30000, thbMinor: 0 }] }
+            } as T;
             if (name === 'reserve_order') {
                 order ??= {
                     id: key, customerId: customer.id, requestKey: key, fingerprint: args.p_fingerprint as string, currency: args.p_currency as OrderRecord['currency'], locale: args.p_locale as OrderRecord['locale'], items: args.p_lines as OrderRecord['items'], amountTotal: args.p_amount_total as number, status: 'pending', createdAt: new Date().toISOString(), expiresAt: new Date((args.p_checkout_parameters as OrderRecord['checkoutParameters']).expiresAt * 1000).toISOString(), checkoutParameters: args.p_checkout_parameters as OrderRecord['checkoutParameters'], checkoutSessionId: null, checkoutUrl: null
@@ -48,7 +58,11 @@ function fixture() {
                 return order as T;
             return {} as T;
         },
-        select: async <T>(_table: string, filters: Record<string, string>) => {
+        select: async <T>(table: string, filters: Record<string, string>) => {
+            if (table === 'inventory') return [{
+                sku: 'endplug-plain', on_hand: 20, reserved: 0, weight_grams: 10,
+                price_usd_minor: 1500, price_jpy: 2200, price_thb_minor: 52000
+            }] as T[];
             assert.equal(filters.customer_id, `eq.${customer.id}`);
             return (order ? [{
                     id: order.id
@@ -167,7 +181,7 @@ test('uncertain create preserves hold and refuses new creation outside frozen wi
         }
     });
     await assert.rejects(checkout(new Request('https://shop.example.test'), body, f.deps));
-    assert.deepEqual(f.calls.map(c => c.name), ['reserve_order']);
+    assert.deepEqual(f.calls.map(c => c.name).filter(name => name === 'reserve_order'), ['reserve_order']);
     f.deps.now = () => f.order!.checkoutParameters.expiresAt * 1000 - 1800000;
     await assert.rejects(checkout(new Request('https://shop.example.test'), body, f.deps), /checkout_requires_review/);
     assert.equal(f.calls.filter(c => c.name.includes('release')).length, 0);
