@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bookingSlots, validateBooking } from '../src/lib/booking.ts';
+import { bookingSlots, bookingCalendarSlots, DEFAULT_WEEKLY_BOOKING_HOURS, validateBooking } from '../src/lib/booking.ts';
 import { bookingAvailability, cancelBooking, createBooking, ownedBookings, rescheduleBooking, type BookingDependencies } from '../src/lib/server/bookings.ts';
 const key = '22222222-2222-4222-8222-222222222222';
 const now = Date.parse('2026-10-12T16:59:59Z'); // 23:59:59 Monday Bangkok
@@ -8,8 +8,8 @@ const body = { requestKey: key, slot: '2026-10-13T03:00:00.000Z', instrument: 'a
 test('Bangkok tomorrow rolls over at local midnight; weekday hours expose half-hour starts', () => {
   const slots = bookingSlots(now);
   assert.equal(slots[0].startAt, '2026-10-13T01:00:00.000Z');
-  assert.equal(slots.at(-1)?.startAt, '2027-01-08T10:00:00.000Z');
-  assert.equal(slots.length, 1216);
+  assert.equal(slots.at(-1)?.startAt, '2026-11-12T10:00:00.000Z');
+  assert.equal(slots.length, 437);
   assert.equal(bookingSlots(now + 1000)[0].startAt, '2026-10-14T01:00:00.000Z');
   for (const s of slots) assert.equal(Date.parse(s.endAt) - Date.parse(s.startAt), 3600000);
 });
@@ -162,3 +162,5 @@ test('reschedule validates database timestamps by instant while rejecting differ
     await assert.rejects(rescheduleBooking(request, key, change, f.deps), /booking_conflict/);
   }
 });
+
+test('date overrides change only the selected day and an empty override closes it',()=>{const overrides={'2026-10-13':{},'2026-10-14':{'12:00':'available','12:30':'available','13:00':'contact_directly','13:30':'contact_directly'}};const slots=bookingCalendarSlots(now,DEFAULT_WEEKLY_BOOKING_HOURS,31,overrides);assert.equal(slots.some(s=>s.startAt.startsWith('2026-10-13')),false);const day=slots.filter(s=>s.startAt.startsWith('2026-10-14'));assert.deepEqual(day.map(s=>s.startAt.slice(11,16)),['05:00','05:30','06:00']);assert.equal(day[2].status,'contact_directly');assert.ok(slots.some(s=>s.startAt==='2026-10-15T01:00:00.000Z'));});

@@ -1,7 +1,8 @@
+import { quoteCart } from '../src/lib/catalog.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import Stripe from 'stripe';
-import { checkout, paymentConfig, processWebhook, ownedOrders, type PaymentDependencies } from '../src/lib/server/payments.ts';
+import { checkout, paymentConfig, processWebhook, ownedOrders, applySessionEvent, type PaymentDependencies } from '../src/lib/server/payments.ts';
 import { reconcilePayments } from '../src/lib/server/reconciliation.ts';
 import { HttpError } from '../src/lib/server/http.ts';
 import { SupabaseRequestError } from '../src/lib/server/supabase.ts';
@@ -505,4 +506,27 @@ test('a budget-timed-out database read defers remaining rows even if clock repor
     assert.equal(reads,1);
     assert.equal(result.errors,1);
     assert.equal(result.deferred,1);
+});
+
+test('approved oversize quote freezes product prices, shipping fee and delivery address through payment',async()=>{
+ const f=fixture();
+ const cart=await quoteCart({items:body.items,locale:body.locale,prices:{'endplug-plain':{usd:1500}}});
+ const address={line1:'Quoted address',line2:'',city:'Bangkok',state:'',postal_code:'10120',country:'TH'};
+ const approved={id:key,customerId:customer.id,status:'quoted',locale:body.locale,currency:'usd',cartFingerprint:cart.fingerprint,items:cart.lines,amountSubtotal:3000,shippingAmount:8000,weightGrams:3000,country:'TH',shippingService:'ems_local',address,recipient:{name:'Quoted Buyer'},expiresAt:new Date(Date.now()+7*86400000).toISOString(),version:2};
+ const originalRpc=f.deps.rpc,originalSelect=f.deps.select;
+ f.deps.rpc=async <T>(name:string,args:Record<string,unknown>)=>name==='shipping_quote_record'?approved as T:originalRpc<T>(name,args);
+ f.deps.select=async <T>(table:string,filters:Record<string,string>)=>table==='inventory'?[{sku:'endplug-plain',price_usd_minor:9999,weight_grams:1500}] as T[]:originalSelect<T>(table,filters);
+ f.deps.shippingQuote=async()=>{throw Error('oversize standard quote must not be used');};
+ let created:any;
+ f.deps.stripe=()=>({create:async(params)=>{created=params;return {...session(f.order!),amount_total:f.order!.amountTotal,url:'https://checkout.stripe.com/c/quoted',expires_at:params.expires_at!,status:'open'} as any;},retrieve:async()=>({...session(f.order!),amount_total:f.order!.amountTotal,status:'open'}) as any});
+ await checkout(new Request('https://shop.example.test'),{...body,quoteId:key},f.deps);
+ assert.equal(created.line_items[0].price_data.unit_amount,1500);
+ assert.equal(created.line_items[1].price_data.unit_amount,8000);
+ assert.equal(created.shipping_address_collection,undefined);
+ assert.equal(f.order!.amountTotal,11000);
+ assert.deepEqual(f.order!.checkoutParameters.shippingQuoteAddress,address);
+ await applySessionEvent(f.order!,{...session(f.order!),amount_total:11000} as any,'evt_manual','checkout.session.completed',Math.floor(Date.now()/1000),f.deps);
+ const delivered=f.calls.find(c=>c.name==='apply_stripe_event')!;
+ assert.deepEqual(delivered.args.p_shipping,{recipient:{name:'Quoted Buyer'},address});
+ await assert.rejects(checkout(new Request('https://shop.example.test'),{...body,quoteId:key,shippingMethod:'ems_world'},f.deps),/shipping_quote_not_ready/);
 });

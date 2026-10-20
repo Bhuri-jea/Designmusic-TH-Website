@@ -1,0 +1,383 @@
+- generic [ref=e3]:
+  - heading "Seller preparation" [level=1] [ref=e4]
+  - status
+  - button "Reload" [ref=e5]
+  - generic [ref=e6]:
+    - heading "Stock, prices and gross product weight" [level=2] [ref=e7]
+    - paragraph [ref=e8]: Only end plugs and shakuhachi are checkout-enabled. Silicone pads are not purchasable. Set the packaged gross weight in kg; checkout uses this value for EMS. Zero means weight is not configured and checkout will stop.
+    - generic [ref=e9]:
+      - article [ref=e10]:
+        - heading "endplug-plain" [level=3] [ref=e11]
+        - generic [ref=e12]:
+          - generic [ref=e13]:
+            - text: On hand
+            - spinbutton "On hand" [ref=e14]
+          - paragraph [ref=e15]:
+            - text: Reserved
+            - strong [ref=e16]: "2"
+          - paragraph [ref=e17]:
+            - text: Available
+            - strong [ref=e18]: "8"
+          - generic [ref=e19]:
+            - text: Gross weight (kg)
+            - spinbutton "Gross weight (kg)" [ref=e20]
+          - generic [ref=e21]:
+            - text: USD
+            - spinbutton "USD" [ref=e22]
+          - generic [ref=e23]:
+            - text: JPY
+            - spinbutton "JPY" [ref=e24]
+          - generic [ref=e25]:
+            - text: THB
+            - spinbutton "THB" [ref=e26]
+        - button "Save" [disabled] [ref=e28]
+      - article [ref=e29]:
+        - heading "shakuhachi-standard-balance" [level=3] [ref=e30]
+        - generic [ref=e31]:
+          - generic [ref=e32]:
+            - text: On hand
+            - spinbutton "On hand" [ref=e33]
+          - paragraph [ref=e34]:
+            - text: Reserved
+            - strong [ref=e35]: "3"
+          - paragraph [ref=e36]:
+            - text: Available
+            - strong [ref=e37]: "9"
+          - generic [ref=e38]:
+            - text: Gross weight (kg)
+            - spinbutton "Gross weight (kg)" [ref=e39]
+          - generic [ref=e40]:
+            - text: USD
+            - spinbutton "USD" [ref=e41]
+          - generic [ref=e42]:
+            - text: JPY
+            - spinbutton "JPY" [ref=e43]
+          - generic [ref=e44]:
+            - text: THB
+            - spinbutton "THB" [ref=e45]
+        - button "Save" [disabled] [ref=e47]
+  - region [ref=e48]:
+    - generic [ref=e49]:
+      - generic [ref=e50]:
+        - heading "Repair booking calendar" [level=2] [ref=e51]
+        - paragraph [ref=e52]: Set availability for a specific date. Bookings last one hour and start every 30 minutes; keep the following half-hour open too.
+      - generic [ref=e53]:
+        - generic [ref=e54]: Website schedule only
+        - generic [ref=e55]: Times shown in Asia/Bangkok
+    - generic [ref=e56]:
+      - generic [ref=e57]:
+        - generic [ref=e58]:
+          - button "Previous month" [disabled] [ref=e59]: ‹
+          - heading "October 2026" [level=3] [ref=e60]
+          - button "Next month" [ref=e61]: ›
+        - generic [ref=e62]:
+          - generic [ref=e63]: Mon
+          - generic [ref=e64]: Tue
+          - generic [ref=e65]: Wed
+          - generic [ref=e66]: Thu
+          - generic [ref=e67]: Fri
+          - generic [ref=e68]: Sat
+          - generic [ref=e69]: Sun
+        - generic [ref=e70]:
+          - 'button "Thursday, October 1, 2026: Outside the booking window" [disabled] [ref=e74]': "1"
+          - 'button "Friday, October 2, 2026: Outside the booking window" [disabled] [ref=e75]': "2"
+          - 'button "Saturday, October 3, 2026: Outside the booking window" [disabled] [ref=e76]': "3"
+          - 'button "Sunday, October 4, 2026: Outside the booking window" [disabled] [ref=e77]': "4"
+          - 'button "Monday, October 5, 2026: Outside the booking window" [disabled] [ref=e78]': "5"
+          - 'button "Tuesday, October 6, 2026: Outside the booking window" [disabled] [ref=e79]': "6"
+          - 'button "Wednesday, October 7, 2026: Outside the booking window" [disabled] [ref=e80]': "7"
+          - 'button "Thursday, October 8, 2026: Outside the booking window" [disabled] [ref=e81]': "8"
+          - 'button "Friday, October 9, 2026: Outside the booking window" [disabled] [ref=e82]': "9"
+          - 'button "Saturday, October 10, 2026: Outside the booking window" [disabled] [ref=e83]': "10"
+          - 'button "Sunday, October 11, 2026: Outside the booking window" [disabled] [ref=e84]': "11"
+          - 'button "Monday, October 12, 2026: Outside the booking window" [disabled] [ref=e85]': "12"
+          - 'button "Tuesday, October 13, 2026: Outside the booking window" [disabled] [ref=e86]': "13"
+          - 'button "Wednesday, October 14, 2026: Outside the booking window" [disabled] [ref=e87]': "14"
+          - 'button "Thursday, October 15, 2026: Outside the booking window" [disabled] [ref=e88]': "15"
+          - 'button "Friday, October 16, 2026: Outside the booking window" [disabled] [ref=e89]': "16"
+          - 'button "Saturday, October 17, 2026: Outside the booking window" [disabled] [ref=e90]': "17"
+          - 'button "Sunday, October 18, 2026: Outside the booking window" [disabled] [ref=e91]': "18"
+          - 'button "Monday, October 19, 2026: Outside the booking window" [disabled] [ref=e92]': "19"
+          - 'button "Tuesday, October 20, 2026: Outside the booking window" [disabled] [ref=e93]': "20"
+          - 'button "Wednesday, October 21, 2026: Available" [pressed] [ref=e94]':
+            - text: "21"
+            - generic [ref=e95]: Available
+          - 'button "Thursday, October 22, 2026: Closed" [ref=e96]':
+            - text: "22"
+            - generic [ref=e97]: Closed
+          - 'button "Friday, October 23, 2026: Closed" [ref=e98]':
+            - text: "23"
+            - generic [ref=e99]: Closed
+          - 'button "Saturday, October 24, 2026: Closed" [ref=e100]':
+            - text: "24"
+            - generic [ref=e101]: Closed
+          - 'button "Sunday, October 25, 2026: Closed" [ref=e102]':
+            - text: "25"
+            - generic [ref=e103]: Closed
+          - 'button "Monday, October 26, 2026: Closed" [ref=e104]':
+            - text: "26"
+            - generic [ref=e105]: Closed
+          - 'button "Tuesday, October 27, 2026: Closed" [ref=e106]':
+            - text: "27"
+            - generic [ref=e107]: Closed
+          - 'button "Wednesday, October 28, 2026: Closed" [ref=e108]':
+            - text: "28"
+            - generic [ref=e109]: Closed
+          - 'button "Thursday, October 29, 2026: Closed" [ref=e110]':
+            - text: "29"
+            - generic [ref=e111]: Closed
+          - 'button "Friday, October 30, 2026: Closed" [ref=e112]':
+            - text: "30"
+            - generic [ref=e113]: Closed
+          - 'button "Saturday, October 31, 2026: Closed" [ref=e114]':
+            - text: "31"
+            - generic [ref=e115]: Closed
+        - paragraph [ref=e116]: "Bookable dates: 2026-10-21 – 2026-11-20"
+      - generic [ref=e117]:
+        - generic [ref=e118]:
+          - generic [ref=e119]:
+            - text: Selected date
+            - heading "Wednesday, October 21, 2026" [level=3] [ref=e120]
+          - generic [ref=e121]: Using weekly default
+        - generic [ref=e122]:
+          - generic [ref=e123]:
+            - strong [ref=e124]: 30-minute schedule
+            - generic [ref=e125]: Calendar status
+          - generic [ref=e126]:
+            - generic [ref=e127]: 08:00
+            - generic [ref=e128]:
+              - button "Available" [ref=e129]
+              - button "Contact directly" [ref=e130]
+              - button "Closed" [pressed] [ref=e131]
+          - generic [ref=e132]:
+            - generic [ref=e133]: 08:30
+            - generic [ref=e134]:
+              - button "Available" [ref=e135]
+              - button "Contact directly" [ref=e136]
+              - button "Closed" [pressed] [ref=e137]
+          - generic [ref=e138]:
+            - generic [ref=e139]: 09:00
+            - generic [ref=e140]:
+              - generic [ref=e141]: Available
+              - button "Available" [pressed] [ref=e142]
+              - button "Contact directly" [ref=e143]
+              - button "Closed" [ref=e144]
+          - generic [ref=e145]:
+            - generic [ref=e146]: 09:30
+            - generic [ref=e147]:
+              - generic [ref=e148]: Available
+              - button "Available" [pressed] [ref=e149]
+              - button "Contact directly" [ref=e150]
+              - button "Closed" [ref=e151]
+          - generic [ref=e152]:
+            - generic [ref=e153]: 10:00
+            - generic [ref=e154]:
+              - button "Available" [ref=e155]
+              - button "Contact directly" [ref=e156]
+              - button "Closed" [pressed] [ref=e157]
+          - generic [ref=e158]:
+            - generic [ref=e159]: 10:30
+            - generic [ref=e160]:
+              - button "Available" [ref=e161]
+              - button "Contact directly" [ref=e162]
+              - button "Closed" [pressed] [ref=e163]
+          - generic [ref=e164]:
+            - generic [ref=e165]: 11:00
+            - generic [ref=e166]:
+              - button "Available" [ref=e167]
+              - button "Contact directly" [ref=e168]
+              - button "Closed" [pressed] [ref=e169]
+          - generic [ref=e170]:
+            - generic [ref=e171]: 11:30
+            - generic [ref=e172]:
+              - button "Available" [ref=e173]
+              - button "Contact directly" [ref=e174]
+              - button "Closed" [pressed] [ref=e175]
+          - generic [ref=e176]:
+            - generic [ref=e177]: 12:00
+            - generic [ref=e178]:
+              - button "Available" [ref=e179]
+              - button "Contact directly" [ref=e180]
+              - button "Closed" [pressed] [ref=e181]
+          - generic [ref=e182]:
+            - generic [ref=e183]: 12:30
+            - generic [ref=e184]:
+              - button "Available" [ref=e185]
+              - button "Contact directly" [ref=e186]
+              - button "Closed" [pressed] [ref=e187]
+          - generic [ref=e188]:
+            - generic [ref=e189]: 13:00
+            - generic [ref=e190]:
+              - button "Available" [ref=e191]
+              - button "Contact directly" [ref=e192]
+              - button "Closed" [pressed] [ref=e193]
+          - generic [ref=e194]:
+            - generic [ref=e195]: 13:30
+            - generic [ref=e196]:
+              - button "Available" [ref=e197]
+              - button "Contact directly" [ref=e198]
+              - button "Closed" [pressed] [ref=e199]
+          - generic [ref=e200]:
+            - generic [ref=e201]: 14:00
+            - generic [ref=e202]:
+              - button "Available" [ref=e203]
+              - button "Contact directly" [ref=e204]
+              - button "Closed" [pressed] [ref=e205]
+          - generic [ref=e206]:
+            - generic [ref=e207]: 14:30
+            - generic [ref=e208]:
+              - button "Available" [ref=e209]
+              - button "Contact directly" [ref=e210]
+              - button "Closed" [pressed] [ref=e211]
+          - generic [ref=e212]:
+            - generic [ref=e213]: 15:00
+            - generic [ref=e214]:
+              - button "Available" [ref=e215]
+              - button "Contact directly" [ref=e216]
+              - button "Closed" [pressed] [ref=e217]
+          - generic [ref=e218]:
+            - generic [ref=e219]: 15:30
+            - generic [ref=e220]:
+              - button "Available" [ref=e221]
+              - button "Contact directly" [ref=e222]
+              - button "Closed" [pressed] [ref=e223]
+          - generic [ref=e224]:
+            - generic [ref=e225]: 16:00
+            - generic [ref=e226]:
+              - button "Available" [ref=e227]
+              - button "Contact directly" [ref=e228]
+              - button "Closed" [pressed] [ref=e229]
+          - generic [ref=e230]:
+            - generic [ref=e231]: 16:30
+            - generic [ref=e232]:
+              - button "Available" [ref=e233]
+              - button "Contact directly" [ref=e234]
+              - button "Closed" [pressed] [ref=e235]
+          - generic [ref=e236]:
+            - generic [ref=e237]: 17:00
+            - generic [ref=e238]:
+              - button "Available" [ref=e239]
+              - button "Contact directly" [ref=e240]
+              - button "Closed" [pressed] [ref=e241]
+          - generic [ref=e242]:
+            - generic [ref=e243]: 17:30
+            - generic [ref=e244]:
+              - button "Available" [ref=e245]
+              - button "Contact directly" [ref=e246]
+              - button "Closed" [pressed] [ref=e247]
+          - generic [ref=e248]:
+            - generic [ref=e249]: 18:00
+            - generic [ref=e250]:
+              - button "Available" [ref=e251]
+              - button "Contact directly" [ref=e252]
+              - button "Closed" [pressed] [ref=e253]
+          - generic [ref=e254]:
+            - generic [ref=e255]: 18:30
+            - generic [ref=e256]:
+              - button "Available" [ref=e257]
+              - button "Contact directly" [ref=e258]
+              - button "Closed" [pressed] [ref=e259]
+          - generic [ref=e260]:
+            - generic [ref=e261]: 19:00
+            - generic [ref=e262]:
+              - button "Available" [ref=e263]
+              - button "Contact directly" [ref=e264]
+              - button "Closed" [pressed] [ref=e265]
+          - generic [ref=e266]:
+            - generic [ref=e267]: 19:30
+            - generic [ref=e268]:
+              - button "Available" [ref=e269]
+              - button "Contact directly" [ref=e270]
+              - button "Closed" [pressed] [ref=e271]
+        - paragraph [ref=e272]: A one-hour appointment needs this start time and the following half-hour to be open.
+        - paragraph [ref=e273]: Available Contact directly Busy calendar time Booked
+        - generic [ref=e278]:
+          - button "Save this date" [disabled] [ref=e279]
+          - button "Reset to weekly default" [disabled] [ref=e280]
+          - button "Refresh availability" [ref=e281]
+  - generic [ref=e282]:
+    - heading "Shipping services and local pickup" [level=2] [ref=e283]
+    - paragraph [ref=e284]: Configure only destinations and services confirmed as currently available. Enter each carrier rate band in THB; Checkout uses total gross weight. USD/JPY postage is converted using the values below. EMS World is weight-based; some destinations have lower limits.
+    - generic [ref=e285]:
+      - button "Import supplied Thailand Post rates" [ref=e286]
+      - paragraph [ref=e287]: "Domestic EMS: ≤20g ฿35, ≤100g ฿50, ≤500g ฿70, ≤1kg ฿80, ≤2kg ฿100. International ePacket: supplied table dated 15 April 2022, 47 destinations. Above 2kg requires a seller quote. Existing destinations are preserved; an empty selection starts with TH and JP."
+    - generic [ref=e288]:
+      - checkbox "Allow no-fee pickup in Thailand" [checked] [ref=e289]
+      - text: Allow no-fee pickup in Thailand
+    - generic [ref=e290]:
+      - generic [ref=e291]:
+        - text: THB per USD
+        - spinbutton "THB per USD" [ref=e292]
+      - generic [ref=e293]:
+        - text: THB per JPY
+        - spinbutton "THB per JPY" [ref=e294]
+    - generic [ref=e295]:
+      - generic [ref=e296]:
+        - text: Destination
+        - combobox "Destination" [ref=e297]:
+          - option "Japan (JP)"
+          - option "Thailand (TH)" [selected]
+          - option "United States (US)"
+      - generic [ref=e298]:
+        - text: Service
+        - combobox "Service" [ref=e299]:
+          - option "Thailand Post EMS (TH)" [selected]
+          - option "Flash Express (TH)"
+          - option "Thailand Post EMS World"
+          - option "Thailand Post ePacket"
+      - generic [ref=e300]:
+        - text: Rate up to (kg)
+        - spinbutton "Rate up to (kg)" [ref=e301]: "0.5"
+      - generic [ref=e302]:
+        - text: Rate (THB)
+        - spinbutton "Rate (THB)" [ref=e303]: "0"
+    - paragraph [ref=e304]: Use each carrier’s current rates. Enable only destinations and services you have verified.
+    - button "Add rate band" [ref=e305]
+    - button "Save shipping settings" [disabled] [ref=e306]
+  - region [ref=e307]:
+    - heading "Shipping quote requests" [level=2] [ref=e308]
+    - paragraph [ref=e309]: No shipping requests.
+  - generic [ref=e310]:
+    - heading "Paid orders and fulfillment" [level=2] [ref=e311]
+    - article [ref=e312]:
+      - heading "flow-order-shipment" [level=3] [ref=e313]
+      - paragraph [ref=e314]: Simulation Customer · 10 Mock Road · Bangkok · 10110 · TH
+      - paragraph [ref=e315]: "Status: ready · Fulfillment: Thailand Post EMS"
+      - paragraph [ref=e316]: "Shipping charge: 1200 THB"
+      - paragraph [ref=e317]: 1 × End plug
+      - generic [ref=e318]:
+        - generic [ref=e319]: Reason for holding this shipment
+        - textbox "Reason for holding this shipment" [ref=e320]:
+          - /placeholder: "Required: explain the decision for the audit history."
+        - button "Hold shipment" [disabled] [ref=e321]
+      - generic [ref=e322]:
+        - checkbox "I confirmed the address, weight, postage paid and selected carrier." [ref=e323]
+        - generic [ref=e324]: I confirmed the address, weight, postage paid and selected carrier.
+      - generic [ref=e325]:
+        - text: Shipping service
+        - combobox "Shipping service" [ref=e326]
+      - text: Tracking number
+      - textbox "Tracking number" [ref=e327]
+      - button "Mark shipped" [disabled] [ref=e328]
+    - article [ref=e329]:
+      - heading "flow-order-pickup" [level=3] [ref=e330]
+      - paragraph [ref=e331]: Pickup Customer · 10 Mock Road · Bangkok · 10110 · TH
+      - paragraph [ref=e332]: "Status: ready · Fulfillment: Local pickup"
+      - paragraph [ref=e333]: "Shipping charge: 0 THB"
+      - paragraph [ref=e334]: 1 × Bamboo flute
+      - generic [ref=e335]:
+        - generic [ref=e336]: Reason for holding this shipment
+        - textbox "Reason for holding this shipment" [ref=e337]:
+          - /placeholder: "Required: explain the decision for the audit history."
+        - button "Hold shipment" [disabled] [ref=e338]
+      - button "Mark collected" [ref=e339]
+  - generic [ref=e340]:
+    - heading "Failed or review delivery jobs" [level=2] [ref=e341]
+    - table [ref=e343]:
+      - rowgroup [ref=e344]:
+        - row [ref=e345]:
+          - columnheader "ID" [ref=e346]
+          - columnheader "Topic" [ref=e347]
+          - columnheader "Status" [ref=e348]
+          - columnheader "Attempts" [ref=e349]
+      - rowgroup

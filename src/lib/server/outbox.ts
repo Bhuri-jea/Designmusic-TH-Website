@@ -120,6 +120,11 @@ export async function filterGoogleCalendarAvailability(slots: CalendarSlot[], en
  return slots.filter(slot => available.has(slot.startAt));
 }
 async function sendEmail(job: Job, deps: OutboxDependencies, timeoutMs: number) {
+ if(job.topic==='shipping_quote_buyer'){
+  const latest=await bounded(()=>deps.rpc<any>('shipping_quote_record',{p_id:job.payload.quoteId}),timeoutMs);
+  if(!latest)throw Error('invalid_notification_payload');
+  if(latest.status==='cancelled'||latest.version!==job.payload.version||latest.orderStatus==='paid')return;
+ }
  const key = deps.env('RESEND_API_KEY');
  if (!key) throw new HttpError(503, 'transport_configuration_unavailable');
  const message = notification(job.topic, job.payload, deps.env);

@@ -21,16 +21,80 @@ const serviceNames = {
  'zh-CN': ['基础维修','标准维修','全面维修','检查评估'],
  th: ['บริการพื้นฐาน','บริการมาตรฐาน','ยกเครื่อง','ตรวจประเมิน'],
 };
+const shippingCopy = {
+ en: { quoteBuyer: 'Shipping quote approved', quoteSeller: 'Shipping quote requested', shipped: 'Your order has shipped', fee: 'Shipping fee', total: 'Order total', expires: 'Pay or cancel before', link: 'Review and pay or cancel your quote', admin: 'Review shipping quote requests', country: 'Destination country', weight: 'Shipment weight', service: 'Shipping service', tracking: 'Tracking number', contact: 'Customer', collected: 'Your order has been collected for pickup.' },
+ ja: { quoteBuyer: '送料のお見積もりが確定しました', quoteSeller: '送料見積もりの依頼', shipped: 'ご注文を発送しました', fee: '送料', total: '合計', expires: '支払期限', link: '見積もりを確認して支払う、またはキャンセル', admin: '送料見積もり依頼を確認', country: '配送先の国', weight: '荷物の重量', service: '配送サービス', tracking: '追跡番号', contact: 'お客様', collected: 'ご注文の商品は店頭で受け取り済みです。' },
+ 'zh-CN': { quoteBuyer: '运费报价已确认', quoteSeller: '收到运费报价请求', shipped: '您的订单已发货', fee: '运费', total: '订单总额', expires: '付款或取消截止时间', link: '查看报价并付款或取消', admin: '查看运费报价请求', country: '目的地国家/地区', weight: '包裹重量', service: '配送服务', tracking: '物流单号', contact: '客户', collected: '您的订单已到店自取。' },
+ th: { quoteBuyer: 'ยืนยันค่าจัดส่งแล้ว', quoteSeller: 'มีคำขอใบเสนอค่าจัดส่ง', shipped: 'จัดส่งคำสั่งซื้อของคุณแล้ว', fee: 'ค่าจัดส่ง', total: 'ยอดรวม', expires: 'ชำระเงินหรือยกเลิกก่อน', link: 'ตรวจสอบและชำระเงินหรือยกเลิกใบเสนอราคา', admin: 'ตรวจสอบคำขอใบเสนอค่าจัดส่ง', country: 'ประเทศปลายทาง', weight: 'น้ำหนักพัสดุ', service: 'บริการจัดส่ง', tracking: 'หมายเลขติดตาม', contact: 'ลูกค้า', collected: 'รับคำสั่งซื้อของคุณที่ร้านแล้ว' },
+};
+function safeOrigin(env: Env) {
+ const raw = env('APP_ORIGIN');
+ try {
+  const url = new URL(raw!);
+  if (!raw || url.username || url.password || url.search || url.hash || url.pathname !== '/' || !['https:', 'http:'].includes(url.protocol) || url.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) throw Error();
+  return url.origin;
+ } catch { throw new HttpError(503, 'transport_configuration_unavailable'); }
+}
+function minorCurrency(amount: unknown, currencyValue: unknown, locale: string) {
+ const currency = String(currencyValue).toUpperCase();
+ const digits = currency === 'JPY' ? 0 : 2;
+ if (!['USD', 'JPY', 'THB'].includes(currency) || typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount < 0) throw Error('invalid_notification_payload');
+ return new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: digits, maximumFractionDigits: digits }).format(amount / (digits ? 100 : 1));
+}
+function safeTrackingUrl(value: unknown) {
+ if (typeof value !== 'string') return null;
+ const allowed = new Set(['https://track.thailandpost.com', 'https://track.thailandpost.co.th/?lang=en', 'https://www.flashexpress.com/fle/tracking']);
+ return allowed.has(value) ? value : null;
+}
 function email(value: unknown): value is string { return typeof value === 'string' && value.length <= 320 && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value); }
 export function notification(topic: string, payload: Record<string, unknown>, env: Env) {
  const from = env('EMAIL_FROM');
  const seller = topic.endsWith('_seller');
- const to = seller ? env('SELLER_EMAIL') : payload.recipient;
+ const customer = payload.customer as { email?: unknown } | undefined;
+ const to = seller ? env('SELLER_EMAIL') : payload.recipient ?? ((topic === 'shipping_quote_buyer' || topic === 'order_shipped_buyer') ? customer?.email : undefined);
  if (!from || /[\r\n]/.test(from) || !email(to)) throw new HttpError(503, 'transport_configuration_unavailable');
  const locale = typeof payload.locale === 'string' && payload.locale in copy ? payload.locale as keyof typeof copy : 'en';
  const c = copy[locale];
  const booking = topic === 'booking_buyer' || topic === 'booking_seller';
- if (!booking && topic !== 'order_paid_buyer' && topic !== 'order_paid_seller') throw Error('invalid_notification_topic');
+ const shippingQuoteBuyer = topic === 'shipping_quote_buyer';
+ const shippingQuoteSeller = topic === 'shipping_quote_request_seller';
+ const shipped = topic === 'order_shipped_buyer';
+ if (!booking && topic !== 'order_paid_buyer' && topic !== 'order_paid_seller' && !shippingQuoteBuyer && !shippingQuoteSeller && !shipped) throw Error('invalid_notification_topic');
+ const shipping = shippingCopy[locale];
+ if (shippingQuoteBuyer || shippingQuoteSeller || shipped) {
+  let subject: string;
+  let content: string;
+  if (shippingQuoteBuyer) {
+   const expires = new Date(String(payload.expiresAt));
+   if (!Number.isFinite(expires.getTime())) throw Error('invalid_notification_payload');
+   const expiry = new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Bangkok' }).format(expires);
+   const origin = safeOrigin(env);
+   const path = locale === 'en' ? '/profile' : `/${locale}/profile`;
+   const link = `${origin}${path}#shipping-quotes-title`;
+   subject = shipping.quoteBuyer;
+   const customer = payload.customer as { name?: unknown } | undefined;
+   content = '<p>' + escape(customer?.name) + '</p><p>' + escape(payload.quoteId) + '</p><p>' + escape(shipping.fee) + ': ' + escape(minorCurrency(payload.shippingAmount, payload.currency, locale)) + '</p><p>' + escape(shipping.total) + ': ' + escape(minorCurrency(payload.amountTotal, payload.currency, locale)) + '</p><p>' + escape(shipping.expires) + ': ' + escape(expiry) + '</p><p><a href="' + escape(link) + '">' + escape(shipping.link) + '</a></p>';
+  } else if (shippingQuoteSeller) {
+   if (typeof payload.weightGrams !== 'number' || !Number.isSafeInteger(payload.weightGrams) || payload.weightGrams < 0 || typeof payload.country !== 'string' || !/^[A-Z]{2}$/.test(payload.country)) throw Error('invalid_notification_payload');
+   const origin = safeOrigin(env);
+   const link = `${origin}${locale === 'th' ? '/th/admin' : '/admin'}`;
+   const customer = payload.customer as { name?: unknown; email?: unknown } | undefined;
+   subject = shipping.quoteSeller;
+   content = '<p>' + escape(payload.quoteId) + '</p><p>' + escape(shipping.contact) + ': ' + escape(customer?.name) + ' / ' + escape(customer?.email) + '</p><p>' + escape(shipping.country) + ': ' + escape(payload.country) + '</p><p>' + escape(shipping.weight) + ': ' + escape(payload.weightGrams) + ' g</p><p><a href="' + escape(link) + '">' + escape(shipping.admin) + '</a></p>';
+  } else {
+   if (typeof payload.shippingService !== 'string' || typeof payload.trackingNumber !== 'string' || !payload.trackingNumber) throw Error('invalid_notification_payload');
+   const pickup = payload.shippingService === 'pickup';
+   subject = shipping.shipped;
+   content = '<p>' + escape(payload.orderId) + '</p>';
+   if (pickup) content += '<p>' + escape(shipping.collected) + '</p>';
+   else {
+    content += '<p>' + escape(shipping.service) + ': ' + escape(payload.shippingService) + '</p><p>' + escape(shipping.tracking) + ': ' + escape(payload.trackingNumber) + '</p>';
+    const link = safeTrackingUrl(payload.trackingUrl);
+    if (link) content += '<p><a href="' + escape(link) + '">' + escape(link) + '</a></p>';
+   }
+  }
+  return { from, to, subject, html: '<!doctype html><html lang="' + locale + '"><body><h1>' + escape(subject) + '</h1>' + content + '</body></html>' };
+ }
  const subject = booking ? seller ? c.sellerBooking : c.booking : seller ? c.sellerOrder : c.order;
  let content: string;
  if (booking) {
