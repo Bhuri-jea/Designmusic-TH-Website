@@ -14,10 +14,10 @@ function hostedUrl(value: unknown): value is string {
   return url.protocol === 'https:' && !url.username && !url.password && (url.hostname === 'checkout.stripe.com' || url.hostname.endsWith('.checkout.stripe.com'));
  } catch { return false; }
 }
-export async function runCheckout(cart: CheckoutCart, locale: Locale, fetcher: typeof fetch = fetch): Promise<string> {
+export async function runCheckout(cart: CheckoutCart, locale: Locale, shipping: { country:string; method:'ems_local'|'ems_world'|'flash'|'pickup' }, fetcher: typeof fetch = fetch): Promise<string> {
  const request = await cart.submit(locale);
  const response = await fetcher('/api/checkout', {
-  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request),
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({...request,shippingCountry:shipping.country,shippingMethod:shipping.method}),
  });
  let data: any;
  try { data = await response.json(); } catch { throw new CheckoutError('checkout_unavailable'); }

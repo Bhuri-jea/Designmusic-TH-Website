@@ -1,9 +1,10 @@
 import Stripe from 'stripe';
-import { quoteCart, type Locale } from '../catalog.ts';
+import { quoteCart, type Locale, type CatalogPrices } from '../catalog.ts';
 import { requireCustomer, type Customer } from './customer.ts';
 import { getEnv } from './env.ts';
 import { HttpError } from './http.ts';
 import { rpc, select, SupabaseRequestError } from './supabase.ts';
+import { quoteShipping } from './shipping.ts';
 import type { OrderRecord } from './order-state.ts';
 type Country = NonNullable<Stripe.Checkout.SessionCreateParams['shipping_address_collection']>['allowed_countries'][number];
 type Sessions = {
@@ -17,6 +18,7 @@ export type PaymentDependencies = {
     rpc: <T>(name: string, args: Record<string, unknown>) => Promise<T>;
     select: <T>(table: string, filters: Record<string, string>) => Promise<T[]>;
     stripe: (key: string) => Sessions;
+    shippingQuote?: typeof quoteShipping;
 };
 export const paymentDependencies: PaymentDependencies = {
     env: getEnv,
@@ -36,6 +38,7 @@ export const paymentDependencies: PaymentDependencies = {
 };
 // This set matches stripe@22 SessionCreateParams.ShippingAddressCollection.AllowedCountry.
 const countries = new Set('AC AD AE AF AG AI AL AM AO AQ AR AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CD CF CG CH CI CK CL CM CN CO CR CV CW CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HN HR HT HU ID IE IL IM IN IO IQ IS IT JE JM JO JP KE KG KH KI KM KN KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MK ML MM MN MO MQ MR MS MT MU MV MW MX MY MZ NA NC NE NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SZ TA TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG US UY UZ VA VC VE VG VN VU WF WS XK YE YT ZA ZM ZW ZZ'.split(' '));
+export const SUPPORTED_SHIPPING_COUNTRIES=[...countries];
 export function paymentCredentials(env = getEnv) {
     const key = env('STRIPE_SECRET_KEY');
     const webhookSecret = env('STRIPE_WEBHOOK_SECRET');
@@ -46,7 +49,7 @@ export function paymentCredentials(env = getEnv) {
         key, webhookSecret, live
     };
 }
-export function paymentConfig(env = getEnv) {
+export function paymentConfig(env = getEnv, configuredCountries?: string[]) {
     const credentials = paymentCredentials(env);
     const rawOrigin = env('APP_ORIGIN');
     let origin: URL;
@@ -58,7 +61,7 @@ export function paymentConfig(env = getEnv) {
     }
     if (!rawOrigin || origin.username || origin.password || origin.search || origin.hash || origin.pathname !== '/' || !['https:', 'http:'].includes(origin.protocol) || origin.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname))
         throw new HttpError(503, 'payment_configuration_unavailable');
-    const allowedCountries = env('SHIPPING_ALLOWED_COUNTRIES')?.split(',').map(c => c.trim());
+    const allowedCountries = configuredCountries ?? env('SHIPPING_ALLOWED_COUNTRIES')?.split(',').map(c => c.trim());
     if (!allowedCountries?.length || allowedCountries.some(c => !countries.has(c)))
         throw new HttpError(503, 'payment_configuration_unavailable');
     return {
@@ -96,35 +99,42 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
     orderId: string;
     url: string;
 }> {
+    let config = paymentConfig(deps.env);
     const customer = await deps.customer(request);
-    const config = paymentConfig(deps.env);
-    if (Object.keys(body).some(k => !['requestKey', 'locale', 'items'].includes(k)) || !uuid(body.requestKey))
+    if (Object.keys(body).some(k => !['requestKey', 'locale', 'items','shippingCountry','shippingMethod'].includes(k)) || !uuid(body.requestKey))
         throw new HttpError(400, 'invalid_checkout');
+    let storefront:any=null,inventory:any[]=[];
+    try{storefront=await deps.rpc('storefront_config',{});}catch{}
+    try{inventory=await deps.select<any>('inventory',{});}catch{}
+    config = paymentConfig(deps.env,Array.isArray(storefront?.allowed_countries)?storefront.allowed_countries:undefined);
     let quote;
     try {
-        quote = await quoteCart({
-            items: body.items, locale: body.locale
-        });
+        const prices:CatalogPrices={};for(const row of inventory){const value:CatalogPrices[string]={};if(Number.isInteger(row.price_usd_minor))value.usd=row.price_usd_minor;if(Number.isInteger(row.price_jpy))value.jpy=row.price_jpy;if(Number.isInteger(row.price_thb_minor))value.thb=row.price_thb_minor;if(Object.keys(value).length)prices[row.sku]=value;}
+        quote = await quoteCart({items: body.items, locale: body.locale, prices});
     }
     catch {
         throw new HttpError(400, 'invalid_cart');
     }
+    const shipping=await (deps.shippingQuote??quoteShipping)(body.items,body.locale,body.shippingCountry,body.shippingMethod);
+    if(shipping.currency!==quote.currency||shipping.subtotal!==quote.totalAmount)throw new HttpError(409,'cart_price_changed');
     const locale = body.locale as Locale;
     const prefix = locale === 'en' ? '' : `/${locale}`;
-    const fingerprint = await checkoutFingerprint(quote.fingerprint, config.key);
+    const fingerprint = await checkoutFingerprint(JSON.stringify([quote.fingerprint,shipping.country,shipping.method,shipping.amount,shipping.weightGrams]), config.key);
     const order = await deps.rpc<OrderRecord>('reserve_order', {
         p_customer_id: customer.id,
         p_request_key: body.requestKey,
         p_fingerprint: fingerprint,
         p_currency: quote.currency,
         p_lines: quote.lines,
-        p_amount_total: quote.totalAmount,
+        p_amount_total: quote.totalAmount+shipping.amount,
         p_locale: locale,
         p_checkout_parameters: {
             customerEmail: customer.email,
             successUrl: `${config.origin}${prefix}/success?order_id={ORDER_ID}&session_id={CHECKOUT_SESSION_ID}`,
             cancelUrl: `${config.origin}${prefix}/cancel?order_id={ORDER_ID}`,
-            allowedCountries: config.allowedCountries,
+            allowedCountries:shipping.method!=='pickup'?[shipping.country]:[],
+            shippingCountry:shipping.country,fulfillmentMethod:shipping.method,
+            shippingAmount:shipping.amount,estimatedWeightGrams:shipping.weightGrams,
             expiresAt: Math.floor(deps.now() / 1000) + 3600,
         },
     });
@@ -157,7 +167,7 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
         metadata: {
             order_id: order.id, customer_id: order.customerId
         },
-        line_items: order.items.map(item => ({
+        line_items: [...order.items.map(item => ({
             quantity: item.quantity,
             price_data: {
                 currency: order.currency,
@@ -166,10 +176,8 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
                     name: item.name
                 },
             },
-        })),
-        shipping_address_collection: {
-            allowed_countries: frozen.allowedCountries as Country[]
-        },
+        })), ...(shipping.amount>0?[{quantity:1,price_data:{currency:order.currency,unit_amount:shipping.amount,product_data:{name:`${shipping.method==='flash'?'Flash Express':shipping.method==='ems_world'?'Thailand Post EMS World':'Thailand Post EMS'} shipping`}}}]:[])],
+        ...(shipping.method!=='pickup'?{shipping_address_collection:{allowed_countries:[shipping.country] as Country[]}}:{billing_address_collection:'required'}),
         expires_at: frozen.expiresAt,
         locale: order.locale === 'zh-CN' ? 'zh' : order.locale,
         success_url: frozen.successUrl.replace('{ORDER_ID}', order.id),
@@ -194,6 +202,7 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
 const eventTypes = new Set(['checkout.session.completed', 'checkout.session.async_payment_succeeded', 'checkout.session.async_payment_failed', 'checkout.session.expired']);
 export async function applySessionEvent(order: OrderRecord, session: Stripe.Checkout.Session, eventId: string, eventType: string, created: number, deps: PaymentDependencies) {
     const shipping = session.collected_information?.shipping_details;
+    const pickup=order.checkoutParameters?.fulfillmentMethod==='pickup';
     try {
         await deps.rpc('apply_stripe_event', {
             p_event_id: eventId,
@@ -203,7 +212,7 @@ export async function applySessionEvent(order: OrderRecord, session: Stripe.Chec
             p_currency: session.currency,
             p_amount_total: session.amount_total,
             p_payment_status: session.payment_status,
-            p_shipping: session.payment_status === 'paid' && shipping ? {
+            p_shipping: session.payment_status === 'paid' && pickup ? {method:'pickup',recipient:{name:session.customer_details?.name??'Customer pickup'},address:{line1:'Customer pickup at Design Music',city:'Bangkok',state:'Bangkok',postal_code:'10120',country:'TH'}} : session.payment_status === 'paid' && shipping ? {
                 recipient: {
                     name: shipping.name
                 },
@@ -265,6 +274,7 @@ export function publicOrder(order: OrderRecord) {
         createdAt: order.createdAt,
         expiresAt: order.expiresAt,
         checkoutSessionId: order.checkoutSessionId,
+        shipment: order.shipment ?? null,
     };
 }
 export async function ownedOrders(request: Request, id?: string, deps = paymentDependencies) {

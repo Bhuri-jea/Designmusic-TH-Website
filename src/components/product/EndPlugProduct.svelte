@@ -1,14 +1,15 @@
 <script lang="ts">
   import AddToCartButton from '../ui/AddToCartButton.svelte';
   import { ui } from '../../i18n/ui';
-  import { priceFor, formatPrice, type Locale } from '../../lib/catalog';
+  import { formatPrice, type Locale } from '../../lib/catalog';
+  import {displayPriceFor} from '../../store/catalog-pricing.svelte';
   let {lang='en'}=$props<{lang?:Locale}>();
   function getLang():Locale { return lang; }
   function t(key:keyof typeof ui.en) { return ui[getLang()][key] || ui.en[key]; }
 
   let selectedType=$state('plain');
-  let currentPrice=$derived(priceFor('saxophone-end-plug',selectedType,getLang())!);
-  function variantPrice(type:string){return formatPrice(priceFor('saxophone-end-plug',type,getLang())!,getLang());}
+  let currentPrice=$derived(displayPriceFor('saxophone-end-plug',selectedType,getLang())!);
+  function variantPrice(type:string){return formatPrice(displayPriceFor('saxophone-end-plug',type,getLang())!,getLang());}
   let item=$derived({productId:'saxophone-end-plug',variant:selectedType});
 </script>
 

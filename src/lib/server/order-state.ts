@@ -1,7 +1,8 @@
 import type { CatalogLine, Currency, Locale } from '../catalog.ts';
 
 export type OrderStatus = 'pending' | 'paid' | 'expired' | 'failed' | 'review';
-export type CheckoutParameters = { customerEmail: string; successUrl: string; cancelUrl: string; allowedCountries: string[]; expiresAt: number };
+export type CheckoutParameters = { customerEmail: string; successUrl: string; cancelUrl: string; allowedCountries: string[]; expiresAt: number; shippingCountry?: string; fulfillmentMethod?: 'ems_local'|'ems_world'|'flash'|'pickup'; shippingAmount?: number; estimatedWeightGrams?: number };
+export type OrderShipment = { service: 'ems_local'|'ems_world'|'flash'|'pickup'; trackingNumber: string|null; trackingUrl: string|null };
 export type OrderRecord = {
   id: string;
   customerId: string;
@@ -17,6 +18,7 @@ export type OrderRecord = {
   checkoutSessionId: string | null;
   checkoutUrl: string | null;
   checkoutParameters: CheckoutParameters;
+  shipment?: OrderShipment | null;
 };
 export type OrderState = OrderRecord & { stockReleased?: boolean; eventIds?: string[] };
 export type PaymentEvent = { eventId: string; eventType: string; sessionId: string | null; currency: string; amountTotal: number; paymentStatus: string };

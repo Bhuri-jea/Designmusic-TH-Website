@@ -42,6 +42,12 @@ Local origin: http://127.0.0.1:4322. Production origin: your final HTTPS domain,
 | 3 | supabase/migrations/202610120003_bookings.sql | Booking slots, atomic reservation and reporting jobs |
 | 4 | supabase/migrations/202610120004_admin.sql | Seller stock and shipment tools; apply only after this file is present and reviewed |
 | 5 | supabase/migrations/202610140001_account_booking_management.sql | Saved shipping addresses and customer reschedule/cancel controls |
+| 6 | supabase/migrations/202610190001_shipment_holds.sql | Shipment dispatch holds |
+| 7 | supabase/migrations/202610200001_catalog_shipping_settings.sql | Editable prices, parcel weight, shipping rates and destination settings |
+| 8 | supabase/migrations/202610200002_shipment_hold_history.sql | Shipment hold audit history |
+| 9 | supabase/migrations/202610200003_weighted_shipping_checkout.sql | Weight-based shipping totals at Checkout |
+| 10 | supabase/migrations/202610200004_weekly_booking_hours.sql | Editable weekly repair hours and overlap-safe half-hour booking starts |
+| 11 | supabase/migrations/202610200005_shipping_tracking_links.sql | Shipping service constraints and carrier/tracking details on customer orders |
 
 Do not run the whole migrations folder automatically. This checkout has also contained 202610120003_inventory_one_each.sql, a sample that assigns one item to every SKU, and 202610130001_bookings.sql, an alternate booking definition. Neither is part of the setup above. A .sql.clean draft is not a migration. Preserve these originals; do not apply them to manufacture stock or recreate tables.
 
@@ -74,16 +80,19 @@ For seller access, sign in through Google and inspect your own signed /api/auth/
 
 ## 4. Repair reservation slots
 
-Current rules: Asia/Bangkok (UTC+7), tomorrow through 14 days ahead, Monday-Saturday, one-hour appointments starting 10:00, 11:00, 13:00, 14:00, 15:00, 16:00 or 17:00. Sundays and already-booked times are unavailable. The customer form must fetch /api/booking-availability; the database rejects competing reservations atomically.
+Repair hours are configured by an authorized seller in `/admin` as weekly open/close ranges using 30-minute increments. Each repair appointment remains one hour; customers can select a start every 30 minutes when both consecutive half-hour blocks are marked available. The calendar labels website bookings as Booked, configured times as Available or Contact directly, and Google Calendar conflicts as Unavailable. Contact-only slots link to the shop's email and social channels. Calendar browsing covers the next 90 days in Asia/Bangkok time.
 
-There is no finished owner editor for weekly hours, holidays or blackout dates. To change the present rules:
+For a database already installed, apply each unapplied forward migration once, in order. Migration `202610200004_weekly_booking_hours.sql` adds booking-hour settings and overlap protection; `202610200005_shipping_tracking_links.sql` stores the selected carrier and derives the external tracking website. Do not edit or rerun old SQL files. Before applying migration 004, check for existing overlapping confirmed bookings; it adds a database constraint to prevent overlapping one-hour appointments:
 
-1. Find the availability/date validation in src/lib/booking.ts and its server consumer. Search for Asia/Bangkok and the allowed hours.
-2. Update the corresponding database validation in create_booking, currently defined in supabase/migrations/202610120003_bookings.sql.
-3. For a database already installed, write/apply a new forward migration replacing that function. Editing an old SQL file alone does not update the live database.
-4. Keep application and SQL rules identical. Run booking tests; test day boundaries, Sundays and two customers selecting the same slot before deploying.
+```sql
+select a.id as booking_a, b.id as booking_b, a.start_at, a.end_at, b.start_at, b.end_at
+from public.bookings a
+join public.bookings b on a.id < b.id
+where a.status = 'confirmed' and b.status = 'confirmed'
+  and tstzrange(a.start_at, a.end_at, '[)') && tstzrange(b.start_at, b.end_at, '[)');
+```
 
-The website starts with the hours above and removes slots already booked in Supabase. Once the private Calendar bridge is configured, it also removes slots overlapping busy Calendar events, including all-day events. Add a busy event to block a time or day; Calendar events cannot open hours outside the website/database rules. If the configured Calendar cannot be checked, availability fails closed until the connection recovers. New bookings and time changes remain enforced by Supabase, and a simultaneous manual Calendar edit can still race with a reservation. Cancel or reschedule a website booking from the customer's `/profile/bookings` page; deleting its Calendar copy does not change the database booking.
+If this returns rows, stop and resolve those records carefully before applying the migration. Afterward, sign in as an admin and set the shop's actual weekly hours. Google Calendar busy events still block configured available slots, including all-day events; if Calendar cannot be checked, availability fails closed. Cancel or reschedule website bookings from `/profile/bookings`; deleting a Calendar copy does not change the database booking.
 
 ## 5. Connect Google Sheets and Calendar
 
@@ -154,7 +163,11 @@ Test with your own dummy booking: confirm a database booking, one Sheet row, one
 | Notifications | RESEND_API_KEY, EMAIL_FROM, SELLER_EMAIL |
 | Worker/seller | CRON_SECRET, ADMIN_GOOGLE_SUBJECTS |
 
-Never commit real .env values or paste them into chat. Keep shipping destinations limited to services you can currently fulfill. The supplied 2022 Thailand Post table is parcel-preparation reference only; checkout adds no shipping fee.
+Never commit real .env values or paste them into chat. Keep shipping destinations limited to services you can currently fulfill. Configure product gross weight, destination, service and postage bands in `/admin`; checkout calculates postage from the cart's combined weight and shows the charge before Stripe. THB shipping uses the configured THB band. USD and JPY shipping converts that band with the configured exchange rate and adds a 5% buffer. Thailand pickup has no shipping fee. The supplied 2022 Thailand Post table remains a parcel-preparation reference and is not used as a checkout rate.
+
+Customer policies are published at `/privacy`, `/terms` and `/shipping-returns`. Seller: Norraphat Thanavisuth (Design Music), 98 Thanon Akarn Songkhro, Soi Narathiwas 15 Yak 4-2, Thung Maha Mek Subdistrict, Sathorn District, Bangkok, Thailand, 10120; telephone 0850915959. Customers must contact the shop directly about manufacturing-defect returns within 7 days; the product must otherwise be in good condition. Silicone pads, shakuhachi and end plugs have a 6-month manufacturing-defect replacement warranty; careless handling/misuse is excluded, and repair services are not covered by this product warranty. The current wording counts both periods from receipt. The buyer pays postage to return the product to the shop; the seller pays postage to send an approved replacement back to the buyer. Review the wording against actual operating practices and applicable legal requirements before launch.
+
+The three policy pages are intentionally Thai-only, including their page language and policy link labels. Their canonical routes remain `/privacy`, `/terms` and `/shipping-returns`; switching the site language on these pages keeps the same policy route.
 
 ### Stripe before selling
 
@@ -177,3 +190,4 @@ Charges use independently set USD/JPY/THB prices. THB settlement, fees and conve
 Open /booking for reservations, /profile for your signed customer records and /admin for authorized seller tools once integrated. Supabase Table Editor is the operational database; Google Calendar/Sheet are private booking views. Use Stripe Dashboard for payments and accounting exports. Existing docs/owner-setup-guide.md and docs/examples/read-only-reporting-queries.sql explain customer/sales reports; automatic full customer Sheet sync and a complete accounting ledger are not implemented.
 
 If deployment fails, keep the previous working Vercel deployment available and inspect build/runtime logs. Redeploy the previous code if needed; reverting code does not undo database migrations. Disable the scheduler while investigating ambiguous external deliveries. Do not delete live data to repair setup.
+

@@ -32,7 +32,7 @@ const navbarSession = session ? { user: { name: session.user?.name ?? null, imag
   <body class="min-h-screen flex flex-col text-white antialiased selection:bg-white/20">
     <Navbar lang={lang} currentPath={currentPath} session={navbarSession} client:load />
     <main class="flex-grow relative z-10 pt-20"><slot /></main>
-    <Footer />
+    <Footer lang={lang} />
   </body>
 </html>
 

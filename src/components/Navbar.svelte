@@ -8,6 +8,7 @@
   import {formatPrice,type Locale} from '../lib/catalog';
   import {localizedPath,switchLocale} from '../utils/navigation';
   import {runCheckout, CheckoutError} from '../lib/checkout-client';
+  import {loadCatalogPricing} from '../store/catalog-pricing.svelte';
 
   let { lang = 'en', currentPath = '/', session = null } = $props<{ lang?: keyof typeof ui, currentPath?: string, session?: any }>();
 
@@ -20,6 +21,11 @@
   let isMenuOpen=$state(false),isLangOpen=$state(false);
   let menuDialog=$state<HTMLDialogElement>(),cartDialog=$state<HTMLDialogElement>(),languageTrigger=$state<HTMLButtonElement>(),cartTrigger=$state<HTMLButtonElement>(),menuTrigger=$state<HTMLButtonElement>();
   let checkoutStatus=$state('');
+  type DeliveryService='ems_local'|'ems_world'|'flash'|'pickup';
+  let shippingCountry=$state('TH'),shippingMethod=$state<DeliveryService>('ems_local'),shippingCountries=$state<string[]>([]),servicesByCountry=$state<Record<string,DeliveryService[]>>({}),pickupEnabled=$state(false),shippingQuote=$state<any>(null),shippingStatus=$state(''),quoteSequence=0;
+  function serviceOptions(){return [...(servicesByCountry[shippingCountry]??[]),...(shippingCountry==='TH'&&pickupEnabled?['pickup' as const]:[])];}
+  function serviceLabel(service:DeliveryService){return t(service==='ems_local'?'cart.emsLocal':service==='ems_world'?'cart.emsWorld':service==='flash'?'cart.flash':'cart.pickup');}
+  function countryLabel(code:string){return new Intl.DisplayNames([lang as Locale],{type:'region'}).of(code)??code;}
   let signInRequired=$state(false);
   function closeMenu(){isMenuOpen=false;menuDialog?.close();menuTrigger?.focus();}
   function toggleMenu(){if(isMenuOpen)closeMenu();else isMenuOpen=true;}
@@ -29,6 +35,8 @@
   function variantLabel(value:string){const token=value==='twoColor'?'product.endplug.twocolor':value==='plain'?'product.endplug.plain':'product.endplug.custom';return ui[lang]?.[token]||ui.en[token];}
   onMount(()=>{
     cart.init(lang as Locale);
+    void loadCatalogPricing();
+    fetch('/api/shipping-config',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(data=>{shippingCountries=data?.countries??[];servicesByCountry=data?.servicesByCountry??{};pickupEnabled=data?.pickupEnabled===true;if(!shippingCountries.includes(shippingCountry))shippingCountry=shippingCountries[0]??'';const options=[...(servicesByCountry[shippingCountry]??[]),...(shippingCountry==='TH'&&pickupEnabled?['pickup']:[])];if(!options.includes(shippingMethod))shippingMethod=(options[0]??'pickup') as DeliveryService;refreshShippingQuote();}).catch(()=>{shippingStatus='shipping-options-unavailable';});
     const onKeydown=(event:KeyboardEvent)=>{if(event.key==='Escape' && isLangOpen){isLangOpen=false;languageTrigger?.focus();}};
     document.addEventListener('keydown',onKeydown);
     return ()=>document.removeEventListener('keydown',onKeydown);
@@ -37,12 +45,22 @@
   $effect(()=>{if(cart.isOpen && cartDialog && !cartDialog.open){cartDialog.showModal();}if(isMenuOpen && menuDialog && !menuDialog.open){menuDialog.showModal();}if(cart.isOpen || isMenuOpen){const old=document.body.style.overflow;document.body.style.overflow='hidden';return ()=>{document.body.style.overflow=old;};}});
   let isCheckingOut = $state(false);
 
+  async function refreshShippingQuote(){
+    const sequence=++quoteSequence;shippingQuote=null;shippingStatus='';
+    if(!cart.items.length||!shippingCountry)return;
+    try{const response=await fetch('/api/shipping-quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:cart.items.map(({productId,variant,options,quantity})=>({productId,variant,options,quantity})),locale:lang,country:shippingCountry,method:shippingMethod})});const data=await response.json();if(sequence!==quoteSequence)return;if(!response.ok)throw new Error(data?.error??'shipping_unavailable');shippingQuote=data;}
+    catch(error){if(sequence===quoteSequence)shippingStatus=error instanceof Error?error.message:'shipping_unavailable';}
+  }
+  $effect(()=>{cart.count;shippingCountry;shippingMethod;lang;if(cart.isOpen)void refreshShippingQuote();});
+  $effect(()=>{const options=serviceOptions();if(options.length&&!options.includes(shippingMethod))shippingMethod=options[0];});
+
   async function handleCheckout() {
     if (isCheckingOut) return;
     checkoutStatus='';signInRequired=false;
     isCheckingOut = true;
     try {
-      const url=await runCheckout(cart,lang as Locale);
+      if(!shippingQuote||shippingStatus)throw new CheckoutError(shippingStatus||'shipping_unavailable');
+      const url=await runCheckout(cart,lang as Locale,{country:shippingCountry,method:shippingMethod});
       window.location.assign(url);
     } catch (err) {
       const code=err instanceof CheckoutError?err.code:err instanceof Error?err.message:'';
@@ -52,7 +70,7 @@
         code==='attempt_limit'?t('flow.attemptLimit'):
         code==='database_conflict'||code==='invalid_cart'?t('flow.stock'):
         code==='checkout_requires_review'||code==='checkout_not_active'||code==='checkout_conflict'?t('flow.review'):
-        code==='payment_configuration_unavailable'?t('flow.unavailable'):t('flow.failed');
+        code==='payment_configuration_unavailable'?t('flow.unavailable'):code==='shipping_rate_unconfigured'||code==='shipping_fx_unconfigured'||code==='product_weight_unconfigured'?t('flow.unavailable'):t('flow.failed');
     } finally {
       isCheckingOut = false;
     }
@@ -202,6 +220,17 @@
             </div>
           </div>
         {/each}
+        <div class="mt-3 space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <label class="block text-sm text-neutral-200">{t('cart.destination')}<select class="select select-bordered mt-1 w-full bg-neutral-900 text-white" bind:value={shippingCountry} aria-label={t('cart.destination')}>
+            {#each shippingCountries as country}<option value={country}>{countryLabel(country)} ({country})</option>{/each}
+          </select></label>
+          <label class="block text-sm text-neutral-200">{t('cart.shippingService')}<select class="select select-bordered mt-1 w-full bg-neutral-900 text-white" bind:value={shippingMethod} aria-label={t('cart.shippingService')}>
+            {#each serviceOptions() as service}<option value={service}>{serviceLabel(service)}</option>{/each}
+          </select></label>
+          {#if shippingQuote}<div class="space-y-1 text-sm text-neutral-300" aria-live="polite"><p>{t('cart.shipping')}: {formatPrice(shippingQuote.amount,lang as Locale)}{#if shippingQuote.fxMarginApplied}<span class="block text-xs text-neutral-400">{t('cart.fxMargin')}</span>{/if}</p></div>
+          {:else if shippingStatus}<p class="text-sm text-amber-200" role="alert">{t(shippingStatus==='shipping-options-unavailable'?'cart.shippingUnavailable':'flow.unavailable')}</p>
+          {:else}<p class="text-sm text-neutral-400" role="status">{t('flow.loading')}</p>{/if}
+        </div>
       {/if}
     </div>
 
@@ -211,9 +240,9 @@
       <div class="p-6 border-t border-white/10 bg-black/50">
         <div class="flex justify-between items-center mb-6 text-xl">
           <span class="font-light tracking-widest uppercase text-neutral-400">{t('cart.total')}</span>
-          <span class="font-serif text-white">{formatPrice(cart.total,lang as Locale)}</span>
+          <span class="font-serif text-white">{formatPrice(shippingQuote?.total??cart.total,lang as Locale)}</span>
         </div>
-        <button class="btn btn-primary w-full disabled:opacity-50 tracking-widest uppercase text-sm font-medium py-4" onclick={handleCheckout} disabled={isCheckingOut || !cart.storageAvailable}>
+        <button class="btn btn-primary w-full disabled:opacity-50 tracking-widest uppercase text-sm font-medium py-4" onclick={handleCheckout} disabled={isCheckingOut || !cart.storageAvailable || !shippingQuote || !!shippingStatus || !serviceOptions().length}>
           {#if isCheckingOut}
             {t('cart.processing')}
           {:else}
