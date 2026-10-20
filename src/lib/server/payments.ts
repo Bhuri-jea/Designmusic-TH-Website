@@ -101,21 +101,37 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
 }> {
     let config = paymentConfig(deps.env);
     const customer = await deps.customer(request);
-    if (Object.keys(body).some(k => !['requestKey', 'locale', 'items','shippingCountry','shippingMethod'].includes(k)) || !uuid(body.requestKey))
+    if (Object.keys(body).some(k => !['requestKey', 'locale', 'items','shippingCountry','shippingMethod','quoteId'].includes(k)) || !uuid(body.requestKey))
         throw new HttpError(400, 'invalid_checkout');
     let storefront:any=null,inventory:any[]=[];
     try{storefront=await deps.rpc('storefront_config',{});}catch{}
     try{inventory=await deps.select<any>('inventory',{});}catch{}
     config = paymentConfig(deps.env,Array.isArray(storefront?.allowed_countries)?storefront.allowed_countries:undefined);
+    let approved:any=null;
+    if(body.quoteId!==undefined){
+        if(!uuid(body.quoteId))throw new HttpError(400,'invalid_shipping_quote');
+        approved=await deps.rpc<any>('shipping_quote_record',{p_id:body.quoteId});
+        if(!approved||approved.customerId!==customer.id)throw new HttpError(404,'shipping_quote_not_found');
+        const expiry=Date.parse(approved.expiresAt);
+        if(approved.status!=='quoted'||!Number.isFinite(expiry)||expiry<=deps.now()
+          ||!Number.isSafeInteger(approved.shippingAmount)||approved.shippingAmount<=0
+          ||approved.id!==body.requestKey||approved.locale!==body.locale
+          ||approved.country!==body.shippingCountry||approved.shippingService!==body.shippingMethod
+          ||!config.allowedCountries.includes(approved.country)||!Array.isArray(approved.items)
+          ||!approved.address||approved.address.country!==approved.country)throw new HttpError(409,'shipping_quote_not_ready');
+    }
     let quote;
     try {
         const prices:CatalogPrices={};for(const row of inventory){const value:CatalogPrices[string]={};if(Number.isInteger(row.price_usd_minor))value.usd=row.price_usd_minor;if(Number.isInteger(row.price_jpy))value.jpy=row.price_jpy;if(Number.isInteger(row.price_thb_minor))value.thb=row.price_thb_minor;if(Object.keys(value).length)prices[row.sku]=value;}
+        if(approved)for(const item of approved.items){if(!Number.isSafeInteger(item.unitAmount)||item.unitAmount<=0)throw Error('invalid_quote_price');prices[item.sku]={[approved.currency]:item.unitAmount};}
         quote = await quoteCart({items: body.items, locale: body.locale, prices});
     }
     catch {
         throw new HttpError(400, 'invalid_cart');
     }
-    const shipping=await (deps.shippingQuote??quoteShipping)(body.items,body.locale,body.shippingCountry,body.shippingMethod);
+    if(approved&&(quote.fingerprint!==approved.cartFingerprint||quote.totalAmount!==approved.amountSubtotal))throw new HttpError(409,'shipping_quote_changed');
+    const method=body.shippingMethod==='pickup'?'pickup':body.shippingCountry==='TH'?'ems_local':'epacket';
+    const shipping=approved?{currency:quote.currency,amount:approved.shippingAmount,weightGrams:approved.weightGrams,method:approved.shippingService as 'ems_local'|'ems_world',country:approved.country,subtotal:quote.totalAmount,total:quote.totalAmount+approved.shippingAmount,fxMarginApplied:quote.currency!=='thb'}:await (deps.shippingQuote??quoteShipping)(body.items,body.locale,body.shippingCountry,method,undefined,customer.shippingAddress);
     if(shipping.currency!==quote.currency||shipping.subtotal!==quote.totalAmount)throw new HttpError(409,'cart_price_changed');
     const locale = body.locale as Locale;
     const prefix = locale === 'en' ? '' : `/${locale}`;
@@ -135,7 +151,9 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
             allowedCountries:shipping.method!=='pickup'?[shipping.country]:[],
             shippingCountry:shipping.country,fulfillmentMethod:shipping.method,
             shippingAmount:shipping.amount,estimatedWeightGrams:shipping.weightGrams,
-            expiresAt: Math.floor(deps.now() / 1000) + 3600,
+            ...(!approved&&shipping.country!=='TH'?{shippingAddressSnapshot:customer.shippingAddress,shippingRecipientSnapshot:{name:customer.name}}:{}),
+            ...(approved?{shippingQuoteId:approved.id,shippingQuoteVersion:approved.version,shippingQuoteAddress:approved.address,shippingQuoteRecipient:approved.recipient}:{}),
+            expiresAt: approved?Math.min(Math.floor(deps.now()/1000)+3600,Math.floor(Date.parse(approved.expiresAt)/1000)):Math.floor(deps.now() / 1000) + 3600,
         },
     });
     if (order.customerId !== customer.id || order.requestKey !== body.requestKey || order.fingerprint !== fingerprint)
@@ -176,8 +194,8 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
                     name: item.name
                 },
             },
-        })), ...(shipping.amount>0?[{quantity:1,price_data:{currency:order.currency,unit_amount:shipping.amount,product_data:{name:`${shipping.method==='flash'?'Flash Express':shipping.method==='ems_world'?'Thailand Post EMS World':'Thailand Post EMS'} shipping`}}}]:[])],
-        ...(shipping.method!=='pickup'?{shipping_address_collection:{allowed_countries:[shipping.country] as Country[]}}:{billing_address_collection:'required'}),
+        })), ...(shipping.amount>0?[{quantity:1,price_data:{currency:order.currency,unit_amount:shipping.amount,product_data:{name:`${shipping.method==='flash'?'Flash Express':shipping.method==='ems_world'?'Thailand Post EMS World':shipping.method==='epacket'?'Thailand Post ePacket':'Thailand Post EMS'} shipping`}}}]:[])],
+        ...(shipping.method!=='pickup'&&!frozen.shippingQuoteId&&!frozen.shippingAddressSnapshot?{shipping_address_collection:{allowed_countries:[shipping.country] as Country[]}}:{billing_address_collection:'required'}),
         expires_at: frozen.expiresAt,
         locale: order.locale === 'zh-CN' ? 'zh' : order.locale,
         success_url: frozen.successUrl.replace('{ORDER_ID}', order.id),
@@ -203,6 +221,7 @@ const eventTypes = new Set(['checkout.session.completed', 'checkout.session.asyn
 export async function applySessionEvent(order: OrderRecord, session: Stripe.Checkout.Session, eventId: string, eventType: string, created: number, deps: PaymentDependencies) {
     const shipping = session.collected_information?.shipping_details;
     const pickup=order.checkoutParameters?.fulfillmentMethod==='pickup';
+    const manual=order.checkoutParameters?.shippingQuoteId?{recipient:order.checkoutParameters.shippingQuoteRecipient,address:order.checkoutParameters.shippingQuoteAddress}:order.checkoutParameters.shippingAddressSnapshot?{recipient:order.checkoutParameters.shippingRecipientSnapshot,address:order.checkoutParameters.shippingAddressSnapshot}:null;
     try {
         await deps.rpc('apply_stripe_event', {
             p_event_id: eventId,
@@ -212,7 +231,7 @@ export async function applySessionEvent(order: OrderRecord, session: Stripe.Chec
             p_currency: session.currency,
             p_amount_total: session.amount_total,
             p_payment_status: session.payment_status,
-            p_shipping: session.payment_status === 'paid' && pickup ? {method:'pickup',recipient:{name:session.customer_details?.name??'Customer pickup'},address:{line1:'Customer pickup at Design Music',city:'Bangkok',state:'Bangkok',postal_code:'10120',country:'TH'}} : session.payment_status === 'paid' && shipping ? {
+            p_shipping: session.payment_status === 'paid' && manual ? manual : session.payment_status === 'paid' && pickup ? {method:'pickup',recipient:{name:session.customer_details?.name??'Customer pickup'},address:{line1:'Customer pickup at Design Music',city:'Bangkok',state:'Bangkok',postal_code:'10120',country:'TH'}} : session.payment_status === 'paid' && shipping ? {
                 recipient: {
                     name: shipping.name
                 },

@@ -29,7 +29,7 @@
  });
  const monthBounds = $derived.by(() => {
   const today=dateKey(new Date().toISOString());
-  const horizon=dateKey(new Date(Date.now()+90*86400000).toISOString());
+  const horizon=dateKey(new Date(Date.now()+31*86400000).toISOString());
   return {today,horizon,min:today.slice(0,7),max:horizon.slice(0,7)};
  });
  const selectedSlots = $derived(byDate.get(selectedDate)??[]);
@@ -37,20 +37,21 @@
  function dayStatus(key:string|null):SlotStatus { if (!key||key<=monthBounds.today||key>monthBounds.horizon) return 'unavailable'; const list=byDate.get(key)??[]; return list.length?list.reduce((best,item)=>statusRank[item.status]<statusRank[best]?item.status:best,list[0].status):'unavailable'; }
  function dayCount(key:string|null){return key?(byDate.get(key)??[]).filter(slot=>slot.status==='available').length:0;}
  function bookingLink(slot:string){return `${localizedPath('/booking',lang)}?date=${encodeURIComponent(selectedDate)}&slot=${encodeURIComponent(slot)}`;}
+ let refreshing=false;
  async function load(){
-  loading=true;failed=false;
+  if(refreshing)return;refreshing=true;failed=false;
   try {
    const response=await fetch('/api/booking-availability',{cache:'no-store'}); const data=await response.json();
    if(!response.ok||!Array.isArray(data.calendarSlots)||!['database','google-calendar'].includes(data.source))throw Error();
    slots=data.calendarSlots;source=data.source;
    const earliest=[...new Set(slots.map((slot:Slot)=>dateKey(slot.startAt)))].sort()[0];
    const initial=earliest??dateKey(new Date().toISOString());
-   month={year:Number(initial.slice(0,4)),month:Number(initial.slice(5,7))-1};
-   selectedDate=initial;
+   if(!month.year)month={year:Number(initial.slice(0,4)),month:Number(initial.slice(5,7))-1};
+   if(!selectedDate)selectedDate=initial;
   } catch {failed=true;}
-  finally {loading=false;}
+  finally {loading=false;refreshing=false;}
  }
- onMount(()=>{void load();});
+ onMount(()=>{void load();const refresh=()=>{if(document.visibilityState==='visible')void load();};const timer=setInterval(refresh,60000);window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);return()=>{clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};});
 </script>
 
 <section class="max-w-5xl mx-auto px-4 md:px-6 py-10 relative z-10" aria-labelledby="repair-availability-title">

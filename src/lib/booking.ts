@@ -5,6 +5,11 @@ export const services = ['basic', 'standard', 'overhaul', 'assessment'] as const
 export type BookingSlot = { startAt: string; endAt: string };
 export type BookingSlotStatus = 'available' | 'booked' | 'contact_directly' | 'unavailable';
 export type WeeklyBookingHours = Record<string, Record<string, 'available' | 'contact_directly'>>;
+export type DailyBookingHours = Record<string, Record<string, 'available' | 'contact_directly'>>;
+export function bookingDateWindow(now=Date.now()){
+ const local=new Date(now+7*3600000),midnight=Date.UTC(local.getUTCFullYear(),local.getUTCMonth(),local.getUTCDate());
+ return {from:new Date(midnight+86400000).toISOString().slice(0,10),to:new Date(midnight+31*86400000).toISOString().slice(0,10)};
+}
 export const DEFAULT_WEEKLY_BOOKING_HOURS: WeeklyBookingHours = Object.fromEntries(
   Array.from({ length: 5 }, (_, index) => [String(index + 1), Object.fromEntries(
     Array.from({ length: 20 }, (_, slot) => {
@@ -14,13 +19,14 @@ export const DEFAULT_WEEKLY_BOOKING_HOURS: WeeklyBookingHours = Object.fromEntri
   )]),
 ) as WeeklyBookingHours;
 export type BookingCalendarSlot = BookingSlot & { status: BookingSlotStatus };
-export function bookingCalendarSlots(now = Date.now(), weeklyHours: WeeklyBookingHours = DEFAULT_WEEKLY_BOOKING_HOURS, days = 90): BookingCalendarSlot[] {
+export function bookingCalendarSlots(now = Date.now(), weeklyHours: WeeklyBookingHours = DEFAULT_WEEKLY_BOOKING_HOURS, days = 31, dailyHours:DailyBookingHours = {}): BookingCalendarSlot[] {
   const local = new Date(now + 7 * 3600000);
   const midnight = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate());
   const slots: BookingCalendarSlot[] = [];
   for (let day = 1; day <= days; day++) {
     const date = midnight + day * 86400000;
-    const schedule = weeklyHours[String(new Date(date).getUTCDay())] ?? {};
+    const key=new Date(date).toISOString().slice(0,10);
+    const schedule = Object.hasOwn(dailyHours,key) ? dailyHours[key] : weeklyHours[String(new Date(date).getUTCDay())] ?? {};
     for (const [time, status] of Object.entries(schedule)) {
       if (status !== 'available' && status !== 'contact_directly') continue;
       const [hour, minute] = time.split(':').map(Number);
@@ -38,8 +44,8 @@ export function bookingCalendarSlots(now = Date.now(), weeklyHours: WeeklyBookin
   }
   return slots.sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt));
 }
-export function bookingSlots(now = Date.now(), weeklyHours: WeeklyBookingHours = DEFAULT_WEEKLY_BOOKING_HOURS, days = 90): BookingSlot[] {
-  return bookingCalendarSlots(now, weeklyHours, days).filter(slot => slot.status === 'available').map(({ startAt, endAt }) => ({ startAt, endAt }));
+export function bookingSlots(now = Date.now(), weeklyHours: WeeklyBookingHours = DEFAULT_WEEKLY_BOOKING_HOURS, days = 31, dailyHours:DailyBookingHours = {}): BookingSlot[] {
+  return bookingCalendarSlots(now, weeklyHours, days, dailyHours).filter(slot => slot.status === 'available').map(({ startAt, endAt }) => ({ startAt, endAt }));
 }
 export function bookingUuid(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);

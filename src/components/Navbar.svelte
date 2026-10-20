@@ -21,38 +21,63 @@
   let isMenuOpen=$state(false),isLangOpen=$state(false);
   let menuDialog=$state<HTMLDialogElement>(),cartDialog=$state<HTMLDialogElement>(),languageTrigger=$state<HTMLButtonElement>(),cartTrigger=$state<HTMLButtonElement>(),menuTrigger=$state<HTMLButtonElement>();
   let checkoutStatus=$state('');
-  type DeliveryService='ems_local'|'ems_world'|'flash'|'pickup';
-  let shippingCountry=$state('TH'),shippingMethod=$state<DeliveryService>('ems_local'),shippingCountries=$state<string[]>([]),servicesByCountry=$state<Record<string,DeliveryService[]>>({}),pickupEnabled=$state(false),shippingQuote=$state<any>(null),shippingStatus=$state(''),quoteSequence=0;
-  function serviceOptions(){return [...(servicesByCountry[shippingCountry]??[]),...(shippingCountry==='TH'&&pickupEnabled?['pickup' as const]:[])];}
-  function serviceLabel(service:DeliveryService){return t(service==='ems_local'?'cart.emsLocal':service==='ems_world'?'cart.emsWorld':service==='flash'?'cart.flash':'cart.pickup');}
+  let quoteRequestState=$state(''),isRequestingQuote=$state(false);
+  type DeliveryService='ems_local'|'ems_world'|'epacket'|'flash'|'pickup';
+  type ShippingAddress={line1:string;line2:string;city:string;state:string;postal_code:string;country:string};
+  const emptyAddress=():ShippingAddress=>({line1:'',line2:'',city:'',state:'',postal_code:'',country:''});
+  let shippingCountry=$state(''),pickupSelected=$state(false),shippingCountries=$state<string[]>([]),pickupEnabled=$state(false),shippingQuote=$state<any>(null),shippingStatus=$state(''),quoteSequence=0;
+  let profileCustomer=$state<any>(null),profileLoaded=$state(false),profileLoginRequired=$state(false),profileError=$state(false),configLoaded=$state(false),countryInitialized=false;
+  let recipientName=$state(''),address=$state<ShippingAddress>(emptyAddress()),addressDirty=$state(false),savingAddress=$state(false),addressSaveError=$state(false);
+  let shippingMethod=$derived<DeliveryService>(shippingCountry==='TH'?(pickupSelected?'pickup':'ems_local'):'epacket');
+  let international=$derived(!!shippingCountry&&shippingCountry!=='TH');
+  let savedAddressMatches=$derived(!!profileCustomer?.name?.trim()&&!!profileCustomer?.shippingAddress&&profileCustomer.shippingAddress.country===shippingCountry&&!!profileCustomer.shippingAddress.line1?.trim()&&!!profileCustomer.shippingAddress.city?.trim()&&!!profileCustomer.shippingAddress.postal_code?.trim());
+  let canSaveRecipient=$derived(!!recipientName.trim()&&!!address.line1.trim()&&!!address.city.trim()&&!!address.postal_code.trim()&&!profileLoginRequired&&!profileError);
   function countryLabel(code:string){return new Intl.DisplayNames([lang as Locale],{type:'region'}).of(code)??code;}
   let signInRequired=$state(false);
   function closeMenu(){isMenuOpen=false;menuDialog?.close();menuTrigger?.focus();}
   function toggleMenu(){if(isMenuOpen)closeMenu();else isMenuOpen=true;}
   function closeCart(){cart.isOpen=false;cartDialog?.close();cartTrigger?.focus();}
-  function toggleCart(){if(cart.isOpen)closeCart();else cart.isOpen=true;}
+  function toggleCart(){if(cart.isOpen)closeCart();else{cart.isOpen=true;void loadProfile();}}
   function optionLabel(key:string,value:string){const token=key==='toneHoles'?`product.tone.${value}`:key==='mouthpiece'?`product.mouth.${value}`:'';return token?ui[lang]?.[token as keyof typeof ui.en]||value:value;}
   function variantLabel(value:string){const token=value==='twoColor'?'product.endplug.twocolor':value==='plain'?'product.endplug.plain':'product.endplug.custom';return ui[lang]?.[token]||ui.en[token];}
   onMount(()=>{
     cart.init(lang as Locale);
     void loadCatalogPricing();
-    fetch('/api/shipping-config',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(data=>{shippingCountries=data?.countries??[];servicesByCountry=data?.servicesByCountry??{};pickupEnabled=data?.pickupEnabled===true;if(!shippingCountries.includes(shippingCountry))shippingCountry=shippingCountries[0]??'';const options=[...(servicesByCountry[shippingCountry]??[]),...(shippingCountry==='TH'&&pickupEnabled?['pickup']:[])];if(!options.includes(shippingMethod))shippingMethod=(options[0]??'pickup') as DeliveryService;refreshShippingQuote();}).catch(()=>{shippingStatus='shipping-options-unavailable';});
+    void initializeShipping();
     const onKeydown=(event:KeyboardEvent)=>{if(event.key==='Escape' && isLangOpen){isLangOpen=false;languageTrigger?.focus();}};
     document.addEventListener('keydown',onKeydown);
     return ()=>document.removeEventListener('keydown',onKeydown);
   });
+  async function initializeShipping(){
+    const [configResult,profileResult]=await Promise.allSettled([fetch('/api/shipping-config',{cache:'no-store'}),fetch('/api/profile',{cache:'no-store'})]);
+    try{if(configResult.status!=='fulfilled'||!configResult.value.ok)throw Error();const config=await configResult.value.json();shippingCountries=Array.isArray(config.countries)?config.countries:[];pickupEnabled=config.pickupEnabled===true;configLoaded=true;}catch{shippingStatus='shipping-options-unavailable';configLoaded=true;}
+    if(profileResult.status==='fulfilled')await applyProfileResponse(profileResult.value);else{profileError=true;profileLoaded=true;}
+    resolveInitialCountry();
+  }
+  async function applyProfileResponse(response:Response){
+    profileError=false;profileLoginRequired=response.status===401;
+    if(response.status===401){profileCustomer=null;profileLoaded=true;resolveInitialCountry();return;}
+    if(!response.ok){profileError=true;profileLoaded=true;resolveInitialCountry();return;}
+    try{const result=await response.json();profileCustomer=result.customer??null;if(!addressDirty){recipientName=profileCustomer?.name??'';address={...emptyAddress(),...(profileCustomer?.shippingAddress??{})};}profileLoaded=true;resolveInitialCountry();}catch{profileError=true;profileLoaded=true;resolveInitialCountry();}
+  }
+  async function loadProfile(){try{const response=await fetch('/api/profile',{cache:'no-store'});await applyProfileResponse(response);}catch{profileError=true;profileLoaded=true;}}
+  function resolveInitialCountry(){if(countryInitialized||!configLoaded||!profileLoaded)return;const saved=profileCustomer?.shippingAddress?.country;shippingCountry=shippingCountries.includes(saved)?saved:shippingCountries.includes('TH')?'TH':shippingCountries[0]??'';countryInitialized=true;}
+  function setShippingCountry(value:string){shippingCountry=value;quoteRequestState='';shippingQuote=null;shippingStatus='';++quoteSequence;}
+  function markAddressDirty(){addressDirty=true;shippingQuote=null;shippingStatus='';quoteRequestState='';++quoteSequence;}
+  function addressRequiredForCountry(country=shippingCountry){const saved=profileCustomer?.shippingAddress;return !profileCustomer?.name?.trim()||!saved||saved.country!==country||!saved.line1?.trim()||!saved.city?.trim()||!saved.postal_code?.trim();}
+  function profileLink(){return getPath('/login')+'?returnTo='+encodeURIComponent(getPath('/profile'));}
   $effect(()=>{cart.locale=lang as Locale;});
   $effect(()=>{if(cart.isOpen && cartDialog && !cartDialog.open){cartDialog.showModal();}if(isMenuOpen && menuDialog && !menuDialog.open){menuDialog.showModal();}if(cart.isOpen || isMenuOpen){const old=document.body.style.overflow;document.body.style.overflow='hidden';return ()=>{document.body.style.overflow=old;};}});
   let isCheckingOut = $state(false);
 
   async function refreshShippingQuote(){
-    const sequence=++quoteSequence;shippingQuote=null;shippingStatus='';
-    if(!cart.items.length||!shippingCountry)return;
+    const sequence=++quoteSequence;shippingQuote=null;shippingStatus='';quoteRequestState='';
+    if(!cart.items.length||!shippingCountry||!configLoaded||!profileLoaded)return;
+    if(international)return;
     try{const response=await fetch('/api/shipping-quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:cart.items.map(({productId,variant,options,quantity})=>({productId,variant,options,quantity})),locale:lang,country:shippingCountry,method:shippingMethod})});const data=await response.json();if(sequence!==quoteSequence)return;if(!response.ok)throw new Error(data?.error??'shipping_unavailable');shippingQuote=data;}
     catch(error){if(sequence===quoteSequence)shippingStatus=error instanceof Error?error.message:'shipping_unavailable';}
   }
-  $effect(()=>{cart.count;shippingCountry;shippingMethod;lang;if(cart.isOpen)void refreshShippingQuote();});
-  $effect(()=>{const options=serviceOptions();if(options.length&&!options.includes(shippingMethod))shippingMethod=options[0];});
+  $effect(()=>{cart.count;cart.items.map(item=>`${item.productId}:${item.variant??''}:${JSON.stringify(item.options??{})}:${item.quantity}`).join('|');shippingCountry;shippingMethod;lang;configLoaded;profileLoaded;const isOpen=cart.isOpen;if(isOpen&&!international)void refreshShippingQuote();});
 
   async function handleCheckout() {
     if (isCheckingOut) return;
@@ -66,6 +91,7 @@
       const code=err instanceof CheckoutError?err.code:err instanceof Error?err.message:'';
       signInRequired=code==='sign_in_required';
       checkoutStatus=signInRequired?t('flow.signInRequired'):
+        code==='shipping_address_required'?t('cart.shippingAddressNeeded'):code==='shipping_address_country_mismatch'?t('cart.shippingAddressMismatch'):
         code==='storage_unavailable'||code==='storage_limit'?t('flow.storage'):
         code==='attempt_limit'?t('flow.attemptLimit'):
         code==='database_conflict'||code==='invalid_cart'?t('flow.stock'):
@@ -74,6 +100,29 @@
     } finally {
       isCheckingOut = false;
     }
+  }
+
+  async function requestShippingQuote(){
+    if(isRequestingQuote)return;
+    isRequestingQuote=true;quoteRequestState='';
+    try{
+      if(profileLoginRequired){quoteRequestState='login';return;}
+      if(addressRequiredForCountry()){quoteRequestState=profileCustomer?.shippingAddress?.country&&profileCustomer.shippingAddress.country!==shippingCountry?'address_mismatch':'address_required';return;}
+      const request=await cart.submit(lang as Locale);
+      const response=await fetch('/api/shipping-quotes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestKey:request.requestKey,locale:request.locale,items:request.items,country:shippingCountry})});
+      const data=await response.json().catch(()=>({}));
+      if(response.status===401){quoteRequestState='login';return;}
+      if(!response.ok){
+        quoteRequestState=data?.error==='shipping_address_required'?'address_required':data?.error==='shipping_address_country_mismatch'?'address_mismatch':'error';
+        return;
+      }
+      quoteRequestState=data?.quote?'sent':'error';
+    }catch{quoteRequestState='error';}
+    finally{isRequestingQuote=false;}
+  }
+  async function calculateInternationalShipping(){
+    if(savingAddress||!canSaveRecipient)return;savingAddress=true;addressSaveError=false;shippingQuote=null;shippingStatus='';quoteRequestState='';
+    try{const savedAddress={...address,country:shippingCountry.toUpperCase()};const response=await fetch('/api/profile',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:recipientName.trim(),phone:profileCustomer?.phone??null,shippingAddress:savedAddress})});const result=await response.json().catch(()=>({}));if(response.status===401){profileLoginRequired=true;quoteRequestState='login';return;}if(!response.ok)throw Error();profileCustomer=result.customer??{...profileCustomer,name:recipientName.trim(),shippingAddress:savedAddress};address={...savedAddress};recipientName=profileCustomer.name??recipientName.trim();addressDirty=false;profileLoginRequired=false;await refreshShippingQuote();}catch{addressSaveError=true;}finally{savingAddress=false;}
   }
 </script>
 
@@ -221,13 +270,27 @@
           </div>
         {/each}
         <div class="mt-3 space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-          <label class="block text-sm text-neutral-200">{t('cart.destination')}<select class="select select-bordered mt-1 w-full bg-neutral-900 text-white" bind:value={shippingCountry} aria-label={t('cart.destination')}>
+          <label class="block text-sm text-neutral-200">{t('cart.destination')}<select class="select select-bordered mt-1 w-full bg-neutral-900 text-white" value={shippingCountry} onchange={(event)=>setShippingCountry(event.currentTarget.value)} aria-label={t('cart.destination')} disabled={!shippingCountries.length}>
             {#each shippingCountries as country}<option value={country}>{countryLabel(country)} ({country})</option>{/each}
           </select></label>
-          <label class="block text-sm text-neutral-200">{t('cart.shippingService')}<select class="select select-bordered mt-1 w-full bg-neutral-900 text-white" bind:value={shippingMethod} aria-label={t('cart.shippingService')}>
-            {#each serviceOptions() as service}<option value={service}>{serviceLabel(service)}</option>{/each}
-          </select></label>
-          {#if shippingQuote}<div class="space-y-1 text-sm text-neutral-300" aria-live="polite"><p>{t('cart.shipping')}: {formatPrice(shippingQuote.amount,lang as Locale)}{#if shippingQuote.fxMarginApplied}<span class="block text-xs text-neutral-400">{t('cart.fxMargin')}</span>{/if}</p></div>
+          {#if shippingCountry==='TH'&&pickupEnabled}<label class="flex items-center gap-3 text-sm text-neutral-200"><input type="checkbox" class="checkbox checkbox-sm" bind:checked={pickupSelected}/>{t('cart.pickup')}</label>{/if}
+          {#if international}
+            {#if !profileLoaded}<p class="text-sm text-neutral-300" role="status">{t('cart.profileLoading')}</p>
+            {:else if profileLoginRequired}<p class="text-sm text-amber-200" role="alert">{t('cart.shippingQuoteLogin')} <a class="underline" href={profileLink()}>{t('flow.login')}</a></p>
+            {:else if profileError}<p class="text-sm text-amber-200" role="alert">{t('cart.profileUnavailable')} <button class="underline" onclick={loadProfile}>{t('flow.retry')}</button></p>
+            {:else}<div class="address-form space-y-3 border-t border-white/10 pt-4">
+              <p class="text-sm text-neutral-300">{t('cart.internationalAddressIntro')}</p>
+              <label class="block text-sm text-neutral-200">{t('flow.name')}<input class="input input-bordered mt-1 w-full bg-neutral-900 text-white" autocomplete="name" maxlength="120" bind:value={recipientName} oninput={markAddressDirty}/></label>
+              <label class="block text-sm text-neutral-200">{t('flow.addressLine1')}<input class="input input-bordered mt-1 w-full bg-neutral-900 text-white" autocomplete="address-line1" maxlength="200" bind:value={address.line1} oninput={markAddressDirty}/></label>
+              <label class="block text-sm text-neutral-200">{t('flow.addressLine2')}<input class="input input-bordered mt-1 w-full bg-neutral-900 text-white" autocomplete="address-line2" maxlength="200" bind:value={address.line2} oninput={markAddressDirty}/></label>
+              <div class="grid sm:grid-cols-2 gap-3"><label class="block text-sm text-neutral-200">{t('flow.addressCity')}<input class="input input-bordered mt-1 w-full bg-neutral-900 text-white" autocomplete="address-level2" maxlength="120" bind:value={address.city} oninput={markAddressDirty}/></label><label class="block text-sm text-neutral-200">{t('flow.addressState')}<input class="input input-bordered mt-1 w-full bg-neutral-900 text-white" autocomplete="address-level1" maxlength="120" bind:value={address.state} oninput={markAddressDirty}/></label><label class="block text-sm text-neutral-200">{t('flow.addressPostalCode')}<input class="input input-bordered mt-1 w-full bg-neutral-900 text-white" autocomplete="postal-code" maxlength="32" bind:value={address.postal_code} oninput={markAddressDirty}/></label><div class="text-sm text-neutral-200"><span class="block mb-1">{t('flow.addressCountry')}</span><span class="flex min-h-12 items-center rounded-lg border border-white/15 bg-neutral-900 px-3">{countryLabel(shippingCountry)} ({shippingCountry})</span></div></div>
+              {#if addressDirty}<p class="text-xs text-amber-200">{t('cart.addressUnsaved')}</p>{/if}{#if addressSaveError}<p class="text-sm text-amber-200" role="alert">{t('cart.addressSaveFailed')}</p>{/if}
+              <button class="btn btn-outline w-full" disabled={savingAddress||!canSaveRecipient} onclick={calculateInternationalShipping}>{savingAddress?t('cart.calculatingShipping'):t('cart.calculateShipping')}</button>
+            </div>{/if}
+          {/if}
+          {#if shippingQuote}<div class="space-y-1 text-sm text-neutral-300" aria-live="polite"><p>{t('cart.postage')}: {formatPrice(shippingQuote.amount,lang as Locale)}{#if shippingQuote.fxMarginApplied}<span class="block text-xs text-neutral-400">{t('cart.fxMargin')}</span>{/if}</p></div>
+          {:else if shippingStatus==='shipping_contact_required'}<div class="space-y-3 text-sm text-amber-100" role="status"><p>{t('cart.shippingQuoteRequired')}</p><p>{t('cart.shippingQuoteIntro')}</p><div class="flex flex-wrap gap-2"><a class="btn btn-outline btn-sm" href="mailto:designmusicthailand@gmail.com">{t('cart.contactEmail')}</a><a class="btn btn-outline btn-sm" href="https://www.facebook.com/DesignmusicInstrumentmusicAccessories" target="_blank" rel="noreferrer">Facebook</a><a class="btn btn-outline btn-sm" href="https://www.instagram.com/designmusic_instrument/" target="_blank" rel="noreferrer">Instagram</a></div></div>
+          {:else if shippingStatus==='shipping_address_required'||shippingStatus==='shipping_address_country_mismatch'}<p class="text-sm text-amber-200" role="alert">{t(shippingStatus==='shipping_address_required'?'cart.shippingAddressNeeded':'cart.shippingAddressMismatch')} <a class="underline" href={getPath('/profile')}>{t('cart.viewProfile')}</a></p>
           {:else if shippingStatus}<p class="text-sm text-amber-200" role="alert">{t(shippingStatus==='shipping-options-unavailable'?'cart.shippingUnavailable':'flow.unavailable')}</p>
           {:else}<p class="text-sm text-neutral-400" role="status">{t('flow.loading')}</p>{/if}
         </div>
@@ -236,19 +299,28 @@
 
     <p class="px-6 text-sm text-neutral-300" role="status">{checkoutStatus || (!cart.storageAvailable?t('flow.storage'):'')}</p>
     {#if signInRequired}<a class="px-6 underline" href={getPath('/login')}>{t('flow.login')}</a>{/if}
+    {#if shippingStatus==='shipping_contact_required' && cart.items.length>0}
+      <div class="px-6 pb-5 space-y-3">
+        {#if quoteRequestState==='sent'}<p class="text-emerald-200" role="status">{t('cart.shippingQuoteSent')}</p><a class="underline" href={getPath('/profile')}>{t('cart.viewProfile')}</a>
+        {:else if quoteRequestState==='login'}<p class="text-amber-200" role="alert">{t('cart.shippingQuoteLogin')}</p><a class="underline" href={getPath('/login')}>{t('flow.login')}</a>
+        {:else if quoteRequestState==='address_required'||quoteRequestState==='address_mismatch'}<p class="text-amber-200" role="alert">{t(quoteRequestState==='address_required'?'cart.shippingAddressNeeded':'cart.shippingAddressMismatch')}</p><a class="underline" href={getPath('/profile')}>{t('cart.viewProfile')}</a>
+        {:else if quoteRequestState==='error'}<p class="text-amber-200" role="alert">{t('cart.shippingQuoteError')}</p>{/if}
+        {#if quoteRequestState!=='sent'}{#if profileLoginRequired}<a class="btn btn-outline w-full" href={profileLink()}>{t('flow.login')}</a>{:else if addressRequiredForCountry()}<p class="text-amber-200" role="alert">{t('cart.shippingAddressNeeded')} <a class="underline" href={getPath('/profile')}>{t('cart.viewProfile')}</a></p>{:else}<button class="btn btn-primary w-full" onclick={requestShippingQuote} disabled={isRequestingQuote || !cart.storageAvailable}>{isRequestingQuote?t('cart.shippingQuoteSubmitting'):t('cart.requestShippingQuote')}</button>{/if}{/if}
+      </div>
+    {/if}
     {#if cart.items.length > 0}
       <div class="p-6 border-t border-white/10 bg-black/50">
         <div class="flex justify-between items-center mb-6 text-xl">
           <span class="font-light tracking-widest uppercase text-neutral-400">{t('cart.total')}</span>
           <span class="font-serif text-white">{formatPrice(shippingQuote?.total??cart.total,lang as Locale)}</span>
         </div>
-        <button class="btn btn-primary w-full disabled:opacity-50 tracking-widest uppercase text-sm font-medium py-4" onclick={handleCheckout} disabled={isCheckingOut || !cart.storageAvailable || !shippingQuote || !!shippingStatus || !serviceOptions().length}>
+        {#if shippingStatus!=='shipping_contact_required'}<button class="btn btn-primary w-full disabled:opacity-50 tracking-widest uppercase text-sm font-medium py-4" onclick={handleCheckout} disabled={isCheckingOut || !cart.storageAvailable || !shippingQuote || !!shippingStatus || (international&&(!savedAddressMatches||addressDirty))}>
           {#if isCheckingOut}
             {t('cart.processing')}
           {:else}
             {t('cart.checkout')}
           {/if}
-        </button>
+        </button>{/if}
       </div>
     {/if}
   </dialog>
