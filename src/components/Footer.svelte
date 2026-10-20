@@ -55,9 +55,9 @@
     <div class="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-sm font-light text-neutral-500">
       <p>© {currentYear} Design Music. {lang === 'th' ? 'สงวนลิขสิทธิ์' : 'All rights reserved.'}</p>
       <div class="flex flex-wrap justify-center gap-6">
-        <a href="/privacy" lang="th" class="hover:text-white transition-colors">นโยบายความเป็นส่วนตัว</a>
-        <a href="/terms" lang="th" class="hover:text-white transition-colors">ข้อกำหนดและเงื่อนไข</a>
-        <a href="/shipping-returns" lang="th" class="hover:text-white transition-colors">การจัดส่ง คืนสินค้า และรับประกัน</a>
+        <a href="/policies#privacy" lang="th" class="hover:text-white transition-colors">นโยบายความเป็นส่วนตัว</a>
+        <a href="/policies#terms" lang="th" class="hover:text-white transition-colors">ข้อกำหนดและเงื่อนไข</a>
+        <a href="/policies#shipping-returns" lang="th" class="hover:text-white transition-colors">การจัดส่ง คืนสินค้า และรับประกัน</a>
       </div>
     </div>
   </div>

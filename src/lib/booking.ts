@@ -6,9 +6,20 @@ export type BookingSlot = { startAt: string; endAt: string };
 export type BookingSlotStatus = 'available' | 'booked' | 'contact_directly' | 'unavailable';
 export type WeeklyBookingHours = Record<string, Record<string, 'available' | 'contact_directly'>>;
 export type DailyBookingHours = Record<string, Record<string, 'available' | 'contact_directly'>>;
-export function bookingDateWindow(now=Date.now()){
- const local=new Date(now+7*3600000),midnight=Date.UTC(local.getUTCFullYear(),local.getUTCMonth(),local.getUTCDate());
- return {from:new Date(midnight+86400000).toISOString().slice(0,10),to:new Date(midnight+31*86400000).toISOString().slice(0,10)};
+function bangkokDate(now: number) {
+  const local = new Date(now + 7 * 3600000);
+  return new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()));
+}
+function dateKey(date: Date) { return date.toISOString().slice(0, 10); }
+export function addCalendarMonths(date: Date, months: number) {
+  const first = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
+  const lastDay = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  first.setUTCDate(Math.min(date.getUTCDate(), lastDay));
+  return first;
+}
+export function bookingDateWindow(now = Date.now()) {
+  const today = bangkokDate(now);
+  return { from: dateKey(today), to: dateKey(addCalendarMonths(today, 2)) };
 }
 export const DEFAULT_WEEKLY_BOOKING_HOURS: WeeklyBookingHours = Object.fromEntries(
   Array.from({ length: 5 }, (_, index) => [String(index + 1), Object.fromEntries(
@@ -19,13 +30,13 @@ export const DEFAULT_WEEKLY_BOOKING_HOURS: WeeklyBookingHours = Object.fromEntri
   )]),
 ) as WeeklyBookingHours;
 export type BookingCalendarSlot = BookingSlot & { status: BookingSlotStatus };
-export function bookingCalendarSlots(now = Date.now(), weeklyHours: WeeklyBookingHours = DEFAULT_WEEKLY_BOOKING_HOURS, days = 31, dailyHours:DailyBookingHours = {}): BookingCalendarSlot[] {
-  const local = new Date(now + 7 * 3600000);
-  const midnight = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate());
+export function bookingCalendarSlots(now = Date.now(), weeklyHours: WeeklyBookingHours = DEFAULT_WEEKLY_BOOKING_HOURS, dailyHours: DailyBookingHours = {}): BookingCalendarSlot[] {
+  const window = bookingDateWindow(now);
+  const first = Date.parse(`${window.from}T00:00:00Z`);
+  const last = Date.parse(`${window.to}T00:00:00Z`);
   const slots: BookingCalendarSlot[] = [];
-  for (let day = 1; day <= days; day++) {
-    const date = midnight + day * 86400000;
-    const key=new Date(date).toISOString().slice(0,10);
+  for (let date = first; date <= last; date += 86400000) {
+    const key = new Date(date).toISOString().slice(0, 10);
     const schedule = Object.hasOwn(dailyHours,key) ? dailyHours[key] : weeklyHours[String(new Date(date).getUTCDay())] ?? {};
     for (const [time, status] of Object.entries(schedule)) {
       if (status !== 'available' && status !== 'contact_directly') continue;
@@ -44,8 +55,8 @@ export function bookingCalendarSlots(now = Date.now(), weeklyHours: WeeklyBookin
   }
   return slots.sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt));
 }
-export function bookingSlots(now = Date.now(), weeklyHours: WeeklyBookingHours = DEFAULT_WEEKLY_BOOKING_HOURS, days = 31, dailyHours:DailyBookingHours = {}): BookingSlot[] {
-  return bookingCalendarSlots(now, weeklyHours, days, dailyHours).filter(slot => slot.status === 'available').map(({ startAt, endAt }) => ({ startAt, endAt }));
+export function bookingSlots(now = Date.now(), weeklyHours: WeeklyBookingHours = DEFAULT_WEEKLY_BOOKING_HOURS, dailyHours: DailyBookingHours = {}): BookingSlot[] {
+  return bookingCalendarSlots(now, weeklyHours, dailyHours).filter(slot => slot.status === 'available' && Date.parse(slot.startAt) > now).map(({ startAt, endAt }) => ({ startAt, endAt }));
 }
 export function bookingUuid(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);

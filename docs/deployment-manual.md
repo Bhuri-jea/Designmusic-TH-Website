@@ -48,6 +48,13 @@ Local origin: http://127.0.0.1:4322. Production origin: your final HTTPS domain,
 | 9 | supabase/migrations/202610200003_weighted_shipping_checkout.sql | Weight-based shipping totals at Checkout |
 | 10 | supabase/migrations/202610200004_weekly_booking_hours.sql | Editable weekly repair hours and overlap-safe half-hour booking starts |
 | 11 | supabase/migrations/202610200005_shipping_tracking_links.sql | Shipping service constraints and carrier/tracking details on customer orders |
+| 12 | supabase/migrations/202610200006_shop_postage_rates.sql | Supplied postage presets and dispatch notice |
+| 13 | supabase/migrations/202610200007_shipping_quotes.sql | Submitted shipping invoices and buyer approval/payment flow |
+| 14 | supabase/migrations/202610200008_daily_booking_calendar.sql | Date-specific repair schedules |
+| 15 | supabase/migrations/202610200009_atomic_product_save.sql | One atomic Save for stock, three prices and weight |
+| 16 | supabase/migrations/202610210001_booking_calendar_window.sql | Rolling Bangkok two-calendar-month window, including reservation validation |
+| 17 | supabase/migrations/202610210002_booking_history_archive.sql | Owner-only cancelled-booking removal from customer history |
+| 18 | supabase/migrations/202610210003_shipping_invoices_and_rates.sql | Blank unsupported rate bands, invoices at any weight, frozen reference FX |
 
 Do not run the whole migrations folder automatically. This checkout has also contained 202610120003_inventory_one_each.sql, a sample that assigns one item to every SKU, and 202610130001_bookings.sql, an alternate booking definition. Neither is part of the setup above. A .sql.clean draft is not a migration. Preserve these originals; do not apply them to manufacture stock or recreate tables.
 
@@ -80,7 +87,7 @@ For seller access, sign in through Google and inspect your own signed /api/auth/
 
 ## 4. Repair reservation slots
 
-Repair hours are configured by an authorized seller in `/admin` as weekly open/close ranges using 30-minute increments. Each repair appointment remains one hour; customers can select a start every 30 minutes when both consecutive half-hour blocks are marked available. The calendar labels website bookings as Booked, configured times as Available or Contact directly, and Google Calendar conflicts as Unavailable. Contact-only slots link to the shop's email and social channels. Calendar browsing covers the next 90 days in Asia/Bangkok time.
+Repair hours are configured for individual dates in `/admin`. The window starts today in Asia/Bangkok and extends through the same date two calendar months ahead (month-end dates clamp to the last valid day). It advances automatically; 20 October 2026 is not a permanent boundary. The default is Monday–Friday 08:00–18:00. Each appointment lasts one hour with starts every 30 minutes; a following open half-hour is required. Choose Available, Contact directly or Closed for each date. Website bookings and Google Calendar busy events block starts. The admin calendar refreshes every minute and on focus while preserving unsaved date edits. Public booking fails closed when Google cannot be checked; admin schedule editing remains accessible with a sync warning. These website overrides do not edit arbitrary Google Calendar events.
 
 For a database already installed, apply each unapplied forward migration once, in order. Migration `202610200004_weekly_booking_hours.sql` adds booking-hour settings and overlap protection; `202610200005_shipping_tracking_links.sql` stores the selected carrier and derives the external tracking website. Do not edit or rerun old SQL files. Before applying migration 004, check for existing overlapping confirmed bookings; it adds a database constraint to prevent overlapping one-hour appointments:
 
@@ -92,7 +99,7 @@ where a.status = 'confirmed' and b.status = 'confirmed'
   and tstzrange(a.start_at, a.end_at, '[)') && tstzrange(b.start_at, b.end_at, '[)');
 ```
 
-If this returns rows, stop and resolve those records carefully before applying the migration. Afterward, sign in as an admin and set the shop's actual weekly hours. Google Calendar busy events still block configured available slots, including all-day events; if Calendar cannot be checked, availability fails closed. Cancel or reschedule website bookings from `/profile/bookings`; deleting a Calendar copy does not change the database booking.
+If this returns rows, stop and resolve those records carefully before applying the migration. After installation, sign in as admin and edit the dates you need. Google Calendar busy events still block configured available slots, including all-day events. Cancel or reschedule website bookings from `/profile/bookings`; deleting a Calendar copy does not change the database booking. Customers can remove only cancelled entries from their displayed history; the source records remain available for reconciliation.
 
 ## 5. Connect Google Sheets and Calendar
 
@@ -163,11 +170,15 @@ Test with your own dummy booking: confirm a database booking, one Sheet row, one
 | Notifications | RESEND_API_KEY, EMAIL_FROM, SELLER_EMAIL |
 | Worker/seller | CRON_SECRET, ADMIN_GOOGLE_SUBJECTS |
 
-Never commit real .env values or paste them into chat. Keep shipping destinations limited to services you can currently fulfill. Configure product gross weight, destination, service and postage bands in `/admin`; checkout calculates postage from the cart's combined weight and shows the charge before Stripe. THB shipping uses the configured THB band. USD and JPY shipping converts that band with the configured exchange rate and adds a 5% buffer. Thailand pickup has no shipping fee. The supplied 2022 Thailand Post table remains a parcel-preparation reference and is not used as a checkout rate.
+Never commit real .env values or paste them into chat. Edit stock, independent USD/JPY/THB product prices and gross product weight in `/admin/products`; one Save updates the product atomically. Edit destinations and two postage tables in `/admin/shipping`. For 0.15 kg select the smallest covering maximum, such as 0.2 kg. A blank price explicitly makes that weight band unavailable for the selected service; it is not free shipping. Existing 20 g EMS bands are preserved. Customers default to EMS locally and ePacket internationally and may select another configured service. International automatically calculated postage is at least THB 500. Free pickup remains Thailand-only.
 
-Customer policies are published at `/privacy`, `/terms` and `/shipping-returns`. Seller: Norraphat Thanavisuth (Design Music), 98 Thanon Akarn Songkhro, Soi Narathiwas 15 Yak 4-2, Thung Maha Mek Subdistrict, Sathorn District, Bangkok, Thailand, 10120; telephone 0850915959. Customers must contact the shop directly about manufacturing-defect returns within 7 days; the product must otherwise be in good condition. Silicone pads, shakuhachi and end plugs have a 6-month manufacturing-defect replacement warranty; careless handling/misuse is excluded, and repair services are not covered by this product warranty. The current wording counts both periods from receipt. The buyer pays postage to return the product to the shop; the seller pays postage to send an approved replacement back to the buyer. Review the wording against actual operating practices and applicable legal requirements before launch.
+Latest daily exchange rates come from Frankfurter on the server and are cached for one hour per running server instance. The source date is displayed; invalid, mismatched or more-than-ten-day-old observations are rejected. Only postage converted from THB to USD/JPY receives the existing 5% buffer; product prices remain the independently configured amounts. Checkout freezes the charged amount and reference rate. Original-currency amounts and THB reference equivalents are shown in fulfillment; the reference equivalent is not Stripe's actual settlement or net bank payout. Old orders without a frozen rate use a clearly labelled current reference estimate when available; an FX outage leaves those estimates unavailable without hiding fulfillment. No API key is needed for Frankfurter. See [Frankfurter API](https://frankfurter.dev/).
 
-The three policy pages are intentionally Thai-only, including their page language and policy link labels. Their canonical routes remain `/privacy`, `/terms` and `/shipping-returns`; switching the site language on these pages keeps the same policy route.
+If no rate covers the selected service/weight, or gross weight exceeds 2 kg, the buyer submits a shipping invoice request with a complete saved address. It does not reserve stock. In `/admin`, approve the THB fee (international minimum THB 500); the normal outbox scheduler automatically emails the buyer. The buyer opens `/profile/orders`, finds Shipping quotes at the bottom, and pays through Checkout or cancels before starting payment. Approved prices and addresses are frozen; the quote expires after seven days. Checkout then reserves stock using the existing payment protections. Contact-directly email/Facebook/Instagram links remain visible.
+
+Customer policies are consolidated at `/policies`, with privacy, terms and shipping/returns anchors. Seller: Norraphat Thanavisuth (Design Music), 98 Thanon Akarn Songkhro, Soi Narathiwas 15 Yak 4-2, Thung Maha Mek Subdistrict, Sathorn District, Bangkok, Thailand, 10120; telephone 0850915959. Customers must contact the shop directly about manufacturing-defect returns within 7 days; the product must otherwise be in good condition. Silicone pads, shakuhachi and end plugs have a 6-month manufacturing-defect replacement warranty; careless handling/misuse is excluded, and repair services are not covered by this product warranty. The periods count from receipt. The buyer pays postage to return the product; the seller pays approved replacement postage. Statutory rights are preserved.
+
+The combined policy is intentionally Thai-only. `/privacy`, `/terms` and `/shipping-returns` redirect permanently to their matching sections in `/policies`. Switching site language keeps the combined policy and anchor.
 
 ### Stripe before selling
 

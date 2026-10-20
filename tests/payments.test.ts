@@ -283,6 +283,16 @@ test('owned reads filter customer and exclude private frozen configuration', asy
     };
     await assert.rejects(ownedOrders(new Request('https://shop.example.test'), key, f.deps), /order_not_found/);
 });
+test('paid order summary exposes only validated payment method details and frozen totals',async()=>{
+ const f=fixture();await checkout(new Request('https://shop.example.test'),body,f.deps);f.order={...f.order!,status:'paid'};
+ const original=f.deps.stripe('dummy');
+ f.deps.stripe=()=>({...original,retrieve:async()=>({...session(f.order!),payment_intent:{status:'succeeded',latest_charge:{paid:true,status:'succeeded',currency:'usd',amount:3000,payment_method_details:{type:'card',card:{brand:'visa',last4:'4242',fingerprint:'private'}}}}} as unknown as Stripe.Checkout.Session)});
+ const [order]=await ownedOrders(new Request('https://shop.example.test'),key,f.deps);
+ assert.equal(order.amountSubtotal,3000);assert.equal(order.shippingAmount,0);assert.equal(order.amountTotal,3000);
+ assert.deepEqual(order.paymentSummary,{method:'card',brand:'visa',last4:'4242'});assert.equal(JSON.stringify(order).includes('fingerprint'),false);
+ f.deps.stripe=()=>({...original,retrieve:async()=>{throw Error('provider_unavailable');}});
+ assert.equal((await ownedOrders(new Request('https://shop.example.test'),key,f.deps))[0].paymentSummary,null);
+});
 test('reconciliation releases only retrieved expiration and never confirms retrieved payment', async () => {
     const f = fixture();
     await checkout(new Request('https://shop.example.test'), body, f.deps);

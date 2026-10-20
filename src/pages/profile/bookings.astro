@@ -1,19 +1,9 @@
 ---
-import Layout from '../../layouts/Layout.astro';
-import BookingManagementPanel from '../../components/account/BookingManagementPanel.svelte';
+import CustomerPage from '../../components/account/CustomerPage.astro';
 import { requireCustomer } from '../../lib/server/customer.ts';
 import { HttpError } from '../../lib/server/http.ts';
-import { ui } from '../../i18n/ui';
 export const prerender = false;
-
 try { await requireCustomer(Astro.request); }
-catch (error) {
-  if (error instanceof HttpError && error.status === 401) {
-    return Astro.redirect(`/login?returnTo=${encodeURIComponent('/profile/bookings')}`);
-  }
-  throw error;
-}
+catch (error) { if (error instanceof HttpError && error.status === 401) return Astro.redirect('/login?returnTo=%2Fprofile%2Fbookings'); throw error; }
 ---
-<Layout title={ui.en['booking.manageTitle']}>
-  <BookingManagementPanel lang="en" client:load />
-</Layout>
+<CustomerPage mode="bookings" />

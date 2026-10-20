@@ -32,7 +32,7 @@ export const paymentDependencies: PaymentDependencies = {
         });
         return {
             create: (params, options) => client.checkout.sessions.create(params, options),
-            retrieve: (id, options) => client.checkout.sessions.retrieve(id, {}, options),
+            retrieve: (id, options) => client.checkout.sessions.retrieve(id, {expand:['payment_intent.latest_charge']}, options),
         };
     },
 };
@@ -130,8 +130,8 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
         throw new HttpError(400, 'invalid_cart');
     }
     if(approved&&(quote.fingerprint!==approved.cartFingerprint||quote.totalAmount!==approved.amountSubtotal))throw new HttpError(409,'shipping_quote_changed');
-    const method=body.shippingMethod==='pickup'?'pickup':body.shippingCountry==='TH'?'ems_local':'epacket';
-    const shipping=approved?{currency:quote.currency,amount:approved.shippingAmount,weightGrams:approved.weightGrams,method:approved.shippingService as 'ems_local'|'ems_world',country:approved.country,subtotal:quote.totalAmount,total:quote.totalAmount+approved.shippingAmount,fxMarginApplied:quote.currency!=='thb'}:await (deps.shippingQuote??quoteShipping)(body.items,body.locale,body.shippingCountry,method,undefined,customer.shippingAddress);
+    const method=body.shippingMethod??(body.shippingCountry==='TH'?'ems_local':'epacket');
+    const shipping=approved?{currency:quote.currency,amount:approved.shippingAmount,weightGrams:approved.weightGrams,method:approved.shippingService as 'ems_local'|'ems_world',country:approved.country,subtotal:quote.totalAmount,total:quote.totalAmount+approved.shippingAmount,fxMarginApplied:quote.currency!=='thb',referenceThbRate:approved.referenceThbRate??null,referenceFxDate:approved.referenceFxDate??null}:await (deps.shippingQuote??quoteShipping)(body.items,body.locale,body.shippingCountry,method,undefined,customer.shippingAddress);
     if(shipping.currency!==quote.currency||shipping.subtotal!==quote.totalAmount)throw new HttpError(409,'cart_price_changed');
     const locale = body.locale as Locale;
     const prefix = locale === 'en' ? '' : `/${locale}`;
@@ -151,6 +151,7 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
             allowedCountries:shipping.method!=='pickup'?[shipping.country]:[],
             shippingCountry:shipping.country,fulfillmentMethod:shipping.method,
             shippingAmount:shipping.amount,estimatedWeightGrams:shipping.weightGrams,
+            referenceThbRate:shipping.referenceThbRate??(quote.currency==='thb'?1:null),referenceFxDate:shipping.referenceFxDate??null,
             ...(!approved&&shipping.country!=='TH'?{shippingAddressSnapshot:customer.shippingAddress,shippingRecipientSnapshot:{name:customer.name}}:{}),
             ...(approved?{shippingQuoteId:approved.id,shippingQuoteVersion:approved.version,shippingQuoteAddress:approved.address,shippingQuoteRecipient:approved.recipient}:{}),
             expiresAt: approved?Math.min(Math.floor(deps.now()/1000)+3600,Math.floor(Date.parse(approved.expiresAt)/1000)):Math.floor(deps.now() / 1000) + 3600,
@@ -282,12 +283,18 @@ export async function processWebhook(payload: string | Uint8Array, signature: st
         throw new HttpError(400, 'payment_metadata_mismatch');
     await applySessionEvent(order, session, event.id, event.type, event.created, deps);
 }
-export function publicOrder(order: OrderRecord) {
+export function publicOrder(order: OrderRecord, paymentSummary: {method:string;brand?:string|null;last4?:string|null}|null=null) {
+    const subtotal=order.items.reduce((sum,item)=>sum+item.quantity*item.unitAmount,0);
     return {
         id: order.id,
         currency: order.currency,
         locale: order.locale,
         amountTotal: order.amountTotal,
+        amountSubtotal: subtotal,
+        shippingAmount: order.shippingAmount??order.checkoutParameters.shippingAmount??Math.max(0,order.amountTotal-subtotal),
+        fulfillmentMethod:order.fulfillmentMethod??order.checkoutParameters.fulfillmentMethod??null,
+        shippingCountry:order.checkoutParameters.shippingCountry??null,
+        paymentSummary:order.status==='paid'?paymentSummary:null,
         items: order.items,
         status: order.status,
         createdAt: order.createdAt,
@@ -318,7 +325,21 @@ export async function ownedOrders(request: Request, id?: string, deps = paymentD
         });
         if (!order || order.customerId !== customer.id)
             throw new HttpError(404, 'order_not_found');
-        result.push(publicOrder(order));
+        let summary:null|{method:string;brand?:string|null;last4?:string|null}=null;
+        if(id&&order.status==='paid'&&order.checkoutSessionId){
+          try{
+            const config=paymentCredentials(deps.env),session=await deps.stripe(config.key).retrieve(order.checkoutSessionId,{timeout:8000,maxNetworkRetries:0});
+            sessionMatches(session,order,config.live);
+            const intent=session.payment_intent;
+            const charge=typeof intent==='object'&&intent?intent.latest_charge:null;
+            if(session.payment_status==='paid'&&typeof intent==='object'&&intent?.status==='succeeded'&&typeof charge==='object'&&charge?.paid&&charge.status==='succeeded'&&charge.currency===order.currency&&charge.amount===order.amountTotal){
+              const detail=charge.payment_method_details;
+              if(detail?.type==='card')summary={method:'card',brand:detail.card?.brand??null,last4:/^\d{4}$/.test(detail.card?.last4??'')?detail.card!.last4:null};
+              else if(detail?.type)summary={method:detail.type};
+            }
+          }catch{/* The verified order remains readable if supplemental payment details cannot be fetched. */}
+        }
+        result.push(publicOrder(order,summary));
     }
     return result;
 }

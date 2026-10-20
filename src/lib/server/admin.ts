@@ -1,7 +1,8 @@
 import {getOptionalSession} from './customer.ts';import {getEnv} from './env.ts';import {rpc,select,SupabaseRequestError} from './supabase.ts';import {HttpError,jsonResponse,errorResponse,readSameOriginJson} from './http.ts';import {ISO_COUNTRY_CODES} from '../iso-countries.ts';import {SUPPORTED_SHIPPING_COUNTRIES} from './payments.ts';
+import {shipmentReferenceRates} from './exchange-rates.ts';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 type AdminSession={googleSubject?:string|null;supabaseSubject?:string|null};
-type Dependencies={getSession:(request:Request)=>Promise<AdminSession|null>;subjects:()=>string[];inventory:()=>Promise<any[]>;setStock:(sku:string,onHand:number)=>Promise<unknown>;shipments:()=>Promise<any[]>;shipment:(id:string)=>Promise<any>;ship:(id:string,tracking:string,service?:string)=>Promise<unknown>;shipmentHold:(id:string,hold:boolean,reason:string,actor:string)=>Promise<unknown>;jobs:()=>Promise<any[]>;setPrices?:(sku:string,usd:number,jpy:number,thb:number)=>Promise<unknown>;setWeight?:(sku:string,grams:number)=>Promise<unknown>;storefront?:()=>Promise<any>;setStorefront?:(countries:string[],rates:Record<string,{maxGrams:number;thbMinor:number}[]>,usdThb:number|null,jpyThb:number|null,pickup:boolean)=>Promise<unknown>;bookingHours?:()=>Promise<any>;setBookingHours?:(hours:Record<string,Record<string,string>>)=>Promise<unknown>};
+type Dependencies={getSession:(request:Request)=>Promise<AdminSession|null>;subjects:()=>string[];inventory:()=>Promise<any[]>;setStock:(sku:string,onHand:number)=>Promise<unknown>;shipments:()=>Promise<any[]>;shipment:(id:string)=>Promise<any>;ship:(id:string,tracking:string,service?:string)=>Promise<unknown>;shipmentHold:(id:string,hold:boolean,reason:string,actor:string)=>Promise<unknown>;jobs:()=>Promise<any[]>;setPrices?:(sku:string,usd:number,jpy:number,thb:number)=>Promise<unknown>;setWeight?:(sku:string,grams:number)=>Promise<unknown>;storefront?:()=>Promise<any>;setStorefront?:(countries:string[],rates:Record<string,{maxGrams:number;thbMinor:number|null}[]>,usdThb:number|null,jpyThb:number|null,pickup:boolean)=>Promise<unknown>;bookingHours?:()=>Promise<any>;setBookingHours?:(hours:Record<string,Record<string,string>>)=>Promise<unknown>};
 const defaults:Dependencies={getSession:getOptionalSession,subjects:()=>getEnv('ADMIN_GOOGLE_SUBJECTS')?.split(',').map(s=>s.trim()).filter(Boolean)??[],inventory:()=>select('inventory',{order:'sku'}),setStock:(sku,count)=>rpc('admin_set_stock',{p_sku:sku,p_on_hand:count}),shipments:()=>rpc('admin_shipments',{}),shipment:id=>rpc('admin_shipping_record',{p_order_id:id}),ship:(id,tracking,service)=>rpc('admin_mark_shipped',{p_order_id:id,p_tracking:tracking,p_service:service}),shipmentHold:(id,hold,reason,actor)=>rpc('admin_set_shipment_hold',{p_order_id:id,p_hold:hold,p_reason:reason,p_actor:actor}),jobs:()=>select('outbox',{status:'in.(failed,review)',order:'created_at.desc',limit:'100'}),setPrices:(sku,usd,jpy,thb)=>rpc('admin_set_prices',{p_sku:sku,p_usd_minor:usd,p_jpy:jpy,p_thb_minor:thb}),setWeight:(sku,grams)=>rpc('admin_set_weight',{p_sku:sku,p_weight_grams:grams}),storefront:()=>rpc('storefront_config',{}),setStorefront:(countries,rates,usd,jpy,pickup)=>rpc('admin_set_storefront_config',{p_allowed_countries:countries,p_shipping_rates:rates,p_usd_thb:usd,p_jpy_thb:jpy,p_pickup_enabled:pickup}),bookingHours:()=>rpc('booking_weekly_hours',{}),setBookingHours:hours=>rpc('admin_set_booking_hours',{p_weekly_hours:hours})};
 export async function requireAdmin(request:Request,deps:Pick<Dependencies,'getSession'|'subjects'>=defaults){const session=await deps.getSession(request);if(!session?.googleSubject || session.supabaseSubject || session.googleSubject.startsWith('supabase:'))throw new HttpError(401,'unauthenticated');const subjects=deps.subjects();if(!subjects.length)throw new HttpError(503,'admin_unavailable');if(!subjects.includes(session.googleSubject))throw new HttpError(403,'forbidden');return session.googleSubject;}
 const escape=(value:unknown)=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
@@ -20,32 +21,39 @@ export function createAdminHandlers(deps:Dependencies=defaults){
  storefrontPatch:handle(async request=>{
   if(!deps.setStorefront)throw new HttpError(503,'admin_unavailable');
   const body=await readSameOriginJson(request,131072);
-  const validFx=(value:unknown)=>value===null||typeof value==='number'&&Number.isFinite(value)&&value>0;
-  if(Object.keys(body).sort().join(',')!=='allowedCountries,jpyThb,pickupEnabled,shippingRates,usdThb'
+  if(Object.keys(body).some(key=>!['allowedCountries','shippingRates','pickupEnabled','usdThb','jpyThb'].includes(key))
      ||!Array.isArray(body.allowedCountries)||!body.allowedCountries.length
      ||body.allowedCountries.some(code=>typeof code!=='string'||!SUPPORTED_SHIPPING_COUNTRIES.includes(code))
      ||new Set(body.allowedCountries).size!==body.allowedCountries.length
      ||!body.shippingRates||typeof body.shippingRates!=='object'||Array.isArray(body.shippingRates)
-     ||typeof body.pickupEnabled!=='boolean'||!validFx(body.usdThb)||!validFx(body.jpyThb))throw new HttpError(400,'invalid_storefront_settings');
-  const rates:Record<string,{maxGrams:number;thbMinor:number}[]>={};
+     ||typeof body.pickupEnabled!=='boolean')throw new HttpError(400,'invalid_storefront_settings');
+  const rates:Record<string,{maxGrams:number;thbMinor:number|null}[]>={};
   for(const [key,bands] of Object.entries(body.shippingRates)){
    if(!/^(TH:(ems_local|flash)|[A-Z]{2}:(ems_world|epacket))$/.test(key)||key.startsWith('TH:')&&['ems_world','epacket'].includes(key.split(':')[1])
       ||!Array.isArray(bands)||bands.length<1||bands.length>60)throw new HttpError(400,'invalid_shipping_rates');
    const values=bands.map((item:any)=>{
     if(!item||!Number.isInteger(item.maxGrams)||item.maxGrams<=0||item.maxGrams>30000
-       ||typeof item.thb!=='number'||!Number.isFinite(item.thb)||item.thb<=0||item.thb>100000000
-       ||Math.abs(item.thb*100-Math.round(item.thb*100))>0.000001)throw new HttpError(400,'invalid_shipping_rates');
-    return {maxGrams:item.maxGrams,thbMinor:Math.round(item.thb*100)};
+       ||item.thb!==null&&(typeof item.thb!=='number'||!Number.isFinite(item.thb)||item.thb<=0||item.thb>100000000
+       ||Math.abs(item.thb*100-Math.round(item.thb*100))>0.000001))throw new HttpError(400,'invalid_shipping_rates');
+    return {maxGrams:item.maxGrams,thbMinor:item.thb===null?null:Math.round(item.thb*100)};
    });
    if(new Set(values.map(item=>item.maxGrams)).size!==values.length)throw new HttpError(400,'invalid_shipping_rates');
    rates[key]=values.sort((left,right)=>left.maxGrams-right.maxGrams);
   }
-  if(body.allowedCountries.some((code:string)=>!(code==='TH'&&body.pickupEnabled)&&!['ems_world','epacket','ems_local','flash'].some(service=>rates[code+':'+service]?.length)))throw new HttpError(400,'missing_country_rate');
-  await deps.setStorefront(body.allowedCountries,rates,body.usdThb===null?null:Number(body.usdThb),body.jpyThb===null?null:Number(body.jpyThb),body.pickupEnabled);
+  // Destinations without a configured service remain contact-only. Legacy FX fields
+  // are retained in storage for old reports; browser-supplied FX is never authoritative.
+  const current=await deps.storefront?.();
+  await deps.setStorefront(body.allowedCountries,rates,current?.usd_thb??null,current?.jpy_thb??null,body.pickupEnabled);
   return jsonResponse({ok:true});
  }),
- shipmentsGet:handle(async()=>jsonResponse({shipments:await deps.shipments()})),
- jobsGet:handle(async()=>jsonResponse({jobs:(await deps.jobs()).map(row=>({id:row.id,topic:row.topic,status:row.status,attempts:row.attempts,createdAt:row.created_at}))})),
+ shipmentsGet:handle(async()=>jsonResponse({shipments:await shipmentReferenceRates(await deps.shipments())})),
+ jobsGet:handle(async()=>jsonResponse({jobs:(await deps.jobs()).map(row=>{
+  const payload=row.payload&&typeof row.payload==='object'?row.payload:{};
+  const rawReference=payload.orderId??payload.bookingId??payload.quoteId??row.reference_id??null;
+  const referenceId=typeof rawReference==='string'&&uuid.test(rawReference)?rawReference:null;
+  const referenceType=payload.orderId?'order':payload.bookingId?'booking':payload.quoteId?'quote':null;
+  return {id:row.id,purpose:row.topic,status:row.status,attempts:row.attempts,lastError:row.last_error??null,referenceId,referenceType,createdAt:row.created_at,lastAttemptAt:row.last_attempt_at??row.first_attempt_at??null};
+ })})),
  ship:handle(async request=>{const body=await readSameOriginJson(request);const keys=Object.keys(body).sort().join(',');if(!['orderId,tracking','orderId,shippingService,tracking'].includes(keys)||typeof body.orderId!=='string'||!uuid.test(body.orderId)||typeof body.tracking!=='string'||!/^[A-Za-z0-9][A-Za-z0-9 -]{2,119}$/.test(body.tracking)||body.shippingService!==undefined&&typeof body.shippingService!=='string')throw new HttpError(400,'invalid_tracking');const orderId=body.orderId,tracking=body.tracking.trim();const record=await deps.shipment(orderId);if(!ready(record)||record.status!=='ready'||record.hold!==false)throw new HttpError(409,'shipment_not_ready');const service=String(body.shippingService??record.shipping_service??record.fulfillment_method);const country=record.address?.country;if(!['ems_local','ems_world','epacket','flash','pickup'].includes(service))throw new HttpError(400,'invalid_shipping_service');if(service==='pickup'){if(record.fulfillment_method!=='pickup'||tracking!=='PICKUP')throw new HttpError(400,'invalid_shipping_service');}else{if(service==='ems_local'&&country!=='TH'||service==='flash'&&country!=='TH'||(service==='ems_world'||service==='epacket')&&country==='TH')throw new HttpError(400,'invalid_shipping_service');}await shipmentMutation(()=>deps.ship(orderId,tracking,service));return jsonResponse({ok:true});}),
 shipmentHold:handle(async(request,actor)=>{const body=await readSameOriginJson(request);if(Object.keys(body).sort().join(',')!=='hold,orderId,reason' || typeof body.orderId!=='string' || !uuid.test(body.orderId) || typeof body.hold!=='boolean' || typeof body.reason!=='string' || !body.reason.trim() || body.reason.trim().length>500)throw new HttpError(400,'invalid_shipment_hold');const reason=body.reason.trim();const record=await deps.shipment(body.orderId);if(!record || record.payment_status!=='paid' || record.status==='shipped' || !['ready','needs_address'].includes(record.status) || typeof record.hold!=='boolean')throw new HttpError(409,'shipment_not_holdable');if(body.hold===record.hold)throw new HttpError(409,'shipment_hold_unchanged');await shipmentMutation(()=>deps.shipmentHold(body.orderId as string,body.hold as boolean,reason,actor));return jsonResponse({ok:true});}),
  label:handle(async request=>{const id=new URL(request.url).searchParams.get('order_id');if(!id || !uuid.test(id))throw new HttpError(400,'invalid_order_id');const record=await deps.shipment(id);if(!record)throw new HttpError(404,'order_not_found');if(!ready(record) || record.hold!==false)throw new HttpError(409,'shipment_not_ready');const html='<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Shipment preparation</title><body><h1>Shipment preparation</h1><p>This document is not purchased postage. Confirm the actual address and carrier service before dispatch.</p><p>Order '+escape(id)+'</p><h2>'+escape(record.recipient.name)+'</h2><p>'+['line1','line2','city','state','postal_code','country'].map(key=>escape(record.address[key])).filter(Boolean).join('<br>')+'</p><ul>'+record.items.map((item:any)=>'<li>'+escape(item.quantity)+' × '+escape(item.name)+'</li>').join('')+'</ul></body></html>';return new Response(html,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'private, no-store','Content-Security-Policy':"default-src 'none'; frame-ancestors 'none'; base-uri 'none'",'X-Content-Type-Options':'nosniff'}});})

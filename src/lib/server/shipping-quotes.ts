@@ -5,6 +5,8 @@ import { requireAdmin } from './admin.ts';
 import { HttpError } from './http.ts';
 import { rpc, select } from './supabase.ts';
 import { checkout } from './payments.ts';
+import { quoteShipping } from './shipping.ts';
+import { convertPostage, loadExchangeRates, type ExchangeRates } from './exchange-rates.ts';
 
 type Dependencies = {
  customer:(request:Request)=>Promise<Customer>;
@@ -14,8 +16,9 @@ type Dependencies = {
  config:()=>Promise<any>;
  pay:typeof checkout;
  now:()=>number;
+ exchangeRates?:()=>Promise<ExchangeRates>;
 };
-const defaults:Dependencies={customer:requireCustomer,admin:requireAdmin,rpc,inventory:()=>select<any>('inventory',{}),config:()=>rpc<any>('storefront_config',{}),pay:checkout,now:Date.now};
+const defaults:Dependencies={customer:requireCustomer,admin:requireAdmin,rpc,inventory:()=>select<any>('inventory',{}),config:()=>rpc<any>('storefront_config',{}),pay:checkout,now:Date.now,exchangeRates:loadExchangeRates};
 
 export function publicShippingQuote(row:any) {
  const keys=['id','requestKey','status','currency','locale','amountSubtotal','shippingAmount','amountTotal','weightGrams','country','items','address','createdAt','expiresAt','orderId','orderStatus','sellerNote','shippingService'];
@@ -35,7 +38,9 @@ export async function customerShippingQuotes(request:Request,deps=defaults){
 }
 export async function requestShippingQuote(request:Request,body:Record<string,unknown>,deps=defaults) {
  const customer=await deps.customer(request);
- if(Object.keys(body).sort().join(',')!=='country,items,locale,requestKey'||!bookingUuid(body.requestKey)||typeof body.country!=='string'||!/^[A-Z]{2}$/.test(body.country))throw new HttpError(400,'invalid_shipping_quote');
+ if(Object.keys(body).some(key=>!['country','items','locale','requestKey','method'].includes(key))||!bookingUuid(body.requestKey)||typeof body.country!=='string'||!/^[A-Z]{2}$/.test(body.country))throw new HttpError(400,'invalid_shipping_quote');
+ const method=body.method??(body.country==='TH'?'ems_local':'epacket');
+ if(!(body.country==='TH'?['ems_local','flash']:['epacket','ems_world']).includes(String(method)))throw new HttpError(400,'invalid_shipping_quote');
  const address=customer.shippingAddress;
  if(!address||['line1','city','postal_code','country'].some(key=>typeof (address as any)[key]!=='string'||!(address as any)[key].trim())||!customer.name?.trim())throw new HttpError(400,'shipping_address_required');
  if(address.country!==body.country)throw new HttpError(400,'shipping_address_country_mismatch');
@@ -43,12 +48,19 @@ export async function requestShippingQuote(request:Request,body:Record<string,un
  if(!config?.allowed_countries?.includes(body.country))throw new HttpError(400,'shipping_destination_unavailable');
  const inventory=await deps.inventory();
  const prices:any=Object.fromEntries(inventory.map(row=>[row.sku,{usd:row.price_usd_minor,jpy:row.price_jpy,thb:row.price_thb_minor}]));
- let cart;
+ let cart:Awaited<ReturnType<typeof quoteCart>>;
  try{cart=await quoteCart({items:body.items,locale:body.locale,prices});}catch{throw new HttpError(400,'invalid_cart');}
  let grams=0;
  for(const line of cart.lines){const weight=inventory.find(row=>row.sku===line.sku)?.weight_grams;if(!Number.isInteger(weight)||weight<=0)throw new HttpError(400,'product_weight_unconfigured');grams+=weight*line.quantity;}
- if(grams<=2000)throw new HttpError(400,'shipping_quote_not_required');
- const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify([cart.fingerprint,body.country,address])));
+ if(grams<=2000){
+  try{await quoteShipping(body.items,'th',body.country,method,{config:async()=>config,inventory:async()=>inventory,exchangeRates:loadExchangeRates},address);}
+  catch(error){if(error instanceof HttpError&&['shipping_rate_unconfigured','shipping_weight_uncovered','shipping_service_unavailable'].includes(error.code)){/* seller quote required */}else throw error;
+   return createRequest();}
+  throw new HttpError(400,'shipping_quote_not_required');
+ }
+ return createRequest();
+ async function createRequest(){
+ const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify([cart.fingerprint,body.country,address,method])));
  const fingerprint=Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');
  const row=await deps.rpc<any>('create_shipping_quote',{
   p_customer_id:customer.id,p_request_key:body.requestKey,p_fingerprint:fingerprint,p_cart_fingerprint:cart.fingerprint,
@@ -57,6 +69,7 @@ export async function requestShippingQuote(request:Request,body:Record<string,un
  });
  if(row?.customerId!==customer.id)throw new HttpError(409,'shipping_quote_conflict');
  return publicShippingQuote(row);
+ }
 }
 export async function adminShippingQuotes(request:Request,deps=defaults){
  await deps.admin(request);
@@ -70,12 +83,10 @@ export async function approveShippingQuote(request:Request,body:Record<string,un
  if(!quote)throw new HttpError(404,'shipping_quote_not_found');
  if(quote.orderId||quote.status==='cancelled'||Date.parse(quote.expiresAt)<=deps.now())throw new HttpError(409,'shipping_quote_not_editable');
  const thbMinor=Math.round(body.shippingThb*100);
- const config=await deps.config();
- let amount=thbMinor;
- if(quote.currency==='usd'){if(!(Number(config.usd_thb)>0))throw new HttpError(503,'shipping_fx_unconfigured');amount=Math.ceil(thbMinor*1.05/Number(config.usd_thb));}
- else if(quote.currency==='jpy'){if(!(Number(config.jpy_thb)>0))throw new HttpError(503,'shipping_fx_unconfigured');amount=Math.ceil(thbMinor/100*1.05/Number(config.jpy_thb));}
- else if(quote.currency!=='thb')throw new HttpError(400,'invalid_shipping_quote');
- const saved=await deps.rpc<any>('admin_approve_shipping_quote',{p_id:quote.id,p_shipping_amount:amount,p_shipping_thb_minor:thbMinor,p_note:body.note.trim(),p_actor:actor});
+ const rates=quote.currency==='thb'?undefined:await(deps.exchangeRates??loadExchangeRates)();
+ const amount=convertPostage(thbMinor,quote.currency,rates);
+ if(quote.country!=='TH'&&thbMinor<50000)throw new HttpError(400,'international_shipping_minimum');
+ const saved=await deps.rpc<any>('admin_approve_shipping_quote_v2',{p_id:quote.id,p_shipping_amount:amount,p_shipping_thb_minor:thbMinor,p_note:body.note.trim(),p_actor:actor,p_reference_thb_rate:quote.currency==='thb'?1:quote.currency==='usd'?rates!.usdThb:rates!.jpyThb,p_reference_fx_date:rates?.date??null});
  return publicShippingQuote(saved);
 }
 export async function checkoutShippingQuote(request:Request,body:Record<string,unknown>,deps=defaults){

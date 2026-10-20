@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { editableShippingSettings, productValues, reconcileProductDrafts, reconcileShippingDraft } from '../src/lib/admin-drafts.ts';
+import { editableShippingSettings, hasValidShippingPricePrecision, productValues, reconcileProductDrafts, reconcileShippingDraft, reconcileShippingRateDrafts } from '../src/lib/admin-drafts.ts';
 
 const row = (sku: string, onHand: number, usdMinor: number, grams: number) => ({
   sku, on_hand: onHand, reserved: 0, price_usd_minor: usdMinor, price_jpy: 2000,
@@ -69,4 +69,41 @@ test('saving a product leaves dirty shipping settings intact and refreshes clean
   assert.deepEqual(savedRefresh.draft.allowed_countries, ['TH']);
   assert.equal(savedRefresh.draft.shipping_rates['TH:ems_local'][0].thb, 55);
   assert.equal(savedRefresh.draft.pickup_enabled, false, 'an edit made after submit survives the save refresh');
+});
+
+test('shipping rate refresh accepts deleted and reordered rows without dropping saved bands', () => {
+  const key = 'JP:epacket';
+  const baseline = { [key]: [
+    { key: `${key}:0`, maxGrams: 20, thb: '35' },
+    { key: `${key}:1`, maxGrams: 100, thb: '50' },
+    { key: `${key}:2`, maxGrams: 200, thb: '65' },
+  ] };
+  const submitted = { [key]: [
+    { key: `${key}:2`, maxGrams: 200, thb: '65' },
+    { key: `${key}:1`, maxGrams: 300, thb: '75' },
+  ] };
+  const refreshed = { [key]: [
+    { key: `${key}:0`, maxGrams: 200, thb: '65' },
+    { key: `${key}:1`, maxGrams: 300, thb: '75' },
+  ] };
+  const result = reconcileShippingRateDrafts(baseline, refreshed, submitted, submitted);
+  assert.deepEqual(result.drafts[key], refreshed[key], 'server row renumbering after delete/reorder is accepted');
+
+  const nextRefresh = reconcileShippingRateDrafts(result.baseline, refreshed, result.drafts);
+  assert.deepEqual(nextRefresh.drafts[key], refreshed[key], 'accepted deletions are not restored on reload');
+});
+
+test('shipping rate save preserves edits made in flight and accepts cent decimals', () => {
+  const key = 'TH:ems_local';
+  const baseline = { [key]: [
+    { key: `${key}:0`, maxGrams: 100, thb: '35' },
+    { key: `${key}:1`, maxGrams: 200, thb: '50' },
+  ] };
+  const submitted = { [key]: [{ key: `${key}:1`, maxGrams: 200, thb: '50' }] };
+  const localAfterSubmit = { [key]: [{ key: `${key}:1`, maxGrams: 300, thb: '19.99' }] };
+  const serverAfterSave = { [key]: [{ key: `${key}:0`, maxGrams: 200, thb: '50' }] };
+  const result = reconcileShippingRateDrafts(baseline, serverAfterSave, localAfterSubmit, submitted);
+  assert.deepEqual(result.drafts[key], localAfterSubmit[key], 'post-submit edits remain available to save');
+  assert.equal(hasValidShippingPricePrecision(19.99), true);
+  assert.equal(hasValidShippingPricePrecision(19.999), false);
 });

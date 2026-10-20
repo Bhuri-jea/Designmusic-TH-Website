@@ -33,7 +33,7 @@ export function reconcileProductDrafts(
     const values = {} as ProductDraft;
     for (const field of ['onHand', 'usd', 'jpy', 'thb', 'weightKg'] as const) {
       const unchangedSinceLoad = !old || local[field] === undefined || equal(local[field], old[field]);
-      const unchangedSinceSubmit = submitted?.sku === row.sku && equal(local[field], submitted[field]);
+      const unchangedSinceSubmit = submitted !== undefined && submitted.sku === row.sku && equal(local[field], submitted[field]);
       values[field] = unchangedSinceLoad || unchangedSinceSubmit ? server[field] : local[field];
     }
     baseline[row.sku] = server;
@@ -44,7 +44,7 @@ export function reconcileProductDrafts(
 
 export type ShippingDraft = {
   allowed_countries: string[];
-  shipping_rates: Record<string, { maxGrams: number; thb: number }[]>;
+  shipping_rates: Record<string, { maxGrams: number; thb: number|null }[]>;
   usd_thb: number | null;
   jpy_thb: number | null;
   pickup_enabled: boolean;
@@ -54,7 +54,7 @@ export function editableShippingSettings(value: any): ShippingDraft {
   return {
     allowed_countries: [...(value.allowed_countries ?? [])],
     shipping_rates: Object.fromEntries(Object.entries(value.shipping_rates ?? {}).map(([key, bands]: any) =>
-      [key, bands.map((band: any) => ({ maxGrams: band.maxGrams, thb: band.thbMinor === undefined ? band.thb : band.thbMinor / 100 }))])),
+      [key, bands.map((band: any) => ({ maxGrams: band.maxGrams, thb: band.thbMinor === null ? null : band.thbMinor === undefined ? band.thb : band.thbMinor / 100 }))])),
     usd_thb: value.usd_thb ?? null,
     jpy_thb: value.jpy_thb ?? null,
     pickup_enabled: value.pickup_enabled ?? true,
@@ -69,10 +69,39 @@ export function reconcileShippingDraft(
 ) {
   const server = editableShippingSettings(serverValue);
   const next = {} as ShippingDraft;
-  for (const field of ['allowed_countries', 'shipping_rates', 'usd_thb', 'jpy_thb', 'pickup_enabled'] as const) {
+  function mergeField<K extends keyof ShippingDraft>(field:K) {
     const unchangedSinceLoad = oldBaseline === null || equal(local[field], oldBaseline[field]);
     const unchangedSinceSubmit = submitted !== undefined && equal(local[field], submitted[field]);
     next[field] = unchangedSinceLoad || unchangedSinceSubmit ? server[field] : local[field];
   }
+  for (const field of ['allowed_countries', 'shipping_rates', 'usd_thb', 'jpy_thb', 'pickup_enabled'] as const) mergeField(field);
   return { baseline: server, draft: next };
+}
+
+export type ShippingRateRowDraft = { key: string; maxGrams: number; thb: string };
+
+export function reconcileShippingRateDrafts(
+  oldBaseline: Record<string, ShippingRateRowDraft[]> | null,
+  serverRows: Record<string, ShippingRateRowDraft[]>,
+  localDrafts: Record<string, ShippingRateRowDraft[]>,
+  submitted?: Record<string, ShippingRateRowDraft[]>,
+) {
+  const baseline = Object.fromEntries(Object.entries(serverRows).map(([key, rows]) => [key, rows.map(row => ({ ...row }))]));
+  const drafts: Record<string, ShippingRateRowDraft[]> = {};
+  const keys = new Set([...Object.keys(oldBaseline ?? {}), ...Object.keys(serverRows), ...Object.keys(localDrafts)]);
+  for (const key of keys) {
+    const hasLocal = Object.hasOwn(localDrafts, key);
+    const local = localDrafts[key] ?? [];
+    const previous = oldBaseline?.[key] ?? [];
+    const wasUnchanged = oldBaseline === null || !hasLocal || equal(local, previous);
+    const matchesSubmitted = submitted !== undefined && equal(local, submitted[key] ?? []);
+    const server = serverRows[key] ?? [];
+    drafts[key] = (wasUnchanged || matchesSubmitted ? server : local).map(row => ({ ...row }));
+  }
+  return { baseline, drafts };
+}
+
+export function hasValidShippingPricePrecision(amount: number): boolean {
+  const scaled = amount * 100;
+  return Number.isFinite(amount) && Math.abs(scaled - Math.round(scaled)) <= 0.000001;
 }

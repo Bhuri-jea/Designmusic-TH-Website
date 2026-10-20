@@ -1,4 +1,4 @@
-import { bookingCalendarSlots, bookingSlots, bookingUuid, validateBooking, BOOKING_TIME_ZONE, DEFAULT_WEEKLY_BOOKING_HOURS, type BookingSlot, type BookingSlotStatus, type WeeklyBookingHours, type DailyBookingHours } from '../booking.ts';
+import { bookingCalendarSlots, bookingDateWindow, bookingSlots, bookingUuid, validateBooking, BOOKING_TIME_ZONE, DEFAULT_WEEKLY_BOOKING_HOURS, type BookingSlot, type BookingSlotStatus, type WeeklyBookingHours, type DailyBookingHours } from '../booking.ts';
 import { requireCustomer, type Customer } from './customer.ts';
 import { rpc, select, SupabaseRequestError } from './supabase.ts';
 import { HttpError } from './http.ts';
@@ -46,39 +46,50 @@ export async function createBooking(request: Request, body: Record<string, unkno
 export async function ownedBookings(request: Request, id?: string, deps = bookingDependencies) {
   const customer = await deps.customer(request);
   if (id !== undefined && !bookingUuid(id)) throw new HttpError(400, 'invalid_booking_id');
-  const rows = await deps.select<BookingRow>('bookings', { customer_id: `eq.${customer.id}`, ...(id ? { id: `eq.${id.toLowerCase()}` } : { order: 'start_at.desc', limit: '100' }) });
+  const rows = await deps.select<BookingRow>('bookings', { customer_id: `eq.${customer.id}`, archived_at: 'is.null', ...(id ? { id: `eq.${id.toLowerCase()}` } : { order: 'created_at.desc', limit: '100' }) });
   if (id && !rows.length) throw new HttpError(404, 'booking_not_found');
   return rows.map(row => {
     if (row.customer_id !== customer.id) throw new HttpError(404, 'booking_not_found');
     return publicBooking({ id: row.id, customerId: row.customer_id, requestKey: '', fingerprint: '', startAt: row.start_at, endAt: row.end_at, instrument: row.instrument, service: row.service, notes: row.notes, locale: row.locale, status: row.status, createdAt: row.created_at });
   });
 }
-export async function bookingAvailability(deps = bookingDependencies) {
+export async function bookingAvailability(deps = bookingDependencies, options: { googleFailure?: 'throw' | 'unavailable'; includePast?: boolean } = {}) {
   const weeklyHours = deps.weeklyHours ? await deps.weeklyHours() : DEFAULT_WEEKLY_BOOKING_HOURS;
   const dailyHours=deps.dailyHours?await deps.dailyHours():{};
-  const options = bookingCalendarSlots(deps.now(), weeklyHours,31,dailyHours);
-  const startAt = new Date(deps.now()).toISOString();
-  const endAt = new Date(deps.now() + 32 * 86400000).toISOString();
+  const calendarOptions = bookingCalendarSlots(deps.now(), weeklyHours, dailyHours);
+  const window = bookingDateWindow(deps.now());
+  const startAt = options.includePast ? new Date(Date.parse(`${window.from}T00:00:00Z`)-7*3600000).toISOString() : new Date(deps.now()).toISOString();
+  const endAt = new Date(Date.parse(`${window.to}T00:00:00Z`) - 7 * 3600000 + 86400000).toISOString();
   const taken = await deps.select<{ start_at: string; end_at: string }>('bookings', {
     select: 'start_at,end_at', status: 'eq.confirmed', start_at: `lt.${endAt}`,
     end_at: `gt.${startAt}`, limit: '1000',
   });
-  const withBooking = options.map(slot => taken.some(row => Date.parse(row.start_at) < Date.parse(slot.endAt) && Date.parse(row.end_at) > Date.parse(slot.startAt))
+  const withBooking = calendarOptions.map(slot => taken.some(row => Date.parse(row.start_at) < Date.parse(slot.endAt) && Date.parse(row.end_at) > Date.parse(slot.startAt))
     ? { ...slot, status: 'booked' as BookingSlotStatus } : slot);
-  const candidates = withBooking.filter(slot => slot.status === 'available');
-  const calendarChecks = withBooking.filter(slot => slot.status === 'available' || slot.status === 'contact_directly');
-  const calendarAvailable = deps.calendarAvailability ? await deps.calendarAvailability(calendarChecks) : null;
-  const availableStarts = new Set(calendarAvailable?.map(slot => slot.startAt));
-  const calendarSlots = withBooking.map(slot => (slot.status === 'available' || slot.status === 'contact_directly') && calendarAvailable !== null && !availableStarts.has(slot.startAt)
-    ? { ...slot, status: 'unavailable' as BookingSlotStatus } : slot);
-  for (const booking of taken) if (!calendarSlots.some(slot => slot.startAt === booking.start_at)) {
-    calendarSlots.push({ startAt: booking.start_at, endAt: booking.end_at, status: 'booked' });
+  const candidates = withBooking.filter(slot => slot.status === 'available' && Date.parse(slot.startAt) > deps.now());
+  const calendarChecks = withBooking.filter(slot => Date.parse(slot.startAt) > deps.now() && (slot.status === 'available' || slot.status === 'contact_directly'));
+  let calendarAvailable: BookingSlot[] | null;
+  let calendarFailed = false;
+  try { calendarAvailable = deps.calendarAvailability ? await deps.calendarAvailability(calendarChecks) : null; }
+  catch (error) {
+    if (options.googleFailure !== 'unavailable') throw error;
+    calendarAvailable = [];
+    calendarFailed = true;
   }
-  calendarSlots.sort((a,b)=>Date.parse(a.startAt)-Date.parse(b.startAt));
+  const availableStarts = new Set(calendarAvailable?.map(slot => slot.startAt));
+  const fullCalendarSlots = withBooking.map(slot => (slot.status === 'available' || slot.status === 'contact_directly') && calendarAvailable !== null && Date.parse(slot.startAt) > deps.now() && !availableStarts.has(slot.startAt)
+    ? { ...slot, status: 'unavailable' as BookingSlotStatus } : slot);
+  for (const booking of taken) if (!fullCalendarSlots.some(slot => slot.startAt === booking.start_at)) {
+    fullCalendarSlots.push({ startAt: booking.start_at, endAt: booking.end_at, status: 'booked' });
+  }
+  fullCalendarSlots.sort((a,b)=>Date.parse(a.startAt)-Date.parse(b.startAt));
+  const calendarSlots = options.includePast ? fullCalendarSlots : fullCalendarSlots.filter(slot => Date.parse(slot.startAt) > deps.now());
   const bookable = calendarAvailable === null ? candidates : candidates.filter(slot => availableStarts.has(slot.startAt));
   return {
     timeZone: BOOKING_TIME_ZONE,
-    source: calendarAvailable === null ? 'database' : 'google-calendar',
+    ...window,
+    source: calendarFailed ? 'unavailable' : calendarAvailable === null ? 'database' : 'google-calendar',
+    availabilityError: calendarFailed ? 'google_calendar_unavailable' : null,
     slots: bookable,
     calendarSlots,
   };
@@ -99,7 +110,7 @@ export async function rescheduleBooking(request: Request, id: string, body: Reco
     !bookingUuid(body.changeKey) || typeof body.slot !== 'string') throw new HttpError(400, 'invalid_booking');
   const weeklyHours = deps.weeklyHours ? await deps.weeklyHours() : DEFAULT_WEEKLY_BOOKING_HOURS;
   const dailyHours=deps.dailyHours?await deps.dailyHours():{};
-  const slot = bookingSlots(deps.now(), weeklyHours,31,dailyHours).find(candidate => candidate.startAt === body.slot);
+  const slot = bookingSlots(deps.now(), weeklyHours, dailyHours).find(candidate => candidate.startAt === body.slot);
   if (!slot) throw new HttpError(400, 'invalid_booking');
   const booking = (await ownedBookings(request, id, deps))[0];
   if (booking.status !== 'confirmed' || Date.parse(booking.startAt) <= deps.now()) throw new HttpError(409, 'booking_not_modifiable');

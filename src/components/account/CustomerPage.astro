@@ -1,10 +1,10 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import ProfilePanel from './ProfilePanel.svelte';import OrderPanel from './OrderPanel.svelte';
+import ProfilePanel from './ProfilePanel.svelte';import OrderPanel from './OrderPanel.svelte';import BookingManagementPanel from './BookingManagementPanel.svelte';import OrderHistoryPanel from './OrderHistoryPanel.svelte';
 import {ui} from '../../i18n/ui';import {getCurrentLang} from '../../utils/navigation';
-interface Props {mode:'profile'|'success'|'cart-cancelled'}
+interface Props {mode:'profile'|'bookings'|'orders'|'success'|'cart-cancelled'}
 const {mode}=Astro.props;const lang=getCurrentLang(Astro.url);Astro.response.headers.set('Cache-Control','private, no-store');
 ---
-<Layout title={ui[lang][mode==='profile'?'flow.account':'flow.payment']} lang={lang}>
-{mode==='profile'?<ProfilePanel lang={lang} client:load/>:<OrderPanel lang={lang} cancelled={mode==='cart-cancelled'} orderId={Astro.url.searchParams.get('order_id')} client:load/>}
+<Layout title={ui[lang][mode==='profile'?'flow.account':mode==='bookings'?'flow.bookings':mode==='orders'?'flow.orders':'flow.payment']} lang={lang}>
+{mode==='profile'?<ProfilePanel lang={lang} client:load/>:mode==='bookings'?<BookingManagementPanel lang={lang} client:load/>:mode==='orders'?<OrderHistoryPanel lang={lang} client:load/>:<OrderPanel lang={lang} cancelled={mode==='cart-cancelled'} orderId={Astro.url.searchParams.get('order_id')} client:load/>}
 </Layout>

@@ -13,6 +13,7 @@ node_modules.install-partial/
 node_modules.partial-20261015/
 .superpowers/
 .runtime/
+.playwright-cli/
 docs/
 
 # logs
@@ -26,7 +27,7 @@ pnpm-debug.log*
 .env
 .env.production
 .env.*
-!.env.example
+.env.example
 
 # macOS-specific files
 .DS_Store
