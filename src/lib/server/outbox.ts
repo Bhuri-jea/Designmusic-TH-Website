@@ -124,7 +124,7 @@ export async function filterGoogleCalendarAvailability(slots: CalendarSlot[], en
 async function sendEmail(job: Job, deps: OutboxDependencies, timeoutMs: number) {
  if(job.topic.startsWith('order_refund_')&&typeof job.payload.refundId==='string'){
   const latest=await bounded(()=>deps.rpc<any>('order_record',{p_id:job.payload.orderId}),timeoutMs);
-  if(job.payload.refundStatus==='pending'&&latest?.refundStatus!=='pending')return;
+  if(['pending','requires_action'].includes(String(job.payload.refundStatus))&&latest?.refundStatus!=='pending')return;
   if(['failed','canceled'].includes(String(job.payload.refundStatus))&&latest?.refundStatus==='succeeded')return;
  }
  if(job.topic==='shipping_quote_buyer'){

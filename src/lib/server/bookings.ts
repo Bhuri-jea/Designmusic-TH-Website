@@ -46,7 +46,7 @@ export async function createBooking(request: Request, body: Record<string, unkno
 export async function ownedBookings(request: Request, id?: string, deps = bookingDependencies) {
   const customer = await deps.customer(request);
   if (id !== undefined && !bookingUuid(id)) throw new HttpError(400, 'invalid_booking_id');
-  const rows = await deps.select<BookingRow>('bookings', { customer_id: `eq.${customer.id}`, archived_at: 'is.null', ...(id ? { id: `eq.${id.toLowerCase()}` } : { order: 'created_at.desc', limit: '100' }) });
+  const rows = await deps.select<BookingRow>('bookings', { customer_id: `eq.${customer.id}`, archived_at: 'is.null', ...(id ? { id: `eq.${id.toLowerCase()}` } : { order: 'created_at.desc', limit: '1000' }) });
   if (id && !rows.length) throw new HttpError(404, 'booking_not_found');
   return rows.map(row => {
     if (row.customer_id !== customer.id) throw new HttpError(404, 'booking_not_found');

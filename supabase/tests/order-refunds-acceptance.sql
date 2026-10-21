@@ -32,8 +32,13 @@ begin
   raise exception 'foreign SKU restock accepted';
  exception when invalid_parameter_value then null;end;
  op:=public.begin_order_cancellation(oid,'Buyer contacted shop','{"endplug-plain":2}','test-admin');operation:=(op->>'id')::uuid;
+ if exists(select 1 from public.outbox where topic='order_refund_buyer' and payload->>'orderId'=oid::text) then raise exception 'request emitted an unverified cancellation notice';end if;
+ if public.admin_shipping_record(oid)->>'customerEmail'<>'refund@example.test' then raise exception 'seller shipment contact missing';end if;
+ if not exists(select 1 from jsonb_array_elements(public.admin_cancellation_queue()) row where row->>'id'=oid::text and row->>'customerEmail'='refund@example.test') then raise exception 'seller cancellation contact missing';end if;
  perform public.prepare_order_refund(oid,5000,5000,0);
  perform public.record_order_refund(refund_id,oid,pi,5000,'thb','pending',now(),operation);
+ if (select count(*) from public.outbox where topic='order_refund_buyer' and payload->>'refundId'=refund_id and payload->>'refundStatus'='pending' and payload->>'recipient'='refund@example.test')<>1 then raise exception 'pending refund buyer notice missing';end if;
+ if exists(select 1 from public.outbox where topic='order_refund_buyer' and payload->>'refundId'=refund_id and payload->>'refundStatus'='succeeded') then raise exception 'pending refund claimed completed';end if;
  if (select on_hand from public.inventory where sku='endplug-plain')<>198 then raise exception 'pending refund restocked goods';end if;
  begin
   perform public.admin_mark_shipped(oid,'PICKUP','pickup');raise exception 'cancelled shipment dispatched';
@@ -59,6 +64,8 @@ begin
  perform public.begin_order_cancellation(unpaid_id,'Unpaid cancellation','{}','test-admin');
  perform public.apply_stripe_event('expire:'||unpaid_id,'checkout.session.expired',unpaid_id,'cs_refund_test_'||replace(unpaid_id::text,'-',''),'thb',5000,'unpaid',null,now());
  perform public.finish_unpaid_cancellation(unpaid_id);
+ perform public.finish_unpaid_cancellation(unpaid_id);
+ if (select count(*) from public.outbox where dedupe_key like 'cancel:'||unpaid_id||':%')<>2 then raise exception 'unpaid cancellation notices not idempotent';end if;
  if (select on_hand from public.inventory where sku='endplug-plain')<>200 or (select reserved from public.inventory where sku='endplug-plain')<>0 then raise exception 'unpaid cancellation did not only release its hold';end if;
 
  failed_id:=pg_temp.refund_paid_order(buyer);select on_hand into before_stock from public.inventory where sku='endplug-plain';
@@ -77,6 +84,7 @@ begin
  if exists(select 1 from public.order_cancellations where order_id=external_id) then raise exception 'external refund invented restock decision';end if;
  if has_function_privilege('authenticated','public.record_order_refund(text,uuid,text,bigint,text,text,timestamptz,uuid)','execute') then raise exception 'customer can mark own refund';end if;
  if has_function_privilege('anon','public.begin_order_cancellation(uuid,text,jsonb,text)','execute') then raise exception 'anonymous cancellation RPC exposed';end if;
+ if has_function_privilege('authenticated','public.admin_cancellation_queue()','execute') or has_function_privilege('anon','public.admin_shipping_record(uuid)','execute') then raise exception 'seller email projection exposed';end if;
  if not has_function_privilege('service_role','public.record_order_refund(text,uuid,text,bigint,text,text,timestamptz,uuid)','execute') then raise exception 'refund worker permission missing';end if;
  raise notice 'PASS: paid cancellation, pending/failed/succeeded refunds, idempotent stock and email, shipment protection, external refund, restricted grants';
 end; $$;

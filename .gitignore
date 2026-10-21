@@ -6,6 +6,8 @@ dist/
 .agents/
 .vscode/
 mockups/
+/docs/agents/
+/docs/
 
 # dependencies
 node_modules/
@@ -14,7 +16,7 @@ node_modules.partial-20261015/
 .superpowers/
 .runtime/
 .playwright-cli/
-docs/
+
 
 # logs
 npm-debug.log*

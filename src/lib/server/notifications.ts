@@ -65,7 +65,9 @@ export function notification(topic: string, payload: Record<string, unknown>, en
   const state=String(payload.refundStatus)==='requires_action'?'pending':String(payload.refundStatus);
   if(!['pending','succeeded','failed','canceled','cancelled'].includes(state)||typeof payload.orderId!=='string')throw Error('invalid_notification_payload');
   const link=safeOrigin(env)+(seller?(locale==='th'?'/th/admin':'/admin'):(locale==='en'?'':`/${locale}`)+'/profile/orders');
-  return {from,to,subject:words.title,html:'<!doctype html><html lang="'+locale+'"><body><h1>'+escape(words.title)+'</h1><p>'+escape(words.order)+': '+escape(payload.orderId)+'</p><p>'+escape(words[state as keyof typeof words])+'</p><p>'+escape(words.amount)+': '+escape(minorCurrency(payload.amount,payload.currency,locale))+'</p><p>'+escape(words.reason)+': '+escape(payload.reason)+'</p><p><a href="'+escape(link)+'">'+escape(words.link)+'</a></p></body></html>'};
+  const contactLabel={en:'Contact Design Music',th:'ติดต่อ Design Music',ja:'Design Music へのお問い合わせ','zh-CN':'联系 Design Music'}[locale];
+  const contacts='<hr><p>'+escape(contactLabel)+'</p><p><a href="tel:+66850915959">0850915959</a></p><p><a href="https://www.facebook.com/DesignmusicInstrumentmusicAccessories">Facebook</a> · <a href="https://www.instagram.com/designmusic_instrument/">Instagram</a></p><p><a href="mailto:designmusicthailand@gmail.com">designmusicthailand@gmail.com</a></p>';
+  return {from,to,subject:words.title,html:'<!doctype html><html lang="'+locale+'"><body><h1>'+escape(words.title)+'</h1><p>'+escape(words.order)+': '+escape(payload.orderId)+'</p><p>'+escape(words[state as keyof typeof words])+'</p><p>'+escape(words.amount)+': '+escape(minorCurrency(payload.amount,payload.currency,locale))+'</p><p>'+escape(words.reason)+': '+escape(payload.reason)+'</p><p><a href="'+escape(link)+'">'+escape(words.link)+'</a></p>'+contacts+'</body></html>'};
  }
  if (!booking && topic !== 'order_paid_buyer' && topic !== 'order_paid_seller' && !shippingQuoteBuyer && !shippingQuoteSeller && !shipped) throw Error('invalid_notification_topic');
  const shipping = shippingCopy[locale];

@@ -7,6 +7,19 @@ const config: Record<string, string> = { EMAIL_FROM: 'sender@example.test', SELL
 const env = (name: string) => config[name];
 const buyer = { quoteId: id, customer: { name: 'A Customer', email: 'buyer@example.test' }, currency: 'thb', amountTotal: 12500, shippingAmount: 2500, expiresAt: '2026-10-22T00:00:00Z' };
 const locales = ['en', 'ja', 'zh-CN', 'th'];
+
+test('buyer cancellation notices include usable shop contacts and distinguish pending from completed refunds', () => {
+ for (const locale of locales) {
+  const mail = notification('order_refund_buyer', { orderId: id, recipient: 'buyer@example.test', locale, currency: 'usd', amount: 1000, refundStatus: 'pending', reason: 'Stock shortage' }, env);
+  for (const contact of ['0850915959', 'https://www.facebook.com/DesignmusicInstrumentmusicAccessories', 'https://www.instagram.com/designmusic_instrument/', 'mailto:designmusicthailand@gmail.com']) assert.ok(mail.html.includes(contact), contact);
+ }
+ const payload = { orderId: id, recipient: 'buyer@example.test', currency: 'usd', amount: 1000 };
+ for (const refundStatus of ['pending', 'requires_action', 'failed', 'canceled']) {
+  assert.doesNotMatch(notification('order_refund_buyer', { ...payload, refundStatus }, env).html, /Refund completed\./);
+ }
+ assert.match(notification('order_refund_buyer', { ...payload, refundStatus: 'succeeded' }, env).html, /Refund completed\./);
+ assert.match(notification('order_refund_buyer', { ...payload, amount: 0, refundStatus: 'cancelled' }, env).html, /cancelled before payment/);
+});
 test('refund notices describe verified states, escape reasons, and link to owned orders in every locale',()=>{
  for(const locale of locales){
   const payload={orderId:id,recipient:'buyer@example.test',locale,currency:'usd',amount:1500,refundStatus:'pending',reason:'<script>unsafe</script>'};

@@ -23,7 +23,7 @@
   let isMenuOpen=$state(false),isLangOpen=$state(false);
   let menuDialog=$state<HTMLDialogElement>(),cartDialog=$state<HTMLDialogElement>(),languageTrigger=$state<HTMLButtonElement>(),cartTrigger=$state<HTMLButtonElement>(),menuTrigger=$state<HTMLButtonElement>();
   let checkoutStatus=$state('');
-  let quoteRequestState=$state(''),isRequestingQuote=$state(false);
+  let quoteRequestState=$state(''),isRequestingQuote=$state(false),acceptedQuoteId=$state('');
   type DeliveryService='ems_local'|'ems_world'|'epacket'|'flash'|'pickup';
   type ShippingAddress={line1:string;line2:string;city:string;state:string;postal_code:string;country:string};
   const emptyAddress=():ShippingAddress=>({line1:'',line2:'',city:'',state:'',postal_code:'',country:''});
@@ -111,7 +111,7 @@
 
   async function requestShippingQuote(){
     if(isRequestingQuote)return;
-    isRequestingQuote=true;quoteRequestState='';
+    isRequestingQuote=true;quoteRequestState='';acceptedQuoteId='';
     try{
       if(profileLoginRequired){quoteRequestState='login';return;}
       if(addressRequiredForCountry()){quoteRequestState=profileCustomer?.shippingAddress?.country&&profileCustomer.shippingAddress.country!==shippingCountry?'address_mismatch':'address_required';return;}
@@ -123,7 +123,8 @@
         quoteRequestState=data?.error==='shipping_address_required'?'address_required':data?.error==='shipping_address_country_mismatch'?'address_mismatch':['insufficient_stock','stock_unavailable','database_conflict'].includes(data?.error)?'stock':'error';
         return;
       }
-      quoteRequestState=data?.quote?'sent':'error';
+      const accepted=data?.quote&&typeof data.quote.id==='string'&&/^[0-9a-f-]{36}$/i.test(data.quote.id)&&data.quote.requestKey===request.requestKey&&['requested','quoted'].includes(data.quote.status);
+      if(accepted){cart.consumeSubmission(request.requestKey);acceptedQuoteId=data.quote.id;quoteRequestState='sent';}else quoteRequestState='error';
     }catch{quoteRequestState='error';}
     finally{isRequestingQuote=false;}
   }
@@ -255,6 +256,7 @@
     </div>
 
     <div class="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
+      {#if acceptedQuoteId}<div role="status" class="rounded-xl border border-emerald-300/40 bg-emerald-950/40 p-4 text-emerald-100"><p>{t('cart.shippingQuoteSent')}</p><a class="mt-2 inline-flex min-h-11 items-center underline" href={getPath('/profile/orders')}>{t('flow.orders')}</a></div>{/if}
       {#if cart.items.length === 0}
         <div class="flex flex-col items-center justify-center h-full text-neutral-500 gap-4">
           <ShoppingCart class="h-16 w-16 opacity-50" />

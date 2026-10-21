@@ -19,6 +19,14 @@ function fixture(){
  return {deps,calls,get row(){return row;},set row(value:any){row=value;}};
 }
 const body={requestKey:id,locale:'en',items:[{productId:'saxophone-end-plug',variant:'plain',quantity:2}],country:'TH'};
+test('buyer quote projection carries linked payment/refund states without seller-only customer fields',()=>{
+ const result=publicShippingQuote({id,orderStatus:'paid',linkedOrderCancellationStatus:'cancelled',linkedOrderRefundStatus:'succeeded',linkedOrderRefundedAmount:1500,customerEmail:'private@example.test'});
+ assert.equal(result.orderStatus,'paid');
+ assert.equal(result.linkedOrderCancellationStatus,'cancelled');
+ assert.equal(result.linkedOrderRefundStatus,'succeeded');
+ assert.equal(result.linkedOrderRefundedAmount,1500);
+ assert.equal('customerEmail' in result,false);
+});
 
 test('oversize request snapshots server-priced items and saved address without reserving stock',async()=>{
  const f=fixture();await requestShippingQuote(new Request('https://shop.test'),body,f.deps);

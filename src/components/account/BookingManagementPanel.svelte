@@ -5,6 +5,7 @@
  import { localizedPath } from '../../utils/navigation';
  import type { Locale } from '../../lib/catalog';
  import AccountNav from './AccountNav.svelte';
+ import { sortBookingsUpcomingFirst } from '../../lib/booking';
 
  type Booking = { id: string; startAt: string; endAt: string; createdAt?: string; instrument: string; service: string; status: string };
  type Slot = { startAt: string; endAt: string };
@@ -14,7 +15,7 @@
  let status = $state(''), bookingError = $state(false), availabilityError = $state(false);
  const t = (key: string) => ui[lang][key as keyof typeof ui.en] || ui.en[key as keyof typeof ui.en];
  const at = (value: string) => new Intl.DateTimeFormat(lang, { timeZone: 'Asia/Bangkok', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
- const visibleBookings = $derived((bookings ?? []).slice().sort((a, b) => Date.parse(b.createdAt ?? b.startAt) - Date.parse(a.createdAt ?? a.startAt)).slice(0, visibleCount));
+ const visibleBookings = $derived(sortBookingsUpcomingFirst(bookings ?? []).slice(0, visibleCount));
  const manageable = (booking: Booking) => booking.status === 'confirmed' && Date.parse(booking.startAt) > Date.now();
  async function loadBookings() {
   bookingError = false;

@@ -6,6 +6,15 @@ export type BookingSlot = { startAt: string; endAt: string };
 export type BookingSlotStatus = 'available' | 'booked' | 'contact_directly' | 'unavailable';
 export type WeeklyBookingHours = Record<string, Record<string, 'available' | 'contact_directly'>>;
 export type DailyBookingHours = Record<string, Record<string, 'available' | 'contact_directly'>>;
+export type BookingListItem = { status: string; startAt: string };
+export function sortBookingsUpcomingFirst<T extends BookingListItem>(bookings: readonly T[], now = Date.now()): T[] {
+  return [...bookings].sort((a, b) => {
+    const aUpcoming = a.status === 'confirmed' && Date.parse(a.startAt) > now;
+    const bUpcoming = b.status === 'confirmed' && Date.parse(b.startAt) > now;
+    if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
+    return aUpcoming ? Date.parse(a.startAt) - Date.parse(b.startAt) : Date.parse(b.startAt) - Date.parse(a.startAt);
+  });
+}
 export function bookingDayHours(start: string, end: string): Record<string, 'available'> {
   if (!/^(0[8-9]|1[0-9]):(00|30)$/.test(start) || !/^(?:(0[8-9]|1[0-9]):(00|30)|20:00)$/.test(end) || start >= end) throw Error('invalid_booking_hours');
   const hours: Record<string, 'available'> = {};
