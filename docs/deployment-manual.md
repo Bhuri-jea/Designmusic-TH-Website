@@ -1,5 +1,7 @@
 # DesignMusic installation and deployment manual
 
+**21 October operations update:** Follow [the new release guide](operations-release-2026-10-21.md) for forward migrations 202610210004–202610210010, refund webhook subscriptions, seller cancellation/refunds, and the monthly dashboard. Install those migrations before deploying the new code. Older manual-refund-only statements are superseded after installation.
+
 Prepared 14 October 2026. Follow these steps in order. Account configuration and deployment are performed by you; this document does not mean the live services have been tested.
 
 For the current code-versus-production status and release gates, see [launch readiness](launch-readiness-status.md). As checked on 15 October, the Vercel project has `designmusic-th.com` and `designmusic-th-website-*.vercel.app` aliases; `designmusic-th.vercel.app` is **not** listed. Choose the final origin before copying any callback, webhook or scheduler URL below.
@@ -201,4 +203,8 @@ Charges use independently set USD/JPY/THB prices. THB settlement, fees and conve
 Open /booking for reservations, /profile for your signed customer records and /admin for authorized seller tools once integrated. Supabase Table Editor is the operational database; Google Calendar/Sheet are private booking views. Use Stripe Dashboard for payments and accounting exports. Existing docs/owner-setup-guide.md and docs/examples/read-only-reporting-queries.sql explain customer/sales reports; automatic full customer Sheet sync and a complete accounting ledger are not implemented.
 
 If deployment fails, keep the previous working Vercel deployment available and inspect build/runtime logs. Redeploy the previous code if needed; reverting code does not undo database migrations. Disable the scheduler while investigating ambiguous external deliveries. Do not delete live data to repair setup.
+
+# Operations release update — 21 October 2026
+
+For the calendar, quote, pagination, cancellation/refund and monthly dashboard update, follow [the operations release guide](operations-release-2026-10-21.md). Apply forward migrations 202610210004 through 202610210010 in its listed order before deploying; add the documented refund events to the existing Stripe webhook. Older manual-refund-only instructions below are superseded by that guide after the new release is installed.
 

@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import WorkshopLocation from '../ui/WorkshopLocation.svelte';
 import { ui, defaultLang } from '../../i18n/ui';
 
 interface Props {
@@ -21,7 +22,7 @@ function getPath(path: string) {
 <Layout title={t('nav.about')} lang={lang}>
   <div class="max-w-7xl mx-auto px-6 py-32 relative z-10">
     <div class="text-center mb-24" data-aos="fade-up">
-      <span class="font-serif tracking-[0.2em] text-xs uppercase text-neutral-500 mb-4 block">{t('about.subtitle')}</span>
+      <span class="font-serif tracking-[0.15em] !text-[17.5px] uppercase text-neutral-500 mb-4 block">{t('about.subtitle')}</span>
       <h1 class="font-serif text-5xl md:text-6xl font-light mb-6 tracking-tight text-glow" set:html={t('about.title')}></h1>
       <p class="text-xl font-light text-neutral-400 max-w-2xl mx-auto leading-relaxed">
         {t('about.desc1')}
@@ -73,5 +74,6 @@ function getPath(path: string) {
         <a href={getPath('/repair-services')} class="btn btn-secondary">{t('about.btn.repair')}</a>
       </div>
     </div>
+    <div class="mt-20"><WorkshopLocation lang={lang}/></div>
   </div>
 </Layout>

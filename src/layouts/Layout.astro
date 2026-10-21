@@ -1,5 +1,7 @@
 ---
 import '../styles/global.css';
+import '../styles/editorial.css';
+import '../styles/heading-layout.css';
 
 import Navbar from '../components/Navbar.svelte';
 import Footer from '../components/Footer.svelte';
@@ -9,12 +11,15 @@ interface Props {
   title: string;
   lang?: 'en' | 'ja' | 'zh-CN' | 'th';
   currentPath?: string;
+  surface?: string;
 }
 
 const { pathname } = Astro.url;
 const segments = pathname.split('/').filter(Boolean);
 const detected = ['ja', 'zh-CN', 'th'].includes(segments[0]) ? segments[0] : 'en';
 const { title, lang = detected as Props['lang'], currentPath = pathname + Astro.url.search } = Astro.props;
+const route='/' + segments.filter((segment,index)=>!(index===0&&['ja','zh-CN','th'].includes(segment))).join('/');
+const surface=Astro.props.surface??(route==='/'?'home':route==='/product'?'catalog':route==='/about'?'about':route.startsWith('/admin')?'admin':route.startsWith('/profile')||['/login','/signup','/success','/cancel'].includes(route)?'account':'default');
 const session = await getOptionalSession(Astro.request);
 const navbarSession = session ? { user: { name: session.user?.name ?? null, image: session.user?.image ?? null } } : null;
 ---
@@ -29,9 +34,9 @@ const navbarSession = session ? { user: { name: session.user?.name ?? null, imag
     <meta name="generator" content={Astro.generator} />
     <title>{title} | Design Music</title>
   </head>
-  <body class="min-h-screen flex flex-col text-white antialiased selection:bg-white/20">
+  <body data-design-surface={surface} data-design-route={route} class="min-h-screen flex flex-col text-white antialiased selection:bg-white/20">
     <Navbar lang={lang} currentPath={currentPath} session={navbarSession} client:load />
-    <main class="flex-grow relative z-10 pt-20"><slot /></main>
+    <main id="main-content" class="flex-grow relative z-10 pt-20"><slot /></main>
     <Footer lang={lang} />
   </body>
 </html>

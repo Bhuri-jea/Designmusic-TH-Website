@@ -1,6 +1,6 @@
 import { type CartInput, type Locale } from '../lib/catalog.ts';
 import { displayPriceFor } from './catalog-pricing.svelte.ts';
-import { CART_STORAGE_KEY, emptyCart, restoreCart, addCartItem, removeCartItem, cartItems, submitCart, mergeCartSubmission, bindOrder, reconcilePaid } from '../lib/cart-storage.ts';
+import { CART_STORAGE_KEY, emptyCart, restoreCart, addCartItem, removeCartItem, setCartQuantity, cartItems, submitCart, mergeCartSubmission, bindOrder, reconcilePaid } from '../lib/cart-storage.ts';
 class Cart {
  state=$state(emptyCart());
  locale=$state<Locale>('en');
@@ -14,6 +14,7 @@ class Cart {
  get total(){return this.items.reduce((sum,item)=>sum+item.price*item.quantity,0);}
  add(item:CartInput){this.state=addCartItem($state.snapshot(this.state),item);this.persist();}
  remove(item:CartInput){this.state=removeCartItem($state.snapshot(this.state),item);this.persist();}
+ setQuantity(item:CartInput,quantity:number){this.state=setCartQuantity($state.snapshot(this.state),item,quantity);this.persist();}
  async submit(locale:Locale){const submission=await submitCart($state.snapshot(this.state),locale);this.state=mergeCartSubmission($state.snapshot(this.state),submission.state,submission.request.requestKey);this.persist();if(!this.storageAvailable)throw Error('storage_unavailable');return submission.request;}
  bind(key:string,id:string){this.state=bindOrder($state.snapshot(this.state),key,id);this.persist();if(!this.storageAvailable)throw Error('storage_unavailable');}
  reconcile(order:unknown){this.state=reconcilePaid($state.snapshot(this.state),order);this.persist();}

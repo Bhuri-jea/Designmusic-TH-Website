@@ -1,7 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyCart, restoreCart, addCartItem, submitCart, bindOrder, reconcilePaid, cartItems } from '../src/lib/cart-storage.ts';
+import { emptyCart, restoreCart, addCartItem, setCartQuantity, submitCart, bindOrder, reconcilePaid, cartItems } from '../src/lib/cart-storage.ts';
 const plug = {productId:'saxophone-end-plug',variant:'plain',quantity:1};
+test('quantity edits preserve submitted snapshots and later additions during paid reconciliation',async()=>{
+ let state=addCartItem(emptyCart(),plug);const submitted=await submitCart(state,'en');
+ state=bindOrder(submitted.state,submitted.request.requestKey,'22222222-2222-4222-8222-222222222222');
+ state=setCartQuantity(state,plug,3);
+ assert.equal(cartItems(state)[0].quantity,3);
+ state=setCartQuantity(state,plug,2);
+ assert.equal(cartItems(state)[0].quantity,2);
+ state=reconcilePaid(state,{id:'22222222-2222-4222-8222-222222222222',status:'paid',currency:'usd',amountTotal:1500,items:submitted.state.attempts[0].quote.lines});
+ assert.equal(cartItems(state)[0].quantity,1);
+ assert.equal(restoreCart(JSON.stringify(state)).items.length,1);
+ assert.throws(()=>setCartQuantity(state,plug,11),/quantity_limit/);
+ assert.throws(()=>setCartQuantity(state,plug,1.5),/quantity_limit/);
+ assert.deepEqual(cartItems(setCartQuantity(state,plug,0)),[]);
+});
+test('quantity controls accept a rendered cart item without persisting display-only fields',()=>{
+ const state=addCartItem(emptyCart(),plug);
+ const rendered={...plug,name:'End Plug',price:15};
+ const updated=setCartQuantity(state,rendered,2);
+ assert.equal(cartItems(updated)[0].quantity,2);
+ assert.equal('price' in updated.items[1],false);
+ assert.equal(restoreCart(JSON.stringify(updated)).items.length,2);
+});
 test('outstanding snapshots remain restorable at the largest admitted cart shape',async()=>{
  let state=emptyCart();for(const variant of ['plain','twoColor','custom'])for(let i=0;i<9;i++)state=addCartItem(state,{...plug,variant});
  for(const toneHoles of ['standard','large'])for(const mouthpiece of ['balance','traditional','modern'])for(let i=0;i<9;i++)state=addCartItem(state,{productId:'shakuhachi',options:{toneHoles,mouthpiece},quantity:1});

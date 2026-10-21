@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {requestShippingQuote,approveShippingQuote,checkoutShippingQuote,publicShippingQuote} from '../src/lib/server/shipping-quotes.ts';
+import {requestShippingQuote,approveShippingQuote,checkoutShippingQuote,publicShippingQuote,declineShippingQuote} from '../src/lib/server/shipping-quotes.ts';
 
 const id='22222222-2222-4222-8222-222222222222';
 const address={line1:'1 Test Street',line2:'',city:'Bangkok',state:'',postal_code:'10120',country:'TH'};
@@ -12,7 +12,7 @@ function fixture(){
   admin:async()=> 'seller-subject',now:()=>Date.parse('2026-10-20T00:00:00Z'),
   config:async()=>({allowed_countries:['TH','JP'],usd_thb:35,jpy_thb:0.25,shipping_rates:{'TH:ems_local':[{maxGrams:2000,thbMinor:10000}]}}),
   exchangeRates:async()=>({usdThb:35,jpyThb:.25,date:'2026-10-20',source:'Frankfurter' as const}),
-  inventory:async()=>[{sku:'endplug-plain',weight_grams:1500,price_usd_minor:1500,price_jpy:2500,price_thb_minor:20000}],
+  inventory:async()=>[{sku:'endplug-plain',on_hand:10,reserved:0,weight_grams:1500,price_usd_minor:1500,price_jpy:2500,price_thb_minor:20000}],
   rpc:async(name:string,args:any)=>{calls.push({name,args});return row;},
   pay:async(_request:Request,body:any)=>{calls.push({name:'checkout',args:body});return {orderId:id,url:'https://checkout.stripe.com/c/test'};},
  };
@@ -29,7 +29,7 @@ test('oversize request snapshots server-priced items and saved address without r
 });
 test('quote requests require matching address and either oversize weight or an unavailable rate',async()=>{
  const f=fixture();await assert.rejects(requestShippingQuote(new Request('https://shop.test'),{...body,country:'JP'},f.deps),/shipping_address_country_mismatch/);
- f.deps.inventory=async()=>[{sku:'endplug-plain',weight_grams:100}];
+ f.deps.inventory=async()=>[{sku:'endplug-plain',on_hand:10,reserved:0,weight_grams:100}];
  await assert.rejects(requestShippingQuote(new Request('https://shop.test'),body,f.deps),/shipping_quote_not_required/);
  assert.equal(f.calls.length,0);
  f.deps.config=async()=>({allowed_countries:['TH','JP'],shipping_rates:{'TH:ems_local':[{maxGrams:200,thbMinor:null},{maxGrams:300,thbMinor:7000}]}});
@@ -60,4 +60,23 @@ test('quote checkout rejects foreign, unapproved and expired requests before sta
 test('customer quote responses omit internal identity, fingerprint and approval metadata',()=>{
  const row=publicShippingQuote({id,customerId:'secret',cartFingerprint:'secret',approvedBy:'secret',version:3});
  assert.equal('customerId' in row,false);assert.equal('cartFingerprint' in row,false);assert.equal('approvedBy' in row,false);
+});
+
+test('quote requests reject insufficient available inventory before storing a request',async()=>{
+ const f=fixture();f.deps.inventory=async()=>[{sku:'endplug-plain',on_hand:3,reserved:2,weight_grams:1500}];
+ await assert.rejects(requestShippingQuote(new Request('https://shop.test'),body,f.deps),/stock_unavailable/);
+ assert.equal(f.calls.length,0);
+});
+test('seller decline requires a reason and cannot decline payment-started quotes',async()=>{
+ const f=fixture(),request=new Request('https://shop.test');
+ await assert.rejects(declineShippingQuote(request,{quoteId:id,reason:' '},f.deps),/invalid_shipping_quote/);
+ await declineShippingQuote(request,{quoteId:id,reason:' Cannot deliver '},f.deps);
+ assert.deepEqual(f.calls.at(-1),{name:'admin_decline_shipping_quote',args:{p_id:id,p_reason:'Cannot deliver',p_actor:'seller-subject'}});
+ f.row={...f.row,orderId:id};
+ await assert.rejects(declineShippingQuote(request,{quoteId:id,reason:'Cannot deliver'},f.deps),/shipping_quote_not_editable/);
+});
+test('quote checkout can retry its existing pending order after a provider failure',async()=>{
+ const f=fixture();f.row={...f.row,status:'quoted',shippingService:'ems_local',orderId:id,orderStatus:'pending'};
+ await checkoutShippingQuote(new Request('https://shop.test'),{quoteId:id},f.deps);
+ assert.equal(f.calls.at(-1).name,'checkout');
 });

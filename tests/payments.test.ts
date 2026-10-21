@@ -2,7 +2,7 @@ import { quoteCart } from '../src/lib/catalog.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import Stripe from 'stripe';
-import { checkout, paymentConfig, processWebhook, ownedOrders, applySessionEvent, type PaymentDependencies } from '../src/lib/server/payments.ts';
+import { checkout, paymentConfig, processWebhook, ownedOrders, ownedOrdersPage, applySessionEvent, type PaymentDependencies } from '../src/lib/server/payments.ts';
 import { reconcilePayments } from '../src/lib/server/reconciliation.ts';
 import { HttpError } from '../src/lib/server/http.ts';
 import { SupabaseRequestError } from '../src/lib/server/supabase.ts';
@@ -102,6 +102,12 @@ function signed(session: Record<string, unknown>, overrides = {}) {
         })
     };
 }
+test('a cancellation request blocks reopening or creating another Checkout session for that order',async()=>{
+ const f=fixture();const request=new Request('https://shop.example.test/api/checkout');
+ await checkout(request,body,f.deps);f.order!.cancellationStatus='requested';
+ await assert.rejects(checkout(request,body,f.deps),error=>(error as any).code==='checkout_not_active');
+ assert.equal(f.creates.length,1);
+});
 function session(order: OrderRecord) {
     return {
         object: 'checkout.session', id: 'cs_1', client_reference_id: order.id, mode: 'payment', status: 'complete', livemode: false, payment_status: 'paid', metadata: {
@@ -126,8 +132,6 @@ test('auth and private configuration fail before stock reservation', async () =>
             STRIPE_SECRET_KEY: ''
         }, {
             STRIPE_SECRET_KEY: 'sk_live_dummy'
-        }, {
-            SHIPPING_ALLOWED_COUNTRIES: 'QQ'
         }, {
             APP_ORIGIN: 'https://shop.example.test/path'
         }];
@@ -293,7 +297,7 @@ test('paid order summary exposes only validated payment method details and froze
  f.deps.stripe=()=>({...original,retrieve:async()=>{throw Error('provider_unavailable');}});
  assert.equal((await ownedOrders(new Request('https://shop.example.test'),key,f.deps))[0].paymentSummary,null);
 });
-test('reconciliation releases only retrieved expiration and never confirms retrieved payment', async () => {
+test('reconciliation recovers verified complete payments and only releases retrieved expiry', async () => {
     const f = fixture();
     await checkout(new Request('https://shop.example.test'), body, f.deps);
     f.deps.select = async <T>() => [{
@@ -309,7 +313,8 @@ test('reconciliation releases only retrieved expiration and never confirms retri
         });
         await reconcilePayments(f.deps);
     }
-    assert.equal(f.calls.filter(c => c.name === 'apply_stripe_event').length, 0);
+    assert.equal(f.calls.filter(c => c.name === 'apply_stripe_event').length, 1);
+    assert.equal(f.calls.find(c=>c.name==='apply_stripe_event')!.args.p_event_id,'reconcile:paid:cs_1');
     f.deps.stripe = () => ({
         create: async () => {
             throw Error('unused');
@@ -318,12 +323,12 @@ test('reconciliation releases only retrieved expiration and never confirms retri
         } as unknown as Stripe.Checkout.Session)
     });
     await reconcilePayments(f.deps);
-    assert.equal(f.calls.at(-1)!.args.p_event_type, 'checkout.session.expired');
+    assert.equal(f.calls.filter(c=>c.name==='apply_stripe_event').at(-1)!.args.p_event_type, 'checkout.session.expired');
     f.order = {
         ...f.order!, checkoutSessionId: null
     };
     await reconcilePayments(f.deps);
-    assert.equal(f.calls.filter(c => c.name === 'apply_stripe_event').length, 1);
+    assert.equal(f.calls.filter(c => c.name === 'apply_stripe_event').length, 2);
 });
 test('signed failure and expiration dispatch exact event IDs; unrelated events are no-ops', async () => {
     const f = fixture();
@@ -539,4 +544,55 @@ test('approved oversize quote freezes product prices, shipping fee and delivery 
  const delivered=f.calls.find(c=>c.name==='apply_stripe_event')!;
  assert.deepEqual(delivered.args.p_shipping,{recipient:{name:'Quoted Buyer'},address});
  await assert.rejects(checkout(new Request('https://shop.example.test'),{...body,quoteId:key,shippingMethod:'ems_world'},f.deps),/shipping_quote_not_ready/);
+});
+
+test('checkout uses storefront destinations when legacy country environment is absent',async()=>{
+ const f=fixture();f.deps.env=n=>n==='SHIPPING_ALLOWED_COUNTRIES'?undefined:values[n];
+ await checkout(new Request('https://shop.example.test'),body,f.deps);
+ assert.equal(f.creates.length,1);
+});
+test('reconciliation flags expired orders without sessions for manual review without release',async()=>{
+ const f=fixture();await checkout(new Request('https://shop.example.test'),body,f.deps);
+ f.order={...f.order!,checkoutSessionId:null,expiresAt:new Date(Date.now()-60000).toISOString()};
+ f.deps.select=async<T>()=>[{id:key}] as T[];
+ const result=await reconcilePayments(f.deps);
+ assert.equal(result.review,1);
+ assert.ok(f.calls.some(c=>c.name==='flag_checkout_review'));
+ assert.equal(f.calls.filter(c=>c.name==='apply_stripe_event').length,0);
+});
+
+test('customer order history pages are bounded and never expose another customer',async()=>{
+ const f=fixture();await checkout(new Request('https://shop.example.test'),body,f.deps);
+ const base=f.deps.rpc;f.deps.rpc=async<T>(name:string,args:Record<string,unknown>)=>name==='customer_orders_page'?{orders:[f.order],total:62} as T:base<T>(name,args);
+ const page=await ownedOrdersPage(new Request('https://shop.example.test'),2,50,f.deps);
+ assert.deepEqual(page.pagination,{page:2,pageSize:50,total:62,totalPages:2});
+ assert.equal('checkoutParameters' in page.orders[0],false);
+ await assert.rejects(ownedOrdersPage(new Request('https://shop.example.test'),0,50,f.deps),/invalid_order_page/);
+ await assert.rejects(ownedOrdersPage(new Request('https://shop.example.test'),1,100,f.deps),/invalid_order_page/);
+ f.order={...f.order!,customerId:'other'};
+ await assert.rejects(ownedOrdersPage(new Request('https://shop.example.test'),1,5,f.deps),/service_unavailable/);
+});
+
+test('paid reconciliation rejects provider mode, customer and amount mismatches',async()=>{
+ for(const patch of [{livemode:true},{amount_total:1},{metadata:{order_id:key,customer_id:'foreign'}}]){
+  const f=fixture();await checkout(new Request('https://shop.example.test'),body,f.deps);
+  f.deps.select=async<T>(_table:string,filters:Record<string,string>)=>filters.checkout_session_id==='is.null'?[] as T[]:[{id:key}] as T[];
+  f.deps.stripe=()=>({create:async()=>{throw Error('unused');},retrieve:async()=>({...session(f.order!),status:'complete',...patch}) as any});
+  const result=await reconcilePayments(f.deps);
+  assert.equal(result.paid,0);assert.equal(result.errors,1);
+  assert.equal(f.calls.filter(c=>c.name==='apply_stripe_event').length,0);
+ }
+});
+
+test('paid recovery preserves charge time for accounting and labels missing charge time estimated',async()=>{
+ for(const hasCharge of [true,false]){
+  const f=fixture();await checkout(new Request('https://shop.example.test'),body,f.deps);
+  f.deps.select=async<T>(_table:string,filters:Record<string,string>)=>filters.checkout_session_id==='is.null'?[] as T[]:[{id:key}] as T[];
+  const created=Date.parse('2026-09-30T16:59:59Z')/1000;
+  f.deps.stripe=()=>({create:async()=>{throw Error('unused');},retrieve:async()=>({...session(f.order!),status:'complete',...(hasCharge?{payment_intent:{id:'pi_verified',latest_charge:{paid:true,status:'succeeded',currency:'usd',amount:3000,created}}}:{})}) as any});
+  const result=await reconcilePayments(f.deps);assert.equal(result.paid,1);
+  const time=f.calls.find(c=>c.name==='record_order_payment_time')!;
+  assert.equal(time.args.p_estimated,!hasCharge);
+  if(hasCharge){assert.equal(time.args.p_paid_at,'2026-09-30T16:59:59.000Z');assert.ok(f.calls.some(c=>c.name==='link_order_payment'));}
+ }
 });

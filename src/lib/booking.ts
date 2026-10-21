@@ -6,6 +6,13 @@ export type BookingSlot = { startAt: string; endAt: string };
 export type BookingSlotStatus = 'available' | 'booked' | 'contact_directly' | 'unavailable';
 export type WeeklyBookingHours = Record<string, Record<string, 'available' | 'contact_directly'>>;
 export type DailyBookingHours = Record<string, Record<string, 'available' | 'contact_directly'>>;
+export function bookingDayHours(start: string, end: string): Record<string, 'available'> {
+  if (!/^(0[8-9]|1[0-9]):(00|30)$/.test(start) || !/^(?:(0[8-9]|1[0-9]):(00|30)|20:00)$/.test(end) || start >= end) throw Error('invalid_booking_hours');
+  const hours: Record<string, 'available'> = {};
+  const minutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
+  for (let m = minutes(start); m < minutes(end); m += 30) hours[`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`] = 'available';
+  return hours;
+}
 function bangkokDate(now: number) {
   const local = new Date(now + 7 * 3600000);
   return new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()));

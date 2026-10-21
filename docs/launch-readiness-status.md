@@ -89,3 +89,6 @@ Checked 15 October 2026 against the local source and the connected Vercel projec
 An owner order dashboard covering **all** order states, a screen for changing booking opening hours/holidays, automatic full-customer Sheet sync, automated accounting imports and additional payment methods are separate enhancements. Supabase Table Editor, Google Calendar, Stripe Dashboard and the existing `/admin` page cover the stated day-one operations once the release gates above pass.
 
 Use [the installation manual](deployment-manual.md) for exact setup steps and [the owner guide](owner-setup-guide.md) for daily database, calendar, stock and finance access.
+# Current operations checkpoint — 21 October 2026
+
+The locally implemented cancellation/refund, calendar, checkout recovery and monthly reporting release is documented in [operations-release-2026-10-21.md](operations-release-2026-10-21.md). Historical checkpoints below are not evidence of current production schema, webhook configuration, backup settings or live-mode readiness. Apply only the new forward migrations in the release guide, then deploy and perform the external test-mode acceptance checks.

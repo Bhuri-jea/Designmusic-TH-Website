@@ -39,7 +39,7 @@ export async function reconcilePayments(deps: PaymentDependencies = paymentDepen
     const elapsedNow = options.elapsedNow ?? (() => performance.now());
     const deadline = elapsedNow() + budgetMs;
     const remaining = () => Math.max(0, Math.floor(deadline - elapsedNow()));
-    const result = { checked: 0, expired: 0, errors: 0, deferred: 0 };
+    const result = { checked: 0, expired: 0, paid: 0, review: 0, errors: 0, deferred: 0 };
     let rows: { id: string }[];
     try {
         rows = await boundedAwait(() => deps.select<{ id: string }>('orders', {
@@ -52,6 +52,7 @@ export async function reconcilePayments(deps: PaymentDependencies = paymentDepen
         result.errors++;
         return result;
     }
+    let budgetExpired=false;
     const batch = rows.slice(0, maxBatch);
     for (let index = 0; index < batch.length; index++) {
         if (!remaining()) {
@@ -75,24 +76,45 @@ export async function reconcilePayments(deps: PaymentDependencies = paymentDepen
             }), timeout, timeout >= budgetRemaining ? 'budget' : 'provider');
             sessionMatches(session, order, config.live);
             result.checked++;
-            if (session.status !== 'expired' || session.payment_status === 'paid') continue;
+            const paid = session.status === 'complete' && session.payment_status === 'paid';
+            const expired = session.status === 'expired' && session.payment_status === 'unpaid';
+            if (!paid && !expired) continue;
             if (!remaining()) {
                 result.deferred += batch.length - index;
                 break;
             }
+            const intent=session.payment_intent;
+            const charge=typeof intent==='object'&&intent?intent.latest_charge:null;
+            const paidAt=typeof charge==='object'&&charge&&charge.paid&&charge.status==='succeeded'&&charge.currency===order.currency&&charge.amount===order.amountTotal&&Number.isSafeInteger(charge.created)&&charge.created>0?charge.created:null;
             await boundedAwait(() => applySessionEvent(
-                order, session, `reconcile:expired:${session.id}`, 'checkout.session.expired',
-                Math.floor(deps.now() / 1000), deps,
+                order, session, `reconcile:${paid?'paid':'expired'}:${session.id}`, paid?'checkout.session.completed':'checkout.session.expired',
+                paid&&paidAt!==null?paidAt:Math.floor(deps.now() / 1000), deps,
             ), remaining());
-            result.expired++;
+            if(paid){
+                await boundedAwait(()=>deps.rpc('record_order_payment_time',{p_order_id:order.id,p_paid_at:new Date((paidAt??Math.floor(deps.now()/1000))*1000).toISOString(),p_estimated:paidAt===null}),remaining());
+                result.paid++;
+            }else result.expired++;
         } catch (error) {
             // A timed-out read never authorizes release or fulfillment.
             result.errors++;
             if (error instanceof ReconciliationTimeout && error.limit === 'budget') {
+                budgetExpired=true;
                 result.deferred += batch.length - index - 1;
                 break;
             }
         }
+    }
+    if (remaining() && !budgetExpired) {
+        try {
+            const uncertain = await boundedAwait(()=>deps.select<{id:string}>('orders',{status:'in.(pending,failed)',checkout_session_id:'is.null',expires_at:'lt.'+new Date(deps.now()).toISOString(),order:'expires_at.asc',limit:String(maxBatch)}),remaining());
+            for(const row of uncertain.slice(0,maxBatch)){
+                if(!remaining()){result.deferred++;break;}
+                const order=await boundedAwait(()=>deps.rpc<OrderRecord>('order_record',{p_id:row.id}),remaining());
+                if(order?.checkoutSessionId||!['pending','failed'].includes(order?.status)||Date.parse(order.expiresAt)>deps.now())continue;
+                await boundedAwait(()=>deps.rpc('flag_checkout_review',{p_order_id:order.id}),remaining());
+                result.review++;
+            }
+        }catch{result.errors++;}
     }
     return result;
 }

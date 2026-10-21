@@ -59,6 +59,14 @@ export function notification(topic: string, payload: Record<string, unknown>, en
  const shippingQuoteBuyer = topic === 'shipping_quote_buyer';
  const shippingQuoteSeller = topic === 'shipping_quote_request_seller';
  const shipped = topic === 'order_shipped_buyer';
+ const refundNotice = topic === 'order_refund_buyer' || topic === 'order_refund_seller';
+ if(refundNotice){
+  const words={en:{title:'Order cancellation / refund update',order:'Order',reason:'Reason',amount:'Refund amount',pending:'Refund requested; confirmation is pending.',succeeded:'Refund completed.',failed:'Refund needs attention. The shipment remains on hold.',canceled:'Refund cancelled; contact the shop.',cancelled:'Order cancelled before payment.',link:'View orders'},th:{title:'แจ้งการยกเลิกคำสั่งซื้อ / คืนเงิน',order:'คำสั่งซื้อ',reason:'เหตุผล',amount:'ยอดคืนเงิน',pending:'ส่งคำขอคืนเงินแล้ว อยู่ระหว่างรอยืนยัน',succeeded:'คืนเงินสำเร็จแล้ว',failed:'การคืนเงินต้องได้รับการตรวจสอบ ยังระงับการจัดส่งอยู่',canceled:'ยกเลิกการคืนเงินแล้ว โปรดติดต่อร้าน',cancelled:'ยกเลิกคำสั่งซื้อก่อนชำระเงินแล้ว',link:'ดูคำสั่งซื้อ'},ja:{title:'注文キャンセル・返金のお知らせ',order:'注文',reason:'理由',amount:'返金額',pending:'返金を申請しました。確認待ちです。',succeeded:'返金が完了しました。',failed:'返金の確認が必要です。発送は保留中です。',canceled:'返金がキャンセルされました。店舗へお問い合わせください。',cancelled:'支払い前に注文がキャンセルされました。',link:'注文を確認'},'zh-CN':{title:'订单取消／退款更新',order:'订单',reason:'原因',amount:'退款金额',pending:'已申请退款，等待确认。',succeeded:'退款已完成。',failed:'退款需要处理，发货仍暂停。',canceled:'退款已取消，请联系商店。',cancelled:'订单已在付款前取消。',link:'查看订单'}}[locale];
+  const state=String(payload.refundStatus)==='requires_action'?'pending':String(payload.refundStatus);
+  if(!['pending','succeeded','failed','canceled','cancelled'].includes(state)||typeof payload.orderId!=='string')throw Error('invalid_notification_payload');
+  const link=safeOrigin(env)+(seller?(locale==='th'?'/th/admin':'/admin'):(locale==='en'?'':`/${locale}`)+'/profile/orders');
+  return {from,to,subject:words.title,html:'<!doctype html><html lang="'+locale+'"><body><h1>'+escape(words.title)+'</h1><p>'+escape(words.order)+': '+escape(payload.orderId)+'</p><p>'+escape(words[state as keyof typeof words])+'</p><p>'+escape(words.amount)+': '+escape(minorCurrency(payload.amount,payload.currency,locale))+'</p><p>'+escape(words.reason)+': '+escape(payload.reason)+'</p><p><a href="'+escape(link)+'">'+escape(words.link)+'</a></p></body></html>'};
+ }
  if (!booking && topic !== 'order_paid_buyer' && topic !== 'order_paid_seller' && !shippingQuoteBuyer && !shippingQuoteSeller && !shipped) throw Error('invalid_notification_topic');
  const shipping = shippingCopy[locale];
  if (shippingQuoteBuyer || shippingQuoteSeller || shipped) {
@@ -69,7 +77,7 @@ export function notification(topic: string, payload: Record<string, unknown>, en
    if (!Number.isFinite(expires.getTime())) throw Error('invalid_notification_payload');
    const expiry = new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Bangkok' }).format(expires);
    const origin = safeOrigin(env);
-   const path = locale === 'en' ? '/profile' : `/${locale}/profile`;
+   const path = locale === 'en' ? '/profile/orders' : `/${locale}/profile/orders`;
    const link = `${origin}${path}#shipping-quotes-title`;
    subject = shipping.quoteBuyer;
    const customer = payload.customer as { name?: unknown } | undefined;
@@ -114,5 +122,6 @@ export function notification(topic: string, payload: Record<string, unknown>, en
   const total = new Intl.NumberFormat(locale, { style: 'currency', currency: currency.toUpperCase() }).format(amount / (currency === 'jpy' ? 1 : 100));
   content = '<p>' + escape(payload.orderId) + '</p><ul>' + items.map(item => '<li>' + escape(item.name) + ' × ' + escape(item.quantity) + '</li>').join('') + '</ul><p>' + escape(c.total) + ': ' + escape(total) + '</p>';
  }
+ if (!booking && !seller) { const link = safeOrigin(env) + (locale==='en'?'':`/${locale}`) + '/profile/orders'; const label={en:'View your orders',ja:'注文を確認','zh-CN':'查看订单',th:'ดูคำสั่งซื้อของคุณ'}[locale]; content += '<p><a href="' + escape(link) + '">' + escape(label) + '</a></p>'; }
  return { from, to, subject, html: '<!doctype html><html lang="' + locale + '"><body><h1>' + escape(subject) + '</h1>' + content + '</body></html>' };
 }

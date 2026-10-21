@@ -31,3 +31,15 @@ export const PATCH:APIRoute=async({request})=>{
   return jsonResponse({ok:true});
  }catch(error){return errorResponse(calendarSetupError(error));}
 };
+export const POST:APIRoute=async({request})=>{
+ try{
+  await requireAdmin(request);
+  const body=await readSameOriginJson(request,1024);
+  if(Object.keys(body).join(',')!=='weekStart'||typeof body.weekStart!=='string'||!/^\d{4}-\d\d-\d\d$/.test(body.weekStart))throw new HttpError(400,'invalid_booking_date');
+  const date=new Date(`${body.weekStart}T12:00:00Z`),window=bookingDateWindow();
+  const end=new Date(date);end.setUTCDate(end.getUTCDate()+6);
+  if(!Number.isFinite(date.valueOf())||date.toISOString().slice(0,10)!==body.weekStart||date.getUTCDay()!==1||body.weekStart>window.to||end.toISOString().slice(0,10)<window.from)throw new HttpError(400,'invalid_booking_date');
+  await rpc('admin_apply_booking_week',{p_week_start:body.weekStart});
+  return jsonResponse({ok:true});
+ }catch(error){return errorResponse(calendarSetupError(error));}
+};

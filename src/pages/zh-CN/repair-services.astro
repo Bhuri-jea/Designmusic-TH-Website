@@ -1,20 +1,26 @@
 ---
+import '../../styles/repair-editorial.css';
 import Layout from '../../layouts/Layout.astro';
 import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
 ---
 
-<Layout title="维修服务">
-  <div class="max-w-6xl mx-auto px-4 py-20 relative z-10 pl-1">
-    <div class="text-center mb-16" data-aos="fade-up">
+<Layout title="维修服务" surface="repair">
+  <div class="repair-editorial">
+    <section class="repair-hero">
+      <img src="/images/soprano%20sax.jpg" alt="" class="repair-hero-image" fetchpriority="high" />
+    <div class="repair-hero-content">
       <h1 class="font-serif text-5xl md:text-6xl font-light mb-6 tracking-tight">维修 <span class="italic text-neutral-400">&amp; 服务</span></h1>
       <p class="text-xl font-light text-neutral-400 max-w-3xl mx-auto leading-relaxed">
         凭借在台湾接受的集中维修培训和超过 10 年的实际经验，我们致力于改善每把乐器的音色、响应和特性。
       </p>
+      <a href="/zh-CN/booking" class="repair-hero-cta">预约</a>
     </div>
-    <RepairAvailability lang="zh-CN" client:load />
+    </section>
+    <div class="repair-content">
+    <div class="repair-calendar" id="repair-availability"><RepairAvailability lang="zh-CN" client:load /></div>
 
     <!-- Alert / Notice -->
-    <div class="alert shadow-lg max-w-2xl mx-auto mb-16" data-aos="fade-up" data-aos-delay="100">
+    <div class="alert shadow-lg max-w-2xl mx-auto mb-16">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-white shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
       <div>
         <h3 class="font-medium tracking-widest uppercase text-sm text-white mb-2">请注意：</h3>
@@ -26,14 +32,12 @@ import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
       </div>
     </div>
 
-    <!-- Image -->
-    <div class="mb-24 flex justify-center bg-neutral-950 border border-white/10" data-aos="fade-up" data-aos-delay="200">
-      <img src="/images/repair1.jpg" alt="维修技师在工作台维修乐器" class="w-full h-auto object-contain" />
-    </div>
 
+
+    <div class="repair-workshop"><img src="/images/repair1.jpg" alt="维修技师在工作台维修乐器" class="repair-workshop-image" loading="lazy" /></div>
     <!-- Saxophone Section -->
     <div class="mb-32">
-      <div class="mb-12 text-center" data-aos="fade-up">
+      <div class="mb-12 text-center">
         <h2 class="font-serif text-4xl font-light mb-4">萨克斯</h2>
         <p class="text-lg font-light text-neutral-400">我们使用优质虫胶和正品皮佐尼垫。</p>
         <p class="text-lg font-light text-neutral-400">高音、中音、次中音、低音萨克斯都欢迎。</p>
@@ -42,7 +46,7 @@ import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
         <!-- Basic -->
-        <div class="card hover:border-white/40 transition-colors" data-aos="fade-up" data-aos-delay="100">
+        <div class="card hover:border-white/40 transition-colors">
           <div class="card-body">
             <h3 class="card-title text-2xl">基础</h3>
             <div class="text-white font-medium text-3xl my-4">起价 1,000 THB</div>
@@ -57,7 +61,7 @@ import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
         </div>
 
         <!-- Standard -->
-        <div class="card bg-white text-black" data-aos="fade-up" data-aos-delay="200">
+        <div class="card bg-white text-black">
           <div class="card-body relative">
             <div class="self-end bg-black text-white px-3 py-1 rounded-full text-xs font-medium tracking-widest uppercase border border-white/20">热门</div>
             <h3 class="card-title text-2xl text-black">标准</h3>
@@ -76,7 +80,7 @@ import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
         </div>
 
         <!-- Overhaul -->
-        <div class="card hover:border-white/40 transition-colors" data-aos="fade-up" data-aos-delay="300">
+        <div class="card hover:border-white/40 transition-colors">
           <div class="card-body">
             <h3 class="card-title text-2xl">大修</h3>
             <div class="text-white font-medium text-3xl my-4">起价 5,000 THB</div>
@@ -99,14 +103,14 @@ import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
 
     <!-- Bassoon Section -->
     <div>
-      <div class="mb-12 text-center" data-aos="fade-up">
+      <div class="mb-12 text-center">
         <h2 class="font-serif text-4xl font-light mb-4">大管</h2>
         <p class="text-lg font-light text-neutral-400">我们使用优质虫胶和正品皮佐尼垫。</p>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
         <!-- Standard -->
-        <div class="card hover:border-white/40 transition-colors" data-aos="fade-up" data-aos-delay="100">
+        <div class="card hover:border-white/40 transition-colors">
           <div class="card-body">
             <h3 class="card-title text-2xl">标准</h3>
             <div class="text-white font-medium text-3xl my-4">起价 3,500 THB</div>
@@ -124,7 +128,7 @@ import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
         </div>
 
         <!-- Overhaul -->
-        <div class="card hover:border-white/40 transition-colors" data-aos="fade-up" data-aos-delay="200">
+        <div class="card hover:border-white/40 transition-colors">
           <div class="card-body">
             <h3 class="card-title text-2xl">大修</h3>
             <div class="text-white font-medium text-3xl my-4">起价 5,000 THB</div>
@@ -143,6 +147,7 @@ import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
           </div>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </Layout>

@@ -14,7 +14,7 @@
   let fx = $state<{ usdThb: number; jpyThb: number; date: string; source: string } | null>(null);
   let fxFailed = $state(false), saving = $state(false), status = $state(''), bandNo = 0;
   let domesticService = $state('ems_local'), intlCountry = $state('JP'), intlService = $state('epacket');
-  let domesticWeight = $state(0.1), domesticPrice = $state(''), intlWeight = $state(0.1), intlPrice = $state('');
+  let domesticWeight = $state(''), domesticPrice = $state(''), intlWeight = $state(''), intlPrice = $state('');
 
   const countryName = (code: string) => new Intl.DisplayNames([lang === 'th' ? 'th' : 'en'], { type: 'region' }).of(code) ?? code;
   const domesticServices = ['ems_local', 'flash'];
@@ -42,7 +42,7 @@
     const serverRates: Record<string, BandDraft[]> = {};
     for (const [key, bands] of Object.entries(data.settings?.shipping_rates ?? {}) as [string, any[]][]) {
       serverRates[key] = bands.map((band, index) => {
-        const stableKey = `${key}:${index}`;
+        const stableKey = rates[key]?.find(row => row.maxGrams === band.maxGrams)?.key ?? `${key}:server-${++bandNo}`;
         const serverPrice = band.thb === null || band.thbMinor === null ? '' : String(band.thbMinor === undefined ? band.thb : band.thbMinor / 100);
         return { key: stableKey, maxGrams: band.maxGrams, thb: serverPrice };
       });
@@ -60,19 +60,25 @@
     return true;
   }
   onMount(() => { void load(); });
-  function addBand(key: string, maxKg: number, price: string) {
-    const maxGrams = Math.round(Number(maxKg) * 1000);
+  function addBand(key: string, maxKg: number | string, price: string) {
+    const nextGrams = Math.max(0, ...(rates[key] ?? []).map(row => row.maxGrams)) + 100;
+    const maxGrams = String(maxKg).trim() ? Math.round(Number(maxKg) * 1000) : nextGrams;
     if (!key || !Number.isInteger(maxGrams) || maxGrams < 100 || maxGrams > 30000) return;
+    if ((rates[key] ?? []).some(row => row.maxGrams === maxGrams)) { status = t('duplicateWeight'); return; }
     const row: BandDraft = { key: `${key}:new-${++bandNo}`, maxGrams, thb: price.trim() };
     rates = { ...rates, [key]: [...(rates[key] ?? []), row].sort((a, b) => a.maxGrams - b.maxGrams) };
+    status = t('bandAdded');
   }
   function removeBand(key: string, index: number) {
     rates = { ...rates, [key]: rates[key].filter((_, rowIndex) => rowIndex !== index) };
   }
-  function changeWeight(key: string, index: number, value: string) {
+  async function changeWeight(key: string, index: number, value: string) {
     const rows = [...rates[key]];
-    rows[index] = { ...rows[index], maxGrams: Math.round(Number(value) * 1000) };
+    const grams = Math.round(Number(value) * 1000);
+    if (!value.trim() || !Number.isInteger(grams) || grams <= 0 || grams > 30000 || rows.some((row, at) => at !== index && row.maxGrams === grams)) { status = t('duplicateWeight'); return; }
+    rows[index] = { ...rows[index], maxGrams: grams };
     rates = { ...rates, [key]: rows.sort((a, b) => a.maxGrams - b.maxGrams) };
+    await save();
   }
   function setEnabled(code: string, enabled: boolean) {
     const next = new Set(settings.allowed_countries);
@@ -109,8 +115,8 @@
 </script>
 
 <section class="mx-auto max-w-6xl space-y-8 px-4 py-10 md:px-6" aria-labelledby="shipping-title">
-  <a class="text-sm text-amber-200 underline" href={lang === 'th' ? '/th/admin' : '/admin'}>{t('sellerTools')}</a>
-  <div class="flex flex-wrap items-end justify-between gap-4"><div><h1 id="shipping-title" class="font-serif text-4xl">{t('shippingTitle')}</h1><p role="status" aria-live="polite" class="mt-2">{status}</p></div><button type="button" class="btn" disabled={saving} onclick={load}>{t('reload')}</button></div>
+  <a class="btn inline-flex items-center gap-2 border border-amber-200/50 bg-white/10 text-amber-100" href={lang === 'th' ? '/th/admin' : '/admin'}><span aria-hidden="true">&larr;</span> {t('sellerTools')}</a>
+  <div class="flex flex-wrap items-end justify-between gap-4"><div><h1 id="shipping-title" class="font-serif text-4xl">{t('shippingTitle')}</h1><p role="status" aria-live="polite" class="mt-2">{status}</p></div><button type="button" class="btn" disabled={saving} onclick={() => void load()}>{t('reload')}</button></div>
   <aside class="rounded-2xl border border-white/10 bg-white/5 p-4" aria-labelledby="fx-title">
     <h2 id="fx-title" class="font-medium">{t('rateSource')}</h2>
     {#if fx}<p class="mt-2">1 USD = ฿{Number(fx.usdThb).toFixed(4)} · 1 JPY = ฿{Number(fx.jpyThb).toFixed(5)}</p><p class="mt-1 text-sm text-neutral-400">{t('rateDate')}: {fx.date} · {t('rateProvider')}: {fx.source}</p>{:else if fxFailed}<p class="mt-2 text-amber-200">{t('rateUnavailable')}</p>{/if}
@@ -124,9 +130,9 @@
       <h3 class="text-sm font-medium">{countryName('TH')} · {serviceLabel(domesticService)}</h3>
       <AdminRateRows rates={rates[dKey] ?? []} {lang} onRemove={index => removeBand(dKey, index)} onPrice={(index, value) => { rates[dKey][index].thb = value; rates = { ...rates }; }} onWeight={(index, value) => changeWeight(dKey, index, value)}/>
       <div class="grid gap-3 rounded-xl border border-white/10 bg-black/20 p-4 sm:grid-cols-2">
-        <label>{t('weightLimit')}<input class="input mt-1 w-full" type="number" min="0.1" max="30" step="0.1" bind:value={domesticWeight}/></label>
-        <label>{t('priceTHB')}<input class="input mt-1 w-full" type="number" min="0.01" step="0.01" bind:value={domesticPrice}/></label>
-        <button class="btn sm:col-span-2" type="button" onclick={() => { addBand(dKey, domesticWeight, domesticPrice); domesticPrice = ''; }}>{t('addBand')}</button>
+        <label>{t('weightLimit')}<input class="input mt-1 w-full" type="text" inputmode="decimal" bind:value={domesticWeight}/></label>
+        <label>{t('priceTHB')}<input class="input mt-1 w-full" type="text" inputmode="decimal" bind:value={domesticPrice}/></label>
+        <button class="btn sm:col-span-2" type="button" onclick={() => { addBand(dKey, domesticWeight, domesticPrice); domesticPrice = ''; domesticWeight = ''; }}>{t('addBand')}</button>
       </div>
     </section>
     <section class="min-w-0 space-y-4" aria-labelledby="international-rates">
@@ -137,9 +143,9 @@
       <h3 class="text-sm font-medium">{countryName(intlCountry)} ({intlCountry}) · {serviceLabel(intlService)}</h3>
       <AdminRateRows rates={rates[iKey] ?? []} {lang} onRemove={index => removeBand(iKey, index)} onPrice={(index, value) => { rates[iKey][index].thb = value; rates = { ...rates }; }} onWeight={(index, value) => changeWeight(iKey, index, value)}/>
       <div class="grid gap-3 rounded-xl border border-white/10 bg-black/20 p-4 sm:grid-cols-2">
-        <label>{t('weightLimit')}<input class="input mt-1 w-full" type="number" min="0.1" max="30" step="0.1" bind:value={intlWeight}/></label>
-        <label>{t('priceTHB')}<input class="input mt-1 w-full" type="number" min="0.01" step="0.01" bind:value={intlPrice}/></label>
-        <button class="btn sm:col-span-2" type="button" onclick={() => { addBand(iKey, intlWeight, intlPrice); intlPrice = ''; }}>{t('addBand')}</button>
+        <label>{t('weightLimit')}<input class="input mt-1 w-full" type="text" inputmode="decimal" bind:value={intlWeight}/></label>
+        <label>{t('priceTHB')}<input class="input mt-1 w-full" type="text" inputmode="decimal" bind:value={intlPrice}/></label>
+        <button class="btn sm:col-span-2" type="button" onclick={() => { addBand(iKey, intlWeight, intlPrice); intlPrice = ''; intlWeight = ''; }}>{t('addBand')}</button>
       </div>
     </section>
   </div>

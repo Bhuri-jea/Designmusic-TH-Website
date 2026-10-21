@@ -21,7 +21,7 @@
   };
   const productName = (sku: string) => names[sku]?.[lang] ?? products.find(p => sku.startsWith(p.slug))?.name ?? sku;
 
-  async function load(submitted?: ProductSnapshot) {
+  async function load(submitted?: ProductSnapshot[]) {
     const version = ++loadVersion;
     try {
       const response = await fetch('/api/admin/inventory', { cache: 'no-store' });
@@ -46,46 +46,52 @@
       Number.isFinite(d.usd) && d.usd > 0 && Number.isFinite(d.jpy) && d.jpy > 0 &&
       Number.isFinite(d.thb) && d.thb > 0;
   }
-  async function save(row: any) {
-    if (busy || !valid(row)) return;
+  async function save() {
+    if (busy || !inventory.length || !inventory.every(valid)) return;
     busy = true; status = t('saving');
-    const snapshot = { sku: row.sku, ...drafts[row.sku] };
+    const snapshots = inventory.map(row => ({ sku: row.sku, ...drafts[row.sku] }));
+    const saved: ProductSnapshot[] = [];
+    let failure = '';
     try {
-      const response = await fetch('/api/admin/product', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(snapshot) });
-      if (!response.ok) { status = response.status === 409 ? t('changed') : t('saveError'); return; }
-      await load(snapshot);
-      if (!status) status = t('saved');
+      for (const snapshot of snapshots) {
+        const response = await fetch('/api/admin/product', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(snapshot) });
+        if (!response.ok) { failure = `${snapshot.sku}: ${response.status === 409 ? t('changed') : t('saveError')}`; break; }
+        saved.push(snapshot);
+      }
+      await load(saved);
+      status = failure || status || t('saved');
     } catch { status = t('saveError'); }
     finally { busy = false; }
   }
+
 </script>
 
 <section class="mx-auto max-w-6xl space-y-6 px-4 py-10 md:px-6" aria-labelledby="products-title">
-  <a class="text-sm text-amber-200 underline" href={lang === 'th' ? '/th/admin' : '/admin'}>{t('sellerTools')}</a>
+  <a class="btn inline-flex items-center gap-2 border border-amber-200/50 bg-white/10 text-amber-100" href={lang === 'th' ? '/th/admin' : '/admin'}><span aria-hidden="true">&larr;</span> {t('sellerTools')}</a>
   <div class="flex flex-wrap items-end justify-between gap-4">
     <div><h1 id="products-title" class="font-serif text-4xl">{t('productsTitle')}</h1><p class="mt-2 text-neutral-400">{t('stockAndPrices')}</p></div>
     <label class="w-full max-w-sm">{t('searchProducts')}<input class="input mt-1 w-full" type="search" bind:value={query} /></label>
   </div>
+  <button type="button" class="btn btn-primary" disabled={busy || !inventory.length || !inventory.every(valid)} onclick={() => void save()}>{busy ? t('saving') : t('saveAll')}</button>
   <p role="status" aria-live="polite">{status}</p>
   {#if !inventory.filter(matches).length}<p>{t('noProducts')}</p>{:else}
     <div class="relative overflow-x-auto rounded-2xl border border-white/10">
       <table class="w-full min-w-[1080px] border-collapse text-sm">
         <thead class="bg-white/5 text-left"><tr>
           <th class="p-3">{t('productsTitle')}</th><th class="p-3">{t('onHand')}</th><th class="p-3">{t('reserved')}</th><th class="p-3">{t('available')}</th><th class="p-3">{t('grossWeight')}</th>
-          <th class="p-3"><span>{t('price')}</span><div class="mt-1 flex gap-2 text-xs font-normal text-neutral-400"><span>USD</span><span>JPY</span><span>THB</span></div></th><th class="p-3">{t('save')}</th>
+          <th class="p-3"><span>{t('price')}</span><div class="mt-1 flex gap-2 text-xs font-normal text-neutral-400"><span>USD</span><span>JPY</span><span>THB</span></div></th>
         </tr></thead>
         <tbody>{#each inventory.filter(matches) as row (row.sku)}
           <tr class="border-t border-white/10 align-top">
             <th scope="row" class="max-w-52 p-3 text-left font-medium"><span class="block">{productName(row.sku)}</span><span class="mt-1 block break-all text-xs font-normal text-neutral-400">{row.sku}</span></th>
-            <td class="p-3"><label class="sr-only" for={'stock-'+row.sku}>{t('onHand')} · {row.sku}</label><input id={'stock-'+row.sku} class="input w-24" type="number" min={row.reserved} step="1" bind:value={drafts[row.sku].onHand}/></td>
+            <td class="p-3"><label class="sr-only" for={'stock-'+row.sku}>{t('onHand')} · {row.sku}</label><input id={'stock-'+row.sku} class="input w-24" type="text" inputmode="decimal" value={drafts[row.sku].onHand} onchange={event => drafts[row.sku].onHand = event.currentTarget.value.trim() === '' ? NaN : Number(event.currentTarget.value)}/></td>
             <td class="p-3 pt-5">{row.reserved}</td><td class="p-3 pt-5">{drafts[row.sku].onHand-row.reserved}</td>
-            <td class="p-3"><label class="sr-only" for={'weight-'+row.sku}>{t('grossWeight')} · {row.sku}</label><input id={'weight-'+row.sku} class="input w-28" type="number" min="0" max="30" step="0.001" bind:value={drafts[row.sku].weightKg}/></td>
+            <td class="p-3"><label class="sr-only" for={'weight-'+row.sku}>{t('grossWeight')} · {row.sku}</label><input id={'weight-'+row.sku} class="input w-28" type="text" inputmode="decimal" value={drafts[row.sku].weightKg} onchange={event => drafts[row.sku].weightKg = event.currentTarget.value.trim() === '' ? NaN : Number(event.currentTarget.value)}/></td>
             <td class="p-3"><fieldset><legend class="sr-only">{t('price')} · {row.sku}</legend><div class="flex gap-2">
-              <label><span class="sr-only">USD</span><input aria-label={'USD · '+row.sku} class="input w-24" type="number" min="0.01" step="0.01" bind:value={drafts[row.sku].usd}/></label>
-              <label><span class="sr-only">JPY</span><input aria-label={'JPY · '+row.sku} class="input w-24" type="number" min="1" step="1" bind:value={drafts[row.sku].jpy}/></label>
-              <label><span class="sr-only">THB</span><input aria-label={'THB · '+row.sku} class="input w-24" type="number" min="0.01" step="0.01" bind:value={drafts[row.sku].thb}/></label>
+              <label><span class="sr-only">USD</span><input aria-label={'USD · '+row.sku} class="input w-24" type="text" inputmode="decimal" value={drafts[row.sku].usd} onchange={event => drafts[row.sku].usd = event.currentTarget.value.trim() === '' ? NaN : Number(event.currentTarget.value)}/></label>
+              <label><span class="sr-only">JPY</span><input aria-label={'JPY · '+row.sku} class="input w-24" type="text" inputmode="decimal" value={drafts[row.sku].jpy} onchange={event => drafts[row.sku].jpy = event.currentTarget.value.trim() === '' ? NaN : Number(event.currentTarget.value)}/></label>
+              <label><span class="sr-only">THB</span><input aria-label={'THB · '+row.sku} class="input w-24" type="text" inputmode="decimal" value={drafts[row.sku].thb} onchange={event => drafts[row.sku].thb = event.currentTarget.value.trim() === '' ? NaN : Number(event.currentTarget.value)}/></label>
             </div></fieldset></td>
-            <td class="p-3"><button class="btn btn-sm" disabled={busy || !valid(row)} onclick={() => void save(row)}>{t('save')}</button></td>
           </tr>
         {/each}</tbody>
       </table>

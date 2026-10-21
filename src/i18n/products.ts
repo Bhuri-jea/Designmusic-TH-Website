@@ -54,7 +54,7 @@ const translations: Partial<Record<Locale, Record<string, ProductCopy>>> = {
     shakuhachi: {
       name: 'ขลุ่ยญี่ปุ่นชากุฮาจิ',
       shortDesc: 'ชากุฮาจิเรซินพร้อมปากเป่าที่เปลี่ยนได้และระบบปรับระดับเสียง',
-      badge: 'แนวทางใหม่',
+      badge: 'วัฒนธรรมญี่ปุ่น',
     },
     woodwindaccessories: {
       name: 'อุปกรณ์เครื่องเป่าลมไม้',
