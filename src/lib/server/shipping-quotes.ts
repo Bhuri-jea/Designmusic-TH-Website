@@ -51,7 +51,7 @@ export async function requestShippingQuote(request:Request,body:Record<string,un
  let cart:Awaited<ReturnType<typeof quoteCart>>;
  try{cart=await quoteCart({items:body.items,locale:body.locale,prices});}catch{throw new HttpError(400,'invalid_cart');}
  let grams=0;
- for(const line of cart.lines){const weight=inventory.find(row=>row.sku===line.sku)?.weight_grams;if(!Number.isInteger(weight)||weight<=0)throw new HttpError(400,'product_weight_unconfigured');grams+=weight*line.quantity;}
+ for(const line of cart.lines){const stock=inventory.find(row=>row.sku===line.sku);if(!stock||!Number.isInteger(stock.on_hand)||!Number.isInteger(stock.reserved)||stock.on_hand-stock.reserved<line.quantity)throw new HttpError(409,'stock_unavailable');const weight=stock.weight_grams;if(!Number.isInteger(weight)||weight<=0)throw new HttpError(400,'product_weight_unconfigured');grams+=weight*line.quantity;}
  if(grams<=2000){
   try{await quoteShipping(body.items,'th',body.country,method,{config:async()=>config,inventory:async()=>inventory,exchangeRates:loadExchangeRates},address);}
   catch(error){if(error instanceof HttpError&&['shipping_rate_unconfigured','shipping_weight_uncovered','shipping_service_unavailable'].includes(error.code)){/* seller quote required */}else throw error;
@@ -105,4 +105,13 @@ export async function cancelShippingQuote(request:Request,body:Record<string,unk
  if(quote.orderId)throw new HttpError(409,'shipping_quote_payment_started');
  const saved=await deps.rpc<any>('cancel_shipping_quote',{p_id:quote.id,p_customer_id:quote.customerId});
  return publicShippingQuote(saved);
+}
+
+export async function declineShippingQuote(request:Request,body:Record<string,unknown>,deps=defaults){
+ const actor=await deps.admin(request);
+ if(Object.keys(body).sort().join(',')!=='quoteId,reason'||!bookingUuid(body.quoteId)||typeof body.reason!=='string'||!body.reason.trim()||body.reason.length>1000)throw new HttpError(400,'invalid_shipping_quote');
+ const quote=await deps.rpc<any>('shipping_quote_record',{p_id:body.quoteId});
+ if(!quote)throw new HttpError(404,'shipping_quote_not_found');
+ if(quote.orderId||quote.status==='cancelled'||Date.parse(quote.expiresAt)<=deps.now())throw new HttpError(409,'shipping_quote_not_editable');
+ return publicShippingQuote(await deps.rpc<any>('admin_decline_shipping_quote',{p_id:quote.id,p_reason:body.reason.trim(),p_actor:actor}));
 }

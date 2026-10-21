@@ -1,10 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bookingSlots, bookingCalendarSlots, bookingDateWindow, DEFAULT_WEEKLY_BOOKING_HOURS, validateBooking, type DailyBookingHours } from '../src/lib/booking.ts';
+import { bookingSlots, bookingCalendarSlots, bookingDateWindow, bookingDayHours, DEFAULT_WEEKLY_BOOKING_HOURS, validateBooking, type DailyBookingHours } from '../src/lib/booking.ts';
 import { bookingAvailability, cancelBooking, createBooking, ownedBookings, rescheduleBooking, type BookingDependencies } from '../src/lib/server/bookings.ts';
 const key = '22222222-2222-4222-8222-222222222222';
 const now = Date.parse('2026-10-12T16:59:59Z'); // 23:59:59 Monday Bangkok
 const body = { requestKey: key, slot: '2026-10-13T03:00:00.000Z', instrument: 'alto', service: 'basic', notes: '  careful  ', locale: 'ja' };
+test('weekly opening range generates half-hours with an exclusive closing time', () => {
+  assert.deepEqual(bookingDayHours('08:00','18:00'), DEFAULT_WEEKLY_BOOKING_HOURS['1']);
+  assert.deepEqual(bookingDayHours('17:00','18:00'), {'17:00':'available','17:30':'available'});
+  for (const [from,to] of [['18:00','08:00'],['08:15','18:00'],['07:00','18:00'],['08:00','20:30']]) assert.throws(()=>bookingDayHours(from,to));
+});
 test('Bangkok tomorrow rolls over at local midnight; rolling two-month window exposes half-hour starts', () => {
   const slots = bookingSlots(now);
   assert.equal(slots[0].startAt, '2026-10-13T01:00:00.000Z');

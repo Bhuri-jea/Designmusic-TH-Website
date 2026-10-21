@@ -4,6 +4,7 @@
   import { ui, defaultLang } from '../i18n/ui';
   import { localizeProduct } from '../i18n/products';
   import { products } from '../lib/products';
+  import WorkshopLocation from './ui/WorkshopLocation.svelte';
   import {onMount} from 'svelte';
   import {formatPrice,type Locale} from '../lib/catalog';
   import {localizedPath,switchLocale} from '../utils/navigation';
@@ -119,7 +120,7 @@
       const data=await response.json().catch(()=>({}));
       if(response.status===401){quoteRequestState='login';return;}
       if(!response.ok){
-        quoteRequestState=data?.error==='shipping_address_required'?'address_required':data?.error==='shipping_address_country_mismatch'?'address_mismatch':'error';
+        quoteRequestState=data?.error==='shipping_address_required'?'address_required':data?.error==='shipping_address_country_mismatch'?'address_mismatch':['insufficient_stock','stock_unavailable','database_conflict'].includes(data?.error)?'stock':'error';
         return;
       }
       quoteRequestState=data?.quote?'sent':'error';
@@ -132,27 +133,27 @@
   }
 </script>
 
-<nav class="fixed top-0 w-full z-50 bg-neutral-950 border-b border-white/10">
-  <div class="max-w-7xl mx-auto px-4 md:px-6 h-20 flex items-center justify-between">
+<nav class="site-header fixed top-0 w-full z-50 bg-neutral-950 border-b border-white/10">
+  <div class="header-inner max-w-7xl mx-auto px-4 md:px-6 h-20 flex items-center justify-between">
     <div class="flex items-center gap-4">
-      <button class="md:hidden p-2 text-white hover:bg-white/10 rounded-sm transition-colors" bind:this={menuTrigger} aria-label={t('flow.menu')} aria-expanded={isMenuOpen} onpointerenter={(event) => { if (event.pointerType === 'mouse') isMenuOpen = true; }} onclick={() => isMenuOpen = true}>
+      <button class="mobile-menu-trigger md:hidden p-2 text-white hover:bg-white/10 rounded-sm transition-colors" bind:this={menuTrigger} aria-label={t('flow.menu')} aria-expanded={isMenuOpen} onpointerenter={(event) => { if (event.pointerType === 'mouse') isMenuOpen = true; }} onclick={() => isMenuOpen = true}>
         <Menu class="h-6 w-6" />
       </button>
-      <a href={getPath('/')} class="text-2xl font-serif tracking-widest text-white hover:text-glow transition-all">
-        <span class="font-light">Design</span><span class="font-light">Music</span>
+      <a href={getPath('/')} class="brand-wordmark text-2xl font-serif tracking-widest text-white hover:text-glow transition-all">
+        <span class="font-light">Design</span> <span class="font-light">Music</span>
       </a>
     </div>
 
-    <div class="hidden md:flex items-center gap-8">
+    <div class="header-links hidden md:flex items-center gap-8">
       <a href={getPath('/about')} class="text-sm tracking-widest uppercase text-neutral-300 hover:text-white transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1px] after:bg-white hover:after:w-full after:transition-all">{t('nav.about')}</a>
 
       <div class="relative group">
         <a href={getPath('/product')} class="text-sm tracking-widest uppercase text-neutral-300 hover:text-white transition-colors relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[1px] after:bg-white hover:after:w-full after:transition-all">{t('nav.products')}</a>
         <div class="absolute left-0 top-full pt-2 hidden group-hover:block group-focus-within:block z-50 min-w-[200px]">
-          <div class="bg-neutral-900 border border-white/10 rounded-md shadow-lg overflow-hidden">
+          <div class="product-menu bg-neutral-900 border border-white/10 rounded-md shadow-lg overflow-hidden">
+            <a href={getPath('/product')} class="product-menu-heading">{t('nav.products')}</a>
             {#each products as p}
-              <a href={getPath(`/product/${p.slug}`)} class="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-white/10 transition-colors">
-                <img src={p.thumbnail} alt={localizeProduct(p, lang as Locale).name} class="w-6 h-6 rounded object-cover shrink-0" loading="lazy" />
+              <a href={getPath(`/product/${p.slug}`)} class="product-menu-item flex items-center px-4 py-2.5 text-sm text-white hover:bg-white/10 transition-colors">
                 <span>{localizeProduct(p, lang as Locale).name}</span>
               </a>
             {/each}
@@ -207,15 +208,16 @@
 </nav>
 
 {#if isMenuOpen}
-  <dialog bind:this={menuDialog} oncancel={(event)=>{event.preventDefault();closeMenu();}} aria-label={t('flow.menu')} class="fixed inset-0 m-0 w-full max-w-none h-[100dvh] z-[60] max-h-[100dvh] overflow-y-auto bg-neutral-950 flex flex-col items-center justify-start py-20">
+  <dialog bind:this={menuDialog} oncancel={(event)=>{event.preventDefault();closeMenu();}} aria-label={t('flow.menu')} class="mobile-navigation-panel fixed inset-0 m-0 w-full max-w-none h-[100dvh] z-[60] max-h-[100dvh] overflow-y-auto bg-neutral-950 flex flex-col items-center justify-start py-20">
     <button class="absolute top-6 right-6 p-2 text-white hover:bg-white/10 rounded-sm" aria-label={t('flow.close')} onclick={toggleMenu}>
       <X class="h-8 w-8" />
     </button>
+    <a href={getPath('/')} class="mobile-navigation-brand font-serif text-white" style="font-size:36px;font-weight:400;line-height:1.2;margin-bottom:28px;letter-spacing:-.055em" onclick={toggleMenu}>Design Music</a>
     <div class="flex flex-col items-center gap-8 text-2xl font-serif uppercase">
       <a href={getPath('/about')} class="text-white hover:text-neutral-400" onclick={toggleMenu}>{t('nav.about')}</a>
-      <div class="relative text-center">
+      <div class="mobile-product-menu relative text-left">
         <a href={getPath('/product')} class="text-white hover:text-neutral-400" onclick={toggleMenu}>{t('nav.products')}</a>
-        <div class="mt-3 flex flex-col space-y-3">
+        <div class="mobile-product-items mt-3 flex flex-col space-y-3">
           {#each products as p}
             <a href={getPath(`/product/${p.slug}`)} class="text-lg text-neutral-400 hover:text-white transition-colors" onclick={toggleMenu}>
               {localizeProduct(p, lang as Locale).name}
@@ -271,7 +273,11 @@
             {/if}
             <div class="flex justify-between items-center mt-2">
               <span class="text-white font-medium">{formatPrice(item.price,lang as Locale)}</span>
-              <span class="text-xs text-neutral-400 bg-white/10 px-2 py-1 rounded-full">{t('cart.quantity')}: {item.quantity}</span>
+              <div class="flex items-center gap-2" role="group" aria-label={t('cart.quantity')+' — '+item.name}>
+                <button type="button" class="btn btn-secondary min-h-11 min-w-11 px-3" aria-label={t('cart.decreaseQuantity')} disabled={item.quantity<=1||isCheckingOut||isRequestingQuote} onclick={()=>cart.setQuantity(item,item.quantity-1)}>−</button>
+                <span class="min-w-6 text-center text-sm" aria-live="polite">{item.quantity}</span>
+                <button type="button" class="btn btn-secondary min-h-11 min-w-11 px-3" aria-label={t('cart.increaseQuantity')} disabled={item.quantity>=10||isCheckingOut||isRequestingQuote} onclick={()=>cart.setQuantity(item,item.quantity+1)}>+</button>
+              </div>
             </div>
           </div>
         {/each}
@@ -283,6 +289,7 @@
             {#each (shippingCountry==='TH'?['ems_local','flash']:['epacket','ems_world']) as method}<option value={method}>{serviceLabel(lang as Locale,method)}</option>{/each}
           </select></label>{/if}
           {#if shippingCountry==='TH'&&pickupEnabled}<label class="flex items-center gap-3 text-sm text-neutral-200"><input type="checkbox" class="checkbox checkbox-sm" bind:checked={pickupSelected}/>{t('cart.pickup')}</label>{/if}
+          {#if shippingCountry==='TH'&&pickupSelected}<WorkshopLocation lang={lang as Locale}/>{/if}
           {#if international}
             {#if !profileLoaded}<p class="text-sm text-neutral-300" role="status">{t('cart.profileLoading')}</p>
             {:else if profileLoginRequired}<p class="text-sm text-amber-200" role="alert">{t('cart.shippingQuoteLogin')} <a class="underline" href={profileLink()}>{t('flow.login')}</a></p>
@@ -298,7 +305,7 @@
             </fieldset>{/if}
           {/if}
           {#if shippingQuote}<div class="space-y-1 text-sm text-neutral-300" aria-live="polite"><p>{t('cart.postage')}: {formatPrice(shippingQuote.amount,lang as Locale)}{#if shippingQuote.fxMarginApplied}<span class="block text-xs text-neutral-400">{t('cart.fxMargin')}</span>{/if}</p></div>
-          {:else if shippingStatus==='shipping_contact_required'}<div class="space-y-3 text-sm text-amber-100" role="status"><p>{shippingText(lang as Locale,'invoice')}</p><p>{t('cart.shippingQuoteIntro')}</p><p>{shippingText(lang as Locale,'direct')}</p><div class="flex flex-wrap gap-2"><a class="btn btn-secondary btn-sm" href="mailto:designmusicthailand@gmail.com">{t('cart.contactEmail')}</a><a class="btn btn-secondary btn-sm" href="https://www.facebook.com/DesignmusicInstrumentmusicAccessories" target="_blank" rel="noreferrer">Facebook</a><a class="btn btn-secondary btn-sm" href="https://www.instagram.com/designmusic_instrument/" target="_blank" rel="noreferrer">Instagram</a></div></div>
+          {:else if shippingStatus==='shipping_contact_required'}<div class="space-y-3 text-sm text-amber-100" role="status"><p>{t('cart.shippingQuoteIntro')}</p><div class="flex flex-wrap gap-2"><a class="btn btn-secondary btn-sm" href="mailto:designmusicthailand@gmail.com">{t('cart.contactEmail')}</a><a class="btn btn-secondary btn-sm" href="https://www.facebook.com/DesignmusicInstrumentmusicAccessories" target="_blank" rel="noreferrer">Facebook</a><a class="btn btn-secondary btn-sm" href="https://www.instagram.com/designmusic_instrument/" target="_blank" rel="noreferrer">Instagram</a></div></div>
           {:else if shippingStatus==='shipping_address_required'||shippingStatus==='shipping_address_country_mismatch'}<p class="text-sm text-amber-200" role="alert">{t(shippingStatus==='shipping_address_required'?'cart.shippingAddressNeeded':'cart.shippingAddressMismatch')} <a class="underline" href={getPath('/profile')}>{t('cart.viewProfile')}</a></p>
           {:else if ['shipping_rate_unconfigured','shipping_weight_uncovered','shipping_service_unavailable','shipping_destination_unavailable'].includes(shippingStatus)}<div class="text-sm text-amber-100" role="status"><p>{shippingText(lang as Locale,'contact')}</p><div class="flex flex-wrap gap-3 mt-3"><a class="underline" href="mailto:designmusicthailand@gmail.com">{t('cart.contactEmail')}</a><a class="underline" href="https://www.facebook.com/DesignmusicInstrumentmusicAccessories" target="_blank" rel="noreferrer">Facebook</a><a class="underline" href="https://www.instagram.com/designmusic_instrument/" target="_blank" rel="noreferrer">Instagram</a></div></div>
           {:else if shippingStatus}<p class="text-sm text-amber-200" role="alert">{shippingStatus==='shipping_fx_unavailable'?shippingText(lang as Locale,'fxError'):t(shippingStatus==='shipping-options-unavailable'?'cart.shippingUnavailable':'flow.unavailable')} <button class="underline" disabled={quoting} onclick={()=>configError?initializeShipping():refreshShippingQuote()}>{t('flow.retry')}</button></p>
@@ -315,6 +322,7 @@
         {#if quoteRequestState==='sent'}<p class="text-emerald-200" role="status">{t('cart.shippingQuoteSent')}</p><a class="underline" href={getPath('/profile/orders')}>{t('flow.orders')}</a>
         {:else if quoteRequestState==='login'}<p class="text-amber-200" role="alert">{t('cart.shippingQuoteLogin')}</p><a class="underline" href={getPath('/login')}>{t('flow.login')}</a>
         {:else if quoteRequestState==='address_required'||quoteRequestState==='address_mismatch'}<p class="text-amber-200" role="alert">{t(quoteRequestState==='address_required'?'cart.shippingAddressNeeded':'cart.shippingAddressMismatch')}</p><a class="underline" href={getPath('/profile')}>{t('cart.viewProfile')}</a>
+        {:else if quoteRequestState==='stock'}<p class="text-amber-200" role="alert">{t('flow.stock')}</p>
         {:else if quoteRequestState==='error'}<p class="text-amber-200" role="alert">{t('cart.shippingQuoteError')}</p>{/if}
         {#if quoteRequestState!=='sent'}{#if profileLoginRequired}<a class="btn btn-outline w-full" href={profileLink()}>{t('flow.login')}</a>{:else if addressRequiredForCountry()}<p class="text-amber-200" role="alert">{t('cart.shippingAddressNeeded')} <a class="underline" href={getPath('/profile')}>{t('cart.viewProfile')}</a></p>{:else}<button class="btn btn-primary w-full" onclick={requestShippingQuote} disabled={isRequestingQuote || !cart.storageAvailable}>{isRequestingQuote?t('cart.shippingQuoteSubmitting'):t('cart.requestShippingQuote')}</button>{/if}{/if}
       </div>

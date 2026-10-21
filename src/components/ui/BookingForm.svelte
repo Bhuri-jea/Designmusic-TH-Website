@@ -37,7 +37,7 @@
  async function submit(){if(pending)return;pending=true;status='';try{const input={slot,instrument,service,notes,locale:lang};const fingerprint=JSON.stringify(input);if(fingerprint!==lastFingerprint){requestKey=crypto.randomUUID();lastFingerprint=fingerprint;}const res=await fetch('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestKey,...input})});const data=await res.json();if(res.status===409){await availability();slot='';step=2;status=t('booking.collision');return;}if(res.status===401){status=t('flow.signInRequired');return;}if(!res.ok || !data.booking?.id || data.booking.status!=='confirmed')throw Error();saved=data.booking;step=4;await tick();heading?.focus();}catch{status=t('flow.failed');}finally{pending=false;}}
 </script>
 <div class="max-w-3xl mx-auto bg-neutral-950 border border-white/10 rounded-md overflow-hidden">
- <div class="flex border-b border-white/10">{#each ['booking.service','booking.time','booking.details'] as key,index}<div class="flex-1 text-center py-4 text-xs tracking-widest uppercase" class:text-neutral-500={step<index+1}>{index+1}. {t(key)}</div>{/each}</div>
+ <div class="flex border-b border-white/10">{#each ['booking.service','booking.time','booking.details'] as key,index}<div class="flex-1 text-center py-4 text-sm tracking-widest uppercase" class:text-neutral-500={step<index+1}>{index+1}. {t(key)}</div>{/each}</div>
  <div class="p-6 md:p-10 space-y-6">
  <h2 bind:this={heading} tabindex="-1" class="font-serif text-2xl">{t(step===1?'booking.service':step===2?'booking.time':step===3?'booking.details':'booking.confirmed')}</h2>
  {#if step===1}

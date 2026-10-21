@@ -2,7 +2,7 @@ export type AdminLocale = 'en' | 'th';
 
 const messages = {
   en: {
-    sellerTools: 'Seller tools', products: 'Products', shippingSettings: 'Shipping settings',
+    duplicateWeight: 'Enter a unique, valid weight limit for this service.', bandAdded: 'Rate band added. Save shipping settings to publish.', saveAll: 'Save all products', enterRate: 'Press Enter to save shipping settings and sort rate bands.', sellerTools: 'Seller tools', products: 'Products', shippingSettings: 'Shipping settings',
     reload: 'Reload', saved: 'Saved', refreshFailed: 'Saved, but refresh failed. Reload to see the latest details.', saving: 'Saving…', save: 'Save', saveError: 'Could not save. Check the entered details.',
     changed: 'The record changed. Reload and check its current state.', unavailable: 'Seller tools are unavailable. Apply the required database migrations and try again.',
     productsTitle: 'Products', searchProducts: 'Search by name or SKU', noProducts: 'No products match your search.',
@@ -27,7 +27,7 @@ const messages = {
     failed: 'Failed', review: 'Needs review',
   },
   th: {
-    sellerTools: 'จัดการร้านค้า', products: 'สินค้า', shippingSettings: 'ตั้งค่าการจัดส่ง',
+    duplicateWeight: 'น้ำหนักต้องถูกต้องและไม่ซ้ำ', bandAdded: 'เพิ่มช่วงอัตราแล้ว กรุณาบันทึกการจัดส่ง', saveAll: 'บันทึกสินค้าทั้งหมด', enterRate: 'กด Enter เพื่อบันทึกการจัดส่งและจัดเรียงช่วงน้ำหนัก', sellerTools: 'จัดการร้านค้า', products: 'สินค้า', shippingSettings: 'ตั้งค่าการจัดส่ง',
     reload: 'โหลดใหม่', saved: 'บันทึกแล้ว', refreshFailed: 'บันทึกแล้ว แต่โหลดข้อมูลใหม่ไม่สำเร็จ โปรดโหลดอีกครั้งเพื่อตรวจสอบข้อมูลล่าสุด', saving: 'กำลังบันทึก…', save: 'บันทึก', saveError: 'บันทึกไม่ได้ โปรดตรวจสอบข้อมูล',
     changed: 'ข้อมูลเปลี่ยนแปลงแล้ว โปรดโหลดใหม่และตรวจสอบสถานะ', unavailable: 'เครื่องมือผู้ขายไม่พร้อมใช้งาน โปรดติดตั้ง migration ที่จำเป็นแล้วลองอีกครั้ง',
     productsTitle: 'สินค้า', searchProducts: 'ค้นหาด้วยชื่อหรือ SKU', noProducts: 'ไม่พบสินค้าที่ค้นหา',

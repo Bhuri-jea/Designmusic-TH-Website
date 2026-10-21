@@ -126,13 +126,15 @@ export const ui = {
 
     'cart.title': 'Your Cart',
     'cart.quantity': 'Qty',
+    'cart.decreaseQuantity': 'Decrease quantity',
+    'cart.increaseQuantity': 'Increase quantity',
     'cart.empty': 'Your cart is empty',
     'cart.total': 'Total',
     'cart.subtotal': 'Items',
     'cart.destination': 'Ship to',
     'cart.shippingService': 'Delivery method',
     'cart.shipping': 'Shipping',
-    'cart.fxMargin': 'Converted postage includes a 5% currency-conversion buffer.',
+    'cart.fxMargin': 'Converted postage with real time currency conversion rate.',
     'cart.shippingUnavailable': 'Shipping options are unavailable. Please try again later.',
     'cart.emsLocal': 'Thailand Post EMS (Thailand)',
     'cart.emsWorld': 'Thailand Post EMS World',
@@ -140,7 +142,7 @@ export const ui = {
     'cart.flash': 'Flash Express (Thailand)',
     'cart.pickup': 'Local pickup in Thailand (free)',
     'cart.shippingQuoteRequired': 'This order weighs over 2 kg and needs a shipping quote.',
-    'cart.shippingQuoteIntro': 'Request the quote below. We will set the shipping fee; then open your profile to pay or cancel the request.',
+    'cart.shippingQuoteIntro': 'Request shipping fee quote or contact directly',
     'cart.requestShippingQuote': 'Submit order for shipping invoice',
     'cart.shippingQuoteSubmitting': 'Sending request…',
     'cart.shippingQuoteSent': 'Request received. We will prepare your shipping quote. Open your profile later to pay or cancel it.',
@@ -203,7 +205,7 @@ export const ui = {
       '<span class="font italic text-white">"Sanuk"</span> — the Thai belief that joy is an essential part of life — is a value we deeply cherish and hope to share with the world. We believe music and musical instruments have the power to inspire people, connect communities, and bring warmth to society.',
 
     'home.philosophy.p2':
-      'To honor this philosophy, <span class="font italic text-white">we embrace the Japanese spirit of "Kodawari"</span> — an uncompromising dedication to craftsmanship and detail. By refining every subtle element, we strive to create instruments and services that bring genuine joy to both players and listeners.',
+      'To honor this philosophy, <span class="font italic text-white">we embrace the Japanese spirit of "<strong>Kodawari</strong>"</span> — an uncompromising dedication to craftsmanship and detail. By refining every subtle element, we strive to create instruments and services that bring genuine joy to both players and listeners.',
 
     'home.philosophy.link': 'Read Our Story',
 
@@ -222,7 +224,7 @@ export const ui = {
 
     'home.repair.title': 'Expert Repair',
     'home.repair.desc':
-      'Restoring the voice of your beloved instruments.',
+      'Fall in love with your instrument. Again.',
 
     'home.viewall': 'View All Products',
 
@@ -384,13 +386,15 @@ export const ui = {
 
   'cart.title': 'カート',
   'cart.quantity': '数量',
+  'cart.decreaseQuantity': '数量を減らす',
+  'cart.increaseQuantity': '数量を増やす',
   'cart.empty': 'カートは空です',
   'cart.total': '合計',
   'cart.subtotal': '商品小計',
   'cart.destination': 'お届け先',
   'cart.shippingService': '配送方法',
   'cart.shipping': '送料',
-  'cart.fxMargin': '換算後の送料には、為替変動に備えた5%の調整額が含まれます。',
+  'cart.fxMargin': '換算後の送料。リアルタイムの為替レートを使用しています。',
   'cart.shippingUnavailable': '配送方法を利用できません。しばらくしてからもう一度お試しください。',
   'cart.emsLocal': 'タイ郵便 EMS（タイ国内）',
   'cart.emsWorld': 'タイ郵便 EMS World',
@@ -398,7 +402,7 @@ export const ui = {
   'cart.flash': 'Flash Express（タイ国内）',
   'cart.pickup': 'タイ国内での店頭受け取り（無料）',
   'cart.shippingQuoteRequired': 'ご注文の重量が2 kgを超えるため、送料のお見積もりが必要です。',
-  'cart.shippingQuoteIntro': '下から見積もりをご依頼ください。送料確定後、プロフィールから支払いまたはキャンセルができます。',
+  'cart.shippingQuoteIntro': '送料見積もりを依頼するか、直接お問い合わせください',
   'cart.requestShippingQuote': '送料見積もり用に注文を送信',
   'cart.shippingQuoteSubmitting': 'リクエスト送信中…',
   'cart.shippingQuoteSent': 'リクエストを受け付けました。送料確定後、プロフィールから支払いまたはキャンセルができます。',
@@ -454,7 +458,7 @@ export const ui = {
     '<span class="font italic text-white">「サヌック」</span>—— 人生には“楽しさ”が大切だというタイの考え方です。私たちもその想いを大切にしています。音楽や楽器には、人の心を動かし、日々を少し豊かにする力があると信じています。',
 
   'home.philosophy.p2':
-    'その想いを少しでも形にするために、<span class="font italic text-white">日本の「こだわり」の精神</span>を大切にしています。細かな部分まで丁寧に向き合い、奏者の方にも聴いてくださる方にも、心地よい音を届けられるよう努めています。',
+    'その想いを少しでも形にするために、<span class="font italic text-white">日本の「<strong>こだわり</strong>」の精神</span>を大切にしています。細かな部分まで丁寧に向き合い、奏者の方にも聴いてくださる方にも、心地よい音を届けられるよう努めています。',
 
   'home.philosophy.link': '私たちについて',
 
@@ -635,13 +639,15 @@ export const ui = {
 
     'cart.title': '购物车',
     'cart.quantity': '数量',
+    'cart.decreaseQuantity': '减少数量',
+    'cart.increaseQuantity': '增加数量',
     'cart.empty': '购物车为空',
     'cart.total': '总计',
     'cart.subtotal': '商品小计',
     'cart.destination': '配送至',
     'cart.shippingService': '配送方式',
     'cart.shipping': '运费',
-    'cart.fxMargin': '换算后的运费包含5%的汇率缓冲。',
+    'cart.fxMargin': '换算后的运费。使用实时汇率。',
     'cart.shippingUnavailable': '配送选项暂不可用，请稍后重试。',
     'cart.emsLocal': '泰国邮政 EMS（泰国境内）',
     'cart.emsWorld': '泰国邮政 EMS World',
@@ -649,7 +655,7 @@ export const ui = {
     'cart.flash': 'Flash Express（泰国境内）',
     'cart.pickup': '泰国本地自取（免费）',
     'cart.shippingQuoteRequired': '此订单超过 2 公斤，需要先获取运费报价。',
-    'cart.shippingQuoteIntro': '请在下方提交报价申请。运费确定后，可在个人资料中付款或取消申请。',
+    'cart.shippingQuoteIntro': '申请运费报价或直接联系',
     'cart.requestShippingQuote': '提交订单申请运费账单',
     'cart.shippingQuoteSubmitting': '正在提交申请…',
     'cart.shippingQuoteSent': '已收到申请。运费确定后，您可以在个人资料中付款或取消申请。',
@@ -706,7 +712,7 @@ export const ui = {
       '<span class="font italic text-white">“Sanuk”</span> 是泰国文化中“快乐是生活不可或缺的一部分”的理念。我们珍视这样的价值，也希望将这份喜悦分享给世界。我们相信，音乐与乐器拥有连接人与社会、让世界变得更加美好的力量。',
 
     'home.philosophy.p2':
-      '为了实现这一理念，<span class="font italic text-white">我们秉承日本“こだわり（Kodawari）”的匠人精神</span>，坚持对细节毫不妥协。通过不断打磨每一个细微之处，让每一个音符都能为演奏者与听众带来更深层的感动。',
+      '为了实现这一理念，<span class="font italic text-white">我们秉承日本“こだわり（<strong>Kodawari</strong>）”的匠人精神</span>，坚持对细节毫不妥协。通过不断打磨每一个细微之处，让每一个音符都能为演奏者与听众带来更深层的感动。',
 
     'home.philosophy.link': '阅读我们的故事',
 
@@ -889,13 +895,15 @@ export const ui = {
 
     'cart.title': 'ตะกร้าสินค้า',
     'cart.quantity': 'จำนวน',
+    'cart.decreaseQuantity': 'ลดจำนวน',
+    'cart.increaseQuantity': 'เพิ่มจำนวน',
     'cart.empty': 'ยังไม่มีสินค้าในตะกร้า',
     'cart.total': 'ยอดรวม',
     'cart.subtotal': 'ยอดค่าสินค้า',
     'cart.destination': 'จัดส่งไปที่',
     'cart.shippingService': 'วิธีจัดส่ง',
     'cart.shipping': 'ค่าจัดส่ง',
-    'cart.fxMargin': 'ค่าจัดส่งที่แปลงสกุลเงินแล้วรวมส่วนเผื่ออัตราแลกเปลี่ยน 5%',
+    'cart.fxMargin': 'ค่าจัดส่งที่แปลงสกุลเงินแล้ว',
     'cart.shippingUnavailable': 'ตัวเลือกการจัดส่งยังไม่พร้อม โปรดลองอีกครั้งภายหลัง',
     'cart.emsLocal': 'ไปรษณีย์ไทย EMS (ในประเทศไทย)',
     'cart.emsWorld': 'ไปรษณีย์ไทย EMS World',
@@ -903,7 +911,7 @@ export const ui = {
     'cart.flash': 'Flash Express (ในประเทศไทย)',
     'cart.pickup': 'นัดรับสินค้าในประเทศไทย (ไม่มีค่าจัดส่ง)',
     'cart.shippingQuoteRequired': 'คำสั่งซื้อนี้หนักเกิน 2 กก. ต้องขอใบเสนอค่าจัดส่งก่อน',
-    'cart.shippingQuoteIntro': 'ส่งคำขอด้านล่าง เมื่อเรากำหนดค่าจัดส่งแล้ว คุณสามารถเปิดโปรไฟล์เพื่อชำระเงินหรือยกเลิกคำขอได้',
+    'cart.shippingQuoteIntro': 'ขอใบเสนอค่าจัดส่ง หรือติดต่อโดยตรง',
     'cart.requestShippingQuote': 'ส่งคำสั่งซื้อเพื่อขอใบแจ้งค่าจัดส่ง',
     'cart.shippingQuoteSubmitting': 'กำลังส่งคำขอ…',
     'cart.shippingQuoteSent': 'ได้รับคำขอแล้ว เมื่อเรากำหนดค่าจัดส่ง คุณสามารถเปิดโปรไฟล์เพื่อชำระเงินหรือยกเลิกได้',
@@ -944,7 +952,7 @@ export const ui = {
       'นวัตกรรมในเครื่องดนตรี และงานซ่อมระดับมืออาชีพ',
 
     'hero.title.crafting': 'สร้าง',
-    'hero.title.joy': '"ความสุขจากการเล่นดนตรี"',
+    'hero.title.joy': '"ความสุขในดนตรี"',
     'hero.title.through': 'ผ่าน',
     'hero.title.perfection': '"ความสมบูรณ์แบบ"',
 
@@ -962,7 +970,7 @@ export const ui = {
       '<span class="font italic text-white">"สนุก"</span> คือแนวคิดแบบไทยที่เชื่อว่าความสุขเป็นส่วนสำคัญของชีวิต เราให้คุณค่ากับสิ่งนี้ และอยากส่งต่อความสุขนั้นไปสู่ผู้คนทั่วโลก เราเชื่อว่าเสียงดนตรีและเครื่องดนตรีสามารถเชื่อมโยงผู้คน เติมพลังใจ และทำให้สังคมดีขึ้นได้',
 
     'home.philosophy.p2':
-      'เพื่อถ่ายทอดแนวคิดนี้ออกมาให้ดีที่สุด <span class="font italic text-white">เรายึดถือจิตวิญญาณ “Kodawari” ของญี่ปุ่น</span> — ความพิถีพิถันที่ไม่ประนีประนอมในทุกรายละเอียด เราเชื่อว่าการใส่ใจแม้แต่จุดเล็กที่สุด จะทำให้ทุกเสียงที่บรรเลงส่งต่อความสุขได้อย่างแท้จริง',
+      'เพื่อถ่ายทอดแนวคิดนี้ออกมาให้ดีที่สุด <span class="font italic text-white">เรายึดถือจิตวิญญาณ “<strong>Kodawari</strong>” ของญี่ปุ่น</span> — ความพิถีพิถันที่ไม่ประนีประนอมในทุกรายละเอียด เราเชื่อว่าการใส่ใจแม้แต่จุดเล็กที่สุด จะทำให้ทุกเสียงที่บรรเลงส่งต่อความสุขได้อย่างแท้จริง',
 
     'home.philosophy.link': 'เรื่องราวของเรา',
 
@@ -992,16 +1000,16 @@ export const ui = {
     'about.subtitle': 'เกี่ยวกับเรา',
 
     'about.title':
-      '<span class="text-4xl md:text-5xl block">ผู้สร้างนวัตกรรมเครื่องดนตรี <br> และผู้เชี่ยวชาญด้านการซ่อมเครื่องเป่าลมไม้</span>',
+      '<span class="text-4xl md:text-5xl block">นวัตกรแห่งเครื่องดนตรี <br> และผู้เชี่ยวชาญด้านการซ่อมเครื่องเป่าลมไม้</span>',
 
     'about.desc1':
       'ตั้งอยู่ในย่านสาทร กรุงเทพมหานคร',
 
     'about.desc2':
-      'ด้วยการฝึกอบรมด้านการซ่อมอย่างเข้มข้นในไต้หวัน, การเรียนวิศวกรรมอย่างเข้มข้นจากมหาลัยชั้นนำของญี่ปุ่น และประสบการณ์จริงกว่า 10 ปี พวกเราทุ่มเทให้กับการพัฒนาเสียง การตอบสนอง และเอกลักษณ์ของเครื่องดนตรีแต่ละชิ้น ผลิตภัณฑ์ของเราถูกออกแบบมาเพื่อนักดนตรีทุกระดับ ตั้งแต่ผู้เริ่มต้นไปจนถึงมืออาชีพที่ต้องการความละเอียดอ่อนในการควบคุม ทุกบริการและการซ่อมได้รับการปรับแต่งอย่างพิถีพิถัน เพื่อให้เหมาะกับทั้งตัวผู้เล่นและตัวเครื่องดนตรีอย่างแท้จริง',
+      'ด้วยการฝึกอบรมด้านการซ่อมอย่างเข้มข้นในไต้หวัน, ประสบการณ์ด้านวิศวกรรมจากโรงงานและมหาลัยชั้นนำของญี่ปุ่น และประสบการณ์จริงกว่า 10 ปี พวกเราทุ่มเทให้กับการพัฒนาเสียง การตอบสนอง และเอกลักษณ์ของเครื่องดนตรีแต่ละชิ้น ผลิตภัณฑ์ของเราถูกออกแบบมาเพื่อนักดนตรีทุกระดับ ตั้งแต่ผู้เริ่มต้นไปจนถึงมืออาชีพที่ต้องการความละเอียดอ่อนในการควบคุม ทุกบริการและการซ่อมได้รับการปรับแต่งอย่างพิถีพิถัน เพื่อให้เหมาะกับทั้งตัวผู้เล่นและตัวเครื่องดนตรีอย่างแท้จริง',
 
     'about.tailor.title':
-      'สร้างคุณค่าที่ส่งต่อไปได้ในระยะยาว',
+      'สร้างคุณค่าที่กระจายต่อไปได้ในระยะยาว',
 
     'about.tailor.p1':
       'เราต้องการให้ดนตรีเป็นสิ่งที่ทุกคนเข้าถึงได้ เพราะเราเชื่อว่าความรู้และงานฝีมือสามารถเปิดโอกาสใหม่ ๆ ให้กับทุกคนที่อยากเล่นดนตรี',

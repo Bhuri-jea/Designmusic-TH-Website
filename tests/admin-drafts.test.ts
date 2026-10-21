@@ -71,6 +71,22 @@ test('saving a product leaves dirty shipping settings intact and refreshes clean
   assert.equal(savedRefresh.draft.pickup_enabled, false, 'an edit made after submit survives the save refresh');
 });
 
+test('page-wide product save acknowledges every submitted product without dropping newer edits', () => {
+  const initial = [row('sku-a', 5, 1000, 500), row('sku-b', 3, 2000, 750)];
+  const baseline = Object.fromEntries(initial.map(item => [item.sku, productValues(item)]));
+  const submitted = initial.map(item => ({ sku: item.sku, ...productValues(item), onHand: 8, usd: 30 }));
+  const local = Object.fromEntries(submitted.map(item => [item.sku, { ...item }]));
+  local['sku-b'].onHand = 10;
+  const refreshed = [row('sku-a', 8, 3000, 500), row('sku-b', 8, 3000, 750)];
+  const result = reconcileProductDrafts(baseline, refreshed, local, submitted);
+  assert.equal(result.drafts['sku-a'].onHand, 8);
+  assert.equal(result.drafts['sku-b'].onHand, 10);
+  assert.equal(result.drafts['sku-b'].usd, 30);
+  const reload = reconcileProductDrafts(result.baseline, [row('sku-a', 9, 3100, 500), refreshed[1]], result.drafts);
+  assert.equal(reload.drafts['sku-a'].usd, 31, 'acknowledged products stay clean on later reload');
+  assert.equal(reload.drafts['sku-b'].onHand, 10, 'edits made during save remain drafts');
+});
+
 test('shipping rate refresh accepts deleted and reordered rows without dropping saved bands', () => {
   const key = 'JP:epacket';
   const baseline = { [key]: [

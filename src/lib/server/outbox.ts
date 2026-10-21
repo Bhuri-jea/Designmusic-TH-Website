@@ -3,6 +3,7 @@ import { rpc, SupabaseRequestError } from './supabase.ts';
 import { HttpError, jsonResponse, errorResponse } from './http.ts';
 import { notification } from './notifications.ts';
 import { reconcilePayments } from './reconciliation.ts';
+import { reconcileRefunds } from './refunds.ts';
 type Env = (name: string) => string | undefined;
 type Fetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 export type OutboxDependencies = { env: Env; fetch: Fetch; rpc: <T>(name: string, args: Record<string, unknown>) => Promise<T>; elapsedNow: () => number };
@@ -102,7 +103,8 @@ export async function filterGoogleCalendarAvailability(slots: CalendarSlot[], en
   for (let offset = 0; offset < batches.length; offset += 4) {
    const results = await Promise.all(batches.slice(offset, offset + 4).map(async batch => ({
     batch,
-    ack: await sendGoogleRequest({ action: 'availability', slots: batch }, env, transport, 12000, 16384),
+    // Display status is website-only; the Apps Script schema accepts two fields.
+    ack: await sendGoogleRequest({ action: 'availability', slots: batch.map(({startAt,endAt})=>({startAt,endAt})) }, env, transport, 12000, 16384),
    })));
    for (const { batch, ack } of results) {
     if (!ack || typeof ack !== 'object' || Array.isArray(ack) ||
@@ -120,6 +122,11 @@ export async function filterGoogleCalendarAvailability(slots: CalendarSlot[], en
  return slots.filter(slot => available.has(slot.startAt));
 }
 async function sendEmail(job: Job, deps: OutboxDependencies, timeoutMs: number) {
+ if(job.topic.startsWith('order_refund_')&&typeof job.payload.refundId==='string'){
+  const latest=await bounded(()=>deps.rpc<any>('order_record',{p_id:job.payload.orderId}),timeoutMs);
+  if(job.payload.refundStatus==='pending'&&latest?.refundStatus!=='pending')return;
+  if(['failed','canceled'].includes(String(job.payload.refundStatus))&&latest?.refundStatus==='succeeded')return;
+ }
  if(job.topic==='shipping_quote_buyer'){
   const latest=await bounded(()=>deps.rpc<any>('shipping_quote_record',{p_id:job.payload.quoteId}),timeoutMs);
   if(!latest)throw Error('invalid_notification_payload');
@@ -170,7 +177,11 @@ export async function dispatchOutbox(deps = outboxDependencies, options: OutboxO
  }
  return result;
 }
-export async function runScheduler(request: Request, deps = outboxDependencies, reconcile: () => Promise<unknown> = () => reconcilePayments()) {
+export async function runScheduler(request: Request, deps = outboxDependencies, reconcile: () => Promise<unknown> = async () => {
+ const payments=await reconcilePayments();let refunds:unknown;
+ try{refunds=await reconcileRefunds();}catch{refunds={errors:1};}
+ return {...payments,errors:payments.errors+(typeof refunds==='object'&&refunds!==null&&'errors' in refunds?Number(refunds.errors)||0:0),refunds};
+}) {
  try {
   if (request.method !== 'POST') throw new HttpError(405, 'method_not_allowed');
   const secret = deps.env('CRON_SECRET');

@@ -1,5 +1,7 @@
 <script lang="ts">
  import OrderSupport from './OrderSupport.svelte';
+ import OrderFinancialStatus from './OrderFinancialStatus.svelte';
+ import WorkshopLocation from '../ui/WorkshopLocation.svelte';
  import { onMount } from 'svelte';
  import { ui } from '../../i18n/ui';
  import { accountText } from '../../i18n/account-ui';
@@ -7,7 +9,7 @@
  import { localizedPath } from '../../utils/navigation';
  import type { Locale } from '../../lib/catalog';
  type Line = { name:string; sku?:string; variant?:string; options?:Record<string,string>; quantity:number; unitAmount:number };
- type Order = { id:string; status:string; currency:'usd'|'jpy'|'thb'; locale?:Locale; items:Line[]; createdAt:string; amountSubtotal?:number; shippingAmount?:number; amountTotal:number; paymentSummary?:{method?:string|null;brand?:string|null;last4?:string|null}; fulfillmentMethod?:string; shippingCountry?:string };
+ type Order = { id:string; status:string; currency:'usd'|'jpy'|'thb'; locale?:Locale; items:Line[]; createdAt:string; amountSubtotal?:number; shippingAmount?:number; amountTotal:number; paymentSummary?:{method?:string|null;brand?:string|null;last4?:string|null}; fulfillmentMethod?:string; shippingCountry?:string;cancellationStatus?:string;cancellationReason?:string|null;refundStatus?:string|null;refundedAmount?:number };
  let {lang,orderId,cancelled=false}=$props<{lang:Locale;orderId?:string|null;cancelled?:boolean}>();
  let state=$state('unknown'),order=$state<Order|null>(null),pending=$state(false);let active=true;
  const t=(key:string)=>ui[lang][key as keyof typeof ui.en] || ui.en[key as keyof typeof ui.en];
@@ -25,7 +27,7 @@
 <div class="max-w-3xl mx-auto px-6 py-10 md:py-16 relative z-10">
  <section class="text-center"><div class="flex justify-center mb-4"><div class="p-3 rounded-full bg-white/5 border border-white/10"><svg viewBox="0 0 24 24" aria-hidden="true" class="w-8 h-8"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/>{#if state==='paid'}<path d="M8 12.5l2.5 2.5 5.5-6" fill="none" stroke="currentColor" stroke-width="1.7"/>{:else}<path d="M12 6v7m0 4v1" stroke="currentColor" stroke-width="1.7"/>{/if}</svg></div></div>
   <h1 class="font-serif text-3xl md:text-4xl mb-3">{t('flow.payment')}</h1><p class="text-lg text-neutral-300 mb-4" role="status">{pending?t('flow.loading'):t(cancelled?'flow.cancelled':'flow.'+state)}</p>
-  {#if order}<p class="break-all text-sm text-neutral-400 mb-5">{accountText(lang,'orderId')}: {order.id}</p>{/if}
+  {#if order}<p class="break-all text-sm text-neutral-400 mb-5">{accountText(lang,'orderId')}: {order.id}</p><OrderFinancialStatus {order} {lang}/>{/if}
   {#if state==='signInRequired'}<a class="btn mb-5" href={localizedPath('/login',lang)+'?returnTo='+encodeURIComponent(localizedPath('/success',lang)+(orderId?'?order_id='+orderId:''))}>{t('flow.login')}</a>{/if}
   {#if !cancelled && ['pending','unavailable'].includes(state)}<button class="btn mb-5" disabled={pending} onclick={refresh}>{t('flow.retry')}</button>{/if}
   <div class="flex flex-wrap justify-center gap-3"><a class="btn btn-primary" href={localizedPath('/product',lang)}>{t('flow.shop')}</a><a class="btn" href={localizedPath('/profile/orders',lang)}>{accountText(lang,'orders')}</a><a class="btn btn-ghost" href={localizedPath('/profile',lang)}>{t('flow.account')}</a></div>
@@ -38,5 +40,6 @@
    <div class="mt-5 border-t border-white/10 pt-4"><p class="text-sm"><span class="text-neutral-400">{accountText(lang,'paymentMethod')}:</span> {#if order.paymentSummary?.method}{order.paymentSummary.method}{#if order.paymentSummary.brand} · {order.paymentSummary.brand}{/if}{#if order.paymentSummary.last4} •••• {order.paymentSummary.last4}{/if}{:else}<span class="text-neutral-400">{accountText(lang,'paymentUnavailable')}</span>{/if}</p></div>
   </section>
  {/if}
+ {#if order?.fulfillmentMethod==='pickup'&&state==='paid'&&order.cancellationStatus!=='cancelled'}<div class="mt-8"><WorkshopLocation {lang}/></div>{/if}
 </div>
 {@render support()}

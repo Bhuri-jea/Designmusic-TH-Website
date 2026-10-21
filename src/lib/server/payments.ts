@@ -99,7 +99,8 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
     orderId: string;
     url: string;
 }> {
-    let config = paymentConfig(deps.env);
+    // Validate credentials/origin before reads; destinations come from the storefront below.
+    let config = paymentConfig(deps.env, ['TH']);
     const customer = await deps.customer(request);
     if (Object.keys(body).some(k => !['requestKey', 'locale', 'items','shippingCountry','shippingMethod','quoteId'].includes(k)) || !uuid(body.requestKey))
         throw new HttpError(400, 'invalid_checkout');
@@ -159,7 +160,7 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
     });
     if (order.customerId !== customer.id || order.requestKey !== body.requestKey || order.fingerprint !== fingerprint)
         throw new HttpError(409, 'checkout_conflict');
-    if (order.status !== 'pending')
+    if (order.status !== 'pending' || order.cancellationStatus && order.cancellationStatus !== 'none')
         throw new HttpError(409, 'checkout_not_active');
     const stripe = deps.stripe(config.key);
     if (order.checkoutSessionId) {
@@ -241,6 +242,9 @@ export async function applySessionEvent(order: OrderRecord, session: Stripe.Chec
             } : null,
             p_event_created: new Date(created * 1000).toISOString(),
         });
+        const intent=session.payment_intent;
+        const paymentIntent=typeof intent==='string'?intent:intent?.id;
+        if(session.payment_status==='paid'&&paymentIntent)await deps.rpc('link_order_payment',{p_order_id:order.id,p_payment_intent:paymentIntent});
     }
     catch (error) {
         if (error instanceof SupabaseRequestError && error.databaseCode === '40001')
@@ -264,6 +268,11 @@ export async function processWebhook(payload: string | Uint8Array, signature: st
     }
     if (event.livemode !== config.live)
         throw new HttpError(400, 'payment_mode_mismatch');
+    if (['refund.created','refund.updated','refund.failed','charge.refunded'].includes(event.type)) {
+        const {syncRefundEvent}=await import('./refunds.ts');
+        await syncRefundEvent(event);
+        return;
+    }
     if (!eventTypes.has(event.type))
         return;
     const session = event.data.object as Stripe.Checkout.Session;
@@ -297,6 +306,10 @@ export function publicOrder(order: OrderRecord, paymentSummary: {method:string;b
         paymentSummary:order.status==='paid'?paymentSummary:null,
         items: order.items,
         status: order.status,
+        cancellationStatus:order.cancellationStatus??'none',
+        cancellationReason:order.cancellationReason??null,
+        refundedAmount:order.refundedAmount??0,
+        refundStatus:order.refundStatus??null,
         createdAt: order.createdAt,
         expiresAt: order.expiresAt,
         checkoutSessionId: order.checkoutSessionId,
@@ -342,4 +355,12 @@ export async function ownedOrders(request: Request, id?: string, deps = paymentD
         result.push(publicOrder(order,summary));
     }
     return result;
+}
+
+export async function ownedOrdersPage(request:Request,page=1,pageSize=5,deps=paymentDependencies){
+ if(!Number.isSafeInteger(page)||page<1||page>1000000||![5,50].includes(pageSize))throw new HttpError(400,'invalid_order_page');
+ const customer=await deps.customer(request);
+ const result=await deps.rpc<{orders:OrderRecord[];total:number}>('customer_orders_page',{p_customer_id:customer.id,p_page:page,p_page_size:pageSize});
+ if(!result||!Array.isArray(result.orders)||!Number.isSafeInteger(result.total)||result.total<0||result.orders.some(order=>order.customerId!==customer.id))throw new HttpError(503,'service_unavailable');
+ return {orders:result.orders.map(order=>publicOrder(order)),pagination:{page,pageSize,total:result.total,totalPages:Math.max(1,Math.ceil(result.total/pageSize))}};
 }

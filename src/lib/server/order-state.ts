@@ -21,6 +21,11 @@ export type OrderRecord = {
   shipment?: OrderShipment | null;
   shippingAmount?: number;
   fulfillmentMethod?: OrderShipment['service'];
+  paidAt?:string|null;
+  cancellationStatus?:'none'|'requested'|'cancelled'|'review';
+  cancellationReason?:string|null;
+  refundedAmount?:number;
+  refundStatus?:'pending'|'succeeded'|'failed'|null;
 };
 export type OrderState = OrderRecord & { stockReleased?: boolean; eventIds?: string[] };
 export type PaymentEvent = { eventId: string; eventType: string; sessionId: string | null; currency: string; amountTotal: number; paymentStatus: string };

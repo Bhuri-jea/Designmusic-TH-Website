@@ -4,6 +4,16 @@ import { SupabaseRequestError } from '../src/lib/server/supabase.ts';
 const id='22222222-2222-4222-8222-222222222222';
 function fixture(){let subject='seller',paid=true,reserved=2,calls=0,shipmentStatus='ready',tracking='',held=false,holdFailure=false,jobRows:any[]=[];const holdCalls:any[]=[];const handler=createAdminHandlers({getSession:async()=>({googleSubject:subject}),subjects:()=>['seller'],inventory:async()=>[{sku:'endplug-plain',on_hand:3,reserved}],setStock:async()=>{calls++;},shipments:async()=>[],shipment:async()=>({order_id:id,payment_status:paid?'paid':'pending',status:shipmentStatus,fulfillment_method:'ems_local',shipping_service:'ems_local',hold:held,hold_reason:held?'Customer requested review':null,recipient:{name:'<img src=x onerror=alert(1)>'},address:{line1:'<script>bad</script>',city:'Bangkok',postal_code:'10110',country:'TH'},items:[{name:'A & B',quantity:1}]}),ship:async(_id,value)=>{calls++;tracking=value;},shipmentHold:async(...args)=>{holdCalls.push(args);if(holdFailure)throw new SupabaseRequestError(409,'23514');held=args[1];calls++;},jobs:async()=>jobRows});return {handler,set subject(v:string){subject=v;},set paid(v:boolean){paid=v;},set shipmentStatus(v:string){shipmentStatus=v;},set held(v:boolean){held=v;},set holdFailure(v:boolean){holdFailure=v;},set jobs(v:any[]){jobRows=v;},get calls(){return calls;},get tracking(){return tracking;},get holdCalls(){return holdCalls;}};}
 const write=(body:unknown,origin='https://shop.test')=>new Request('https://shop.test/api/admin/inventory',{method:'PATCH',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
+
+test('paid shipment pagination validates input and reports totals beyond the old hundred-row limit',async()=>{
+ const calls:unknown[]=[];
+ const handler=createAdminHandlers({getSession:async()=>({googleSubject:'seller'}),subjects:()=>['seller'],inventory:async()=>[],setStock:async()=>{},shipments:async(page?:number,pageSize?:number)=>{calls.push([page,pageSize]);return {shipments:[{order_id:id,currency:'thb',created_at:'2026-10-21T00:00:00Z'}],total:151};},shipment:async()=>null,ship:async()=>{},shipmentHold:async()=>{},jobs:async()=>[]});
+ const first=await handler.shipmentsGet(new Request('https://shop.test/api/admin/shipments'));
+ assert.equal(first.status,200);assert.equal((await first.json()).total,151);assert.deepEqual(calls[0],[1,5]);
+ const page=await handler.shipmentsGet(new Request('https://shop.test/api/admin/shipments?page=3&pageSize=50'));
+ assert.equal((await page.json()).page,3);assert.deepEqual(calls[1],[3,50]);
+ for(const query of ['page=0','page=-1','page=1.5','pageSize=100000','page=abc'])assert.equal((await handler.shipmentsGet(new Request('https://shop.test/api/admin/shipments?'+query))).status,400);
+});
 test('admin Google subject allowlist rejects missing and foreign identity before any inventory read/write',async()=>{for(const subject of ['','buyer']){const f=fixture();f.subject=subject;assert.equal((await f.handler.inventoryGet(new Request('https://shop.test'))).status,subject?403:401);assert.equal((await f.handler.inventoryPatch(write({sku:'endplug-plain',onHand:4}))).status,subject?403:401);assert.equal(f.calls,0);}});
 test('admin rejects namespaced Supabase identities even when the allowlist contains them',async()=>{
  const identity='supabase:'+id;

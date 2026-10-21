@@ -38,6 +38,16 @@ export function addCartItem(state:CartState,input:CartInput):CartState {
  const next={...state,items:[...state.items,lot]};cartItems(next);return bounded(next);
 }
 export function removeCartItem(state:CartState,input:CartInput):CartState {return {...state,items:state.items.filter(lot=>inputKey(lot)!==inputKey(input))};}
+export function setCartQuantity(state:CartState,input:CartInput,quantity:number):CartState {
+ if(!Number.isInteger(quantity)||quantity<0||quantity>10)throw Error('quantity_limit');
+ const key=inputKey(input),current=cartItems(state).find(item=>inputKey(item)===key)?.quantity??0;
+ if(quantity>current)return addCartItem(state,{productId:input.productId,...(input.variant?{variant:input.variant}:{}),...(input.options?{options:input.options}:{}),quantity:quantity-current});
+ let remove=current-quantity;
+ // Remove newest additions first so outstanding payment snapshots keep their lot identity.
+ const items=state.items.map(lot=>({...lot}));
+ for(let index=items.length-1;index>=0&&remove>0;index--){if(inputKey(items[index])!==key)continue;const count=Math.min(remove,items[index].quantity);items[index].quantity-=count;remove-=count;}
+ return {...state,items:items.filter(lot=>lot.quantity>0)};
+}
 export async function submitCart(state:CartState,locale:Locale) {
  state={...state,attempts:state.attempts.filter(a=>!a.reconciled)};
  const items=cartItems(state);const quote=await quoteCart({items,locale});

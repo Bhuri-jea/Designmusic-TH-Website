@@ -22,7 +22,7 @@ export function reconcileProductDrafts(
   oldBaseline: Record<string, ProductBaseline>,
   newRows: any[],
   drafts: Record<string, ProductDraft>,
-  submitted?: ProductSnapshot,
+  submitted?: ProductSnapshot | ProductSnapshot[],
 ) {
   const baseline: Record<string, ProductBaseline> = {};
   const nextDrafts: Record<string, ProductDraft> = {};
@@ -33,7 +33,8 @@ export function reconcileProductDrafts(
     const values = {} as ProductDraft;
     for (const field of ['onHand', 'usd', 'jpy', 'thb', 'weightKg'] as const) {
       const unchangedSinceLoad = !old || local[field] === undefined || equal(local[field], old[field]);
-      const unchangedSinceSubmit = submitted !== undefined && submitted.sku === row.sku && equal(local[field], submitted[field]);
+      const snapshot = Array.isArray(submitted) ? submitted.find(item => item.sku === row.sku) : submitted;
+      const unchangedSinceSubmit = snapshot !== undefined && snapshot.sku === row.sku && equal(local[field], snapshot[field]);
       values[field] = unchangedSinceLoad || unchangedSinceSubmit ? server[field] : local[field];
     }
     baseline[row.sku] = server;

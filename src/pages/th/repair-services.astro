@@ -1,20 +1,26 @@
 ---
+import '../../styles/repair-editorial.css';
 import Layout from '../../layouts/Layout.astro';
 import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
 ---
 
-<Layout title="บริการซ่อม">
-  <div class="max-w-6xl mx-auto px-4 py-20 relative z-10 pl-1">
-    <div class="text-center mb-16" data-aos="fade-up">
+<Layout title="บริการซ่อม" surface="repair">
+  <div class="repair-editorial">
+    <section class="repair-hero">
+      <img src="/images/soprano%20sax.jpg" alt="" class="repair-hero-image" fetchpriority="high" />
+    <div class="repair-hero-content">
       <h1 class="font-serif text-5xl md:text-6xl font-light mb-6 tracking-tight">ซ่อม <span class="italic text-neutral-400">&amp; บริการ</span></h1>
       <p class="text-xl font-light text-neutral-400 max-w-3xl mx-auto leading-relaxed">
         ด้วยการฝึกซ่อมเครื่องดนตรีที่เข้มข้นในไต้หวัน และประสบการณ์จริงมากกว่า 10 ปี เราทุ่มเทความพยายามเพื่อปรับปรุงเสียง การตอบสนอง และลักษณะของแต่ละเครื่อง
       </p>
+      <a href="/th/booking" class="repair-hero-cta">ทำการจอง</a>
     </div>
-    <RepairAvailability lang="th" client:load />
+    </section>
+    <div class="repair-content">
+    <div class="repair-calendar" id="repair-availability"><RepairAvailability lang="th" client:load /></div>
 
     <!-- Alert / Notice -->
-    <div class="alert shadow-lg max-w-2xl mx-auto mb-16" data-aos="fade-up" data-aos-delay="100">
+    <div class="alert shadow-lg max-w-2xl mx-auto mb-16">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-white shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
       <div>
         <h3 class="font-medium tracking-widest uppercase text-sm text-white mb-2">โปรดทราบ:</h3>
@@ -26,14 +32,12 @@ import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
       </div>
     </div>
 
-    <!-- Image -->
-    <div class="mb-24 flex justify-center bg-neutral-950 border border-white/10" data-aos="fade-up" data-aos-delay="200">
-      <img src="/images/repair1.jpg" alt="ช่างกำลังซ่อมเครื่องดนตรีที่โต๊ะทำงาน" class="w-full h-auto object-contain" />
-    </div>
 
+
+    <div class="repair-workshop"><img src="/images/repair1.jpg" alt="ช่างกำลังซ่อมเครื่องดนตรีที่โต๊ะทำงาน" class="repair-workshop-image" loading="lazy" /></div>
     <!-- Saxophone Section -->
     <div class="mb-32">
-      <div class="mb-12 text-center" data-aos="fade-up">
+      <div class="mb-12 text-center">
         <h2 class="font-serif text-4xl font-light mb-4">แซกโซโฟน</h2>
         <p class="text-lg font-light text-neutral-400">เราใช้เชลแลคที่มีคุณภาพและนวมพิซโซนี่ของแท้</p>
         <p class="text-lg font-light text-neutral-400">โซปราโน อัลโต้ เทเนอร์ บาริโทน ยินดีรับซ่อมทั้งหมด</p>
@@ -42,7 +46,7 @@ import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
         <!-- Basic -->
-        <div class="card hover:border-white/40 transition-colors" data-aos="fade-up" data-aos-delay="100">
+        <div class="card hover:border-white/40 transition-colors">
           <div class="card-body">
             <h3 class="card-title text-2xl">พื้นฐาน</h3>
             <div class="text-white font-medium text-3xl my-4">เริ่มต้น 1,000 THB</div>
@@ -57,7 +61,7 @@ import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
         </div>
 
         <!-- Standard -->
-        <div class="card bg-white text-black" data-aos="fade-up" data-aos-delay="200">
+        <div class="card bg-white text-black">
           <div class="card-body relative">
             <div class="self-end bg-black text-white px-3 py-1 rounded-full text-xs font-medium tracking-widest uppercase border border-white/20">ยอดนิยม</div>
             <h3 class="card-title text-2xl text-black">มาตรฐาน</h3>
@@ -76,7 +80,7 @@ import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
         </div>
 
         <!-- Overhaul -->
-        <div class="card hover:border-white/40 transition-colors" data-aos="fade-up" data-aos-delay="300">
+        <div class="card hover:border-white/40 transition-colors">
           <div class="card-body">
             <h3 class="card-title text-2xl">โอเวอร์ฮอล</h3>
             <div class="text-white font-medium text-3xl my-4">เริ่มต้น 5,000 THB</div>
@@ -87,7 +91,7 @@ import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
               <li class="flex items-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg> ทำความสะอาดตัวเครื่อง</li>
               <li class="flex items-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg> เปลี่ยนสปริง</li>
               <li class="flex items-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg> รองก๊อกใหม่และเปลี่ยนสักหลาด</li>
-              <li class="flex items-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg> ซ่อมที่ยุบ</li>
+              <li class="flex items-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg> ขึ้นบุบ</li>
             </ul>
             <div class="card-actions justify-end mt-8">
               <a href="/th/booking" class="btn btn-secondary w-full tracking-widest uppercase">ทำการจอง</a>
@@ -99,14 +103,14 @@ import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
 
     <!-- Bassoon Section -->
     <div>
-      <div class="mb-12 text-center" data-aos="fade-up">
-        <h2 class="font-serif text-4xl font-light mb-4">แบสซูน</h2>
+      <div class="mb-12 text-center">
+        <h2 class="font-serif text-4xl font-light mb-4">บาซซูน</h2>
         <p class="text-lg font-light text-neutral-400">เราใช้แชลคที่มีคุณภาพและแพดพิซโซนี่แท้ของเรา</p>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
         <!-- Standard -->
-        <div class="card hover:border-white/40 transition-colors" data-aos="fade-up" data-aos-delay="100">
+        <div class="card hover:border-white/40 transition-colors">
           <div class="card-body">
             <h3 class="card-title text-2xl">มาตรฐาน</h3>
             <div class="text-white font-medium text-3xl my-4">เริ่มต้น 3,500 THB</div>
@@ -124,7 +128,7 @@ import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
         </div>
 
         <!-- Overhaul -->
-        <div class="card hover:border-white/40 transition-colors" data-aos="fade-up" data-aos-delay="200">
+        <div class="card hover:border-white/40 transition-colors">
           <div class="card-body">
             <h3 class="card-title text-2xl">โอเวอร์ฮอล</h3>
             <div class="text-white font-medium text-3xl my-4">เริ่มต้น 5,000 THB</div>
@@ -135,7 +139,7 @@ import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
               <li class="flex items-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg> ทำความสะอาดตัวเครื่อง</li>
               <li class="flex items-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg> เปลี่ยนสปริง</li>
               <li class="flex items-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg> รองก๊อกใหม่และเปลี่ยนสักหลาด</li>
-              <li class="flex items-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg> ซ่อมที่ยุบ</li>
+              <li class="flex items-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg> ขึ้นบุบ</li>
             </ul>
             <div class="card-actions justify-end mt-8">
               <a href="/th/booking" class="btn btn-secondary w-full tracking-widest uppercase">ทำการจอง</a>
@@ -143,6 +147,7 @@ import RepairAvailability from '../../components/ui/RepairAvailability.svelte';
           </div>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </Layout>

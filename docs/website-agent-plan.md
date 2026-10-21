@@ -1,5 +1,7 @@
 # Design Music website — agent and architecture plan
 
+**21 October checkpoint:** Current approved operations work and installation order are in [operations-release-2026-10-21.md](operations-release-2026-10-21.md). Calendar/shipping editing fixes, seller cancellation/refunds, paid recovery, customer pagination and monthly reporting are local changes pending production migration/deployment and final external test-mode acceptance. Earlier historical statements below are not current deployment evidence.
+
 **Status (13 October 2026):** Local implementation authorized and in progress. Backend foundations for the four workflows are accepted; customer/admin integration and final rendered/build verification remain. External accounts are not yet connected. See the detailed integration progress ledger.
 
 ## Intended result
