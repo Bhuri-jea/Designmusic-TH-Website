@@ -21,7 +21,7 @@ type Dependencies = {
 const defaults:Dependencies={customer:requireCustomer,admin:requireAdmin,rpc,inventory:()=>select<any>('inventory',{}),config:()=>rpc<any>('storefront_config',{}),pay:checkout,now:Date.now,exchangeRates:loadExchangeRates};
 
 export function publicShippingQuote(row:any) {
- const keys=['id','requestKey','status','currency','locale','amountSubtotal','shippingAmount','amountTotal','weightGrams','country','items','address','createdAt','expiresAt','orderId','orderStatus','sellerNote','shippingService'];
+ const keys=['id','requestKey','status','currency','locale','amountSubtotal','shippingAmount','amountTotal','weightGrams','country','items','address','createdAt','expiresAt','orderId','orderStatus','linkedOrderCancellationStatus','linkedOrderRefundStatus','linkedOrderRefundedAmount','sellerNote','shippingService'];
  return Object.fromEntries(keys.map(key=>[key,row[key]??null]));
 }
 async function ownedQuote(request:Request,id:unknown,deps:Dependencies) {

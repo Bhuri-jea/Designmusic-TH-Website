@@ -56,6 +56,23 @@
 @media(prefers-reduced-motion:reduce){.repair-editorial *,.booking-editorial *{scroll-behavior:auto;transition:none!important;}}
 
 /* The interactive form keeps its existing selected/error states on the paper surface. */
+.booking-live-form{container-type:inline-size}
+.booking-live-form .booking-calendar{grid-template-columns:minmax(0,1fr)!important;color:#f5f1e8}
+.booking-live-form .booking-calendar>div{min-width:0;background:#1e2521;border-color:#718074}
+.booking-live-form .booking-calendar :is(h3,p,label){color:#f5f1e8}
+.booking-live-form .booking-calendar :is(.text-neutral-300,.text-neutral-400,.text-neutral-500){color:#cbd6ca}
+.booking-live-form .booking-calendar button{color:#f5f1e8;border-color:#718074;opacity:1}
+.booking-live-form .booking-calendar button span{overflow-wrap:anywhere}
+.booking-live-form .booking-calendar button[aria-pressed="true"]{background:#d8ba78;color:#252923;border-color:#d8ba78}
+.booking-live-form .booking-calendar button[aria-pressed="true"] span{color:inherit}
+.booking-live-form .booking-calendar button:disabled{color:#d6ded4;opacity:1}
+.booking-live-form .booking-calendar .btn-ghost{padding-inline:10px;min-width:44px;background:transparent;color:#f5f1e8}
+.booking-live-form .booking-calendar .btn-ghost span{display:none}
+.booking-live-form .booking-calendar h3{min-width:0;text-wrap:balance}
+.booking-live-form .booking-calendar a{color:#f5f1e8;min-height:44px;display:inline-flex;align-items:center}
+.booking-live-form .booking-calendar :focus-visible{outline-color:#d8ba78!important}
+@container(min-width:850px){.booking-live-form .booking-calendar{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr)!important}}
+@media(min-width:1024px){.booking-live-form .booking-calendar .text-xs,.repair-calendar .text-xs{font-size:14px;line-height:1.5}}
 .booking-live-form{color:var(--repair-ink);}
 .booking-live-form>astro-island>div{background:transparent;border:0;overflow:visible;}
 .booking-live-form>astro-island>div>div:first-child{border-color:var(--repair-line);}
@@ -70,3 +87,4 @@
 .booking-live-form button:focus-visible,.booking-live-form a:focus-visible,.booking-live-form select:focus-visible,.booking-live-form textarea:focus-visible{outline:3px solid #526347!important;outline-offset:3px;}
 .repair-editorial:lang(th) h1,.booking-editorial:lang(th) h1{line-height:1.2;letter-spacing:0;}
 .repair-editorial:lang(ja) h1,.repair-editorial:lang(zh-CN) h1,.booking-editorial:lang(ja) h1,.booking-editorial:lang(zh-CN) h1{line-height:1.2;letter-spacing:-.02em;}
+.repair-calendar button span{overflow-wrap:anywhere}

@@ -8,14 +8,17 @@
  import { cart } from '../../store/cart.svelte';
  import { localizedPath } from '../../utils/navigation';
  import type { Locale } from '../../lib/catalog';
+ import {orderDelivery} from '../../lib/order-delivery';
+ import {serviceLabel} from '../../i18n/shipping';
  type Line = { name:string; sku?:string; variant?:string; options?:Record<string,string>; quantity:number; unitAmount:number };
- type Order = { id:string; status:string; currency:'usd'|'jpy'|'thb'; locale?:Locale; items:Line[]; createdAt:string; amountSubtotal?:number; shippingAmount?:number; amountTotal:number; paymentSummary?:{method?:string|null;brand?:string|null;last4?:string|null}; fulfillmentMethod?:string; shippingCountry?:string;cancellationStatus?:string;cancellationReason?:string|null;refundStatus?:string|null;refundedAmount?:number };
+ type Order = { id:string; status:string; currency:'usd'|'jpy'|'thb'; locale?:Locale; items:Line[]; createdAt:string; amountSubtotal?:number; shippingAmount?:number; amountTotal:number; paymentSummary?:{method?:string|null;brand?:string|null;last4?:string|null}; fulfillmentMethod?:string; shipment?:{service?:string;trackingNumber?:string|null;trackingUrl?:string|null}|null; shippingCountry?:string;cancellationStatus?:string;cancellationReason?:string|null;refundStatus?:string|null;refundedAmount?:number };
  let {lang,orderId,cancelled=false}=$props<{lang:Locale;orderId?:string|null;cancelled?:boolean}>();
  let state=$state('unknown'),order=$state<Order|null>(null),pending=$state(false);let active=true;
  const t=(key:string)=>ui[lang][key as keyof typeof ui.en] || ui.en[key as keyof typeof ui.en];
  const money = (value:number) => new Intl.NumberFormat(lang,{style:'currency',currency:(order?.currency??'usd').toUpperCase(),maximumFractionDigits:order?.currency==='jpy'?0:2}).format(value/(order?.currency==='jpy'?1:100));
  const subtotal = $derived(order?.amountSubtotal ?? (order?.items ?? []).reduce((sum,line)=>sum+line.unitAmount*line.quantity,0));
  const shipping = $derived(order?.shippingAmount ?? Math.max(0,(order?.amountTotal ?? 0)-subtotal));
+ const delivery=$derived(order?orderDelivery(order):null);
  const optionText = (line:Line) => Object.entries(line.options??{}).map(([key,value])=>key==='toneHoles'?t(`product.tone.${value}`)||value:key==='mouthpiece'?t(`product.mouth.${value}`)||value:value).concat(line.variant && line.variant !== 'standard' ? [t(line.variant==='plain'?'product.endplug.plain':line.variant==='twoColor'?'product.endplug.twocolor':'product.endplug.custom')||line.variant] : []).join(' · ');
  async function refresh(){if(pending || !orderId || !/^[0-9a-f-]{36}$/i.test(orderId))return;pending=true;try{const res=await fetch('/api/orders?order_id='+encodeURIComponent(orderId),{cache:'no-store'});const data=await res.json();if(!active)return;if(res.status===401){state='signInRequired';return;}if(!res.ok){state='unavailable';return;}order=data.orders?.find((value:Order)=>value.id===orderId)??null;state=order&&['pending','paid','failed','expired','review'].includes(order.status)?order.status:'unknown';if(state==='paid'){cart.init(lang);cart.reconcile(order);}}catch{state='unavailable';}finally{pending=false;}}
  onMount(()=>{cart.init(lang);if(cancelled)return;let timer:ReturnType<typeof setTimeout>;let attempts=0;const poll=async()=>{await refresh();if(active&&state==='pending'&&++attempts<5)timer=setTimeout(poll,3000);};void poll();return()=>{active=false;clearTimeout(timer);};});
@@ -40,6 +43,10 @@
    <div class="mt-5 border-t border-white/10 pt-4"><p class="text-sm"><span class="text-neutral-400">{accountText(lang,'paymentMethod')}:</span> {#if order.paymentSummary?.method}{order.paymentSummary.method}{#if order.paymentSummary.brand} · {order.paymentSummary.brand}{/if}{#if order.paymentSummary.last4} •••• {order.paymentSummary.last4}{/if}{:else}<span class="text-neutral-400">{accountText(lang,'paymentUnavailable')}</span>{/if}</p></div>
   </section>
  {/if}
- {#if order?.fulfillmentMethod==='pickup'&&state==='paid'&&order.cancellationStatus!=='cancelled'}<div class="mt-8"><WorkshopLocation {lang}/></div>{/if}
+ {#if delivery}<section class="mt-8 rounded-xl border border-white/15 p-5 text-left" aria-label={accountText(lang,'shippingService')}>
+  {#if delivery.service!=='pickup'}<p>{accountText(lang,'trackingNumber')}: <span class="break-all font-mono">{delivery.trackingNumber??'—'}</span></p>{/if}
+  <p class="mt-2">{accountText(lang,'shippingService')}: {#if delivery.url}<a class="underline underline-offset-4" href={delivery.url} target="_blank" rel="noopener noreferrer">{serviceLabel(lang,delivery.service)}</a>{:else}{serviceLabel(lang,delivery.service)}{/if}</p>
+ </section>{/if}
+ {#if delivery?.service==='pickup'}<div class="mt-8"><WorkshopLocation {lang}/></div>{/if}
 </div>
 {@render support()}

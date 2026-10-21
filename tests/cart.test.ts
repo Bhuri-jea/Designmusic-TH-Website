@@ -1,7 +1,34 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyCart, restoreCart, addCartItem, setCartQuantity, submitCart, bindOrder, reconcilePaid, cartItems } from '../src/lib/cart-storage.ts';
+import { emptyCart, restoreCart, addCartItem, setCartQuantity, submitCart, bindOrder, reconcilePaid, consumeSubmittedCart, cartItems } from '../src/lib/cart-storage.ts';
 const plug = {productId:'saxophone-end-plug',variant:'plain',quantity:1};
+test('quantity increase accepts reactive option objects without losing the selection',()=>{
+ const options=new Proxy({toneHoles:'standard',mouthpiece:'balance'},{});
+ const input={productId:'shakuhachi',options,quantity:1};
+ const state=addCartItem(emptyCart(),{...input,options:{...options}});
+ const next=setCartQuantity(state,input,2);
+ assert.equal(cartItems(next)[0].quantity,2);
+ options.mouthpiece='modern';
+ assert.equal(next.items[1].options?.mouthpiece,'balance');
+});
+test('accepted invoice requests consume only their submitted lots and are idempotent',async()=>{
+ const submitted=await submitCart(addCartItem(emptyCart(),plug),'en');
+ const current=addCartItem(submitted.state,plug);
+ const cleared=consumeSubmittedCart(current,submitted.request.requestKey);
+ assert.equal(cartItems(cleared)[0].quantity,1);
+ assert.equal(cleared.attempts[0].reconciled,true);
+ assert.deepEqual(consumeSubmittedCart(cleared,submitted.request.requestKey),cleared);
+ assert.deepEqual(consumeSubmittedCart(current,crypto.randomUUID()),current);
+ assert.equal(cartItems(restoreCart(JSON.stringify(cleared)))[0].quantity,1);
+});
+test('paid cart reconciliation validates shipping totals and server-priced merchandise',async()=>{
+ const submitted=await submitCart(addCartItem(emptyCart(),plug),'en');
+ const current=bindOrder(submitted.state,submitted.request.requestKey,'22222222-2222-4222-8222-222222222222');
+ const order={id:'22222222-2222-4222-8222-222222222222',status:'paid',currency:'usd',amountSubtotal:1600,shippingAmount:500,amountTotal:2100,items:submitted.state.attempts[0].quote.lines.map(line=>({...line,unitAmount:1600}))};
+ assert.equal(cartItems(reconcilePaid(current,order)).length,0);
+ assert.equal(cartItems(reconcilePaid(current,{...order,amountTotal:1600})).length,1);
+ assert.equal(cartItems(reconcilePaid(current,{...order,items:order.items.map(line=>({...line,quantity:2}))})).length,1);
+});
 test('quantity edits preserve submitted snapshots and later additions during paid reconciliation',async()=>{
  let state=addCartItem(emptyCart(),plug);const submitted=await submitCart(state,'en');
  state=bindOrder(submitted.state,submitted.request.requestKey,'22222222-2222-4222-8222-222222222222');

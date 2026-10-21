@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import { createAdminHandlers, requireAdmin } from '../src/lib/server/admin.ts';
 import { SupabaseRequestError } from '../src/lib/server/supabase.ts';
+import { DEFAULT_WEEKLY_BOOKING_HOURS } from '../src/lib/booking.ts';
 const id='22222222-2222-4222-8222-222222222222';
 function fixture(){let subject='seller',paid=true,reserved=2,calls=0,shipmentStatus='ready',tracking='',held=false,holdFailure=false,jobRows:any[]=[];const holdCalls:any[]=[];const handler=createAdminHandlers({getSession:async()=>({googleSubject:subject}),subjects:()=>['seller'],inventory:async()=>[{sku:'endplug-plain',on_hand:3,reserved}],setStock:async()=>{calls++;},shipments:async()=>[],shipment:async()=>({order_id:id,payment_status:paid?'paid':'pending',status:shipmentStatus,fulfillment_method:'ems_local',shipping_service:'ems_local',hold:held,hold_reason:held?'Customer requested review':null,recipient:{name:'<img src=x onerror=alert(1)>'},address:{line1:'<script>bad</script>',city:'Bangkok',postal_code:'10110',country:'TH'},items:[{name:'A & B',quantity:1}]}),ship:async(_id,value)=>{calls++;tracking=value;},shipmentHold:async(...args)=>{holdCalls.push(args);if(holdFailure)throw new SupabaseRequestError(409,'23514');held=args[1];calls++;},jobs:async()=>jobRows});return {handler,set subject(v:string){subject=v;},set paid(v:boolean){paid=v;},set shipmentStatus(v:string){shipmentStatus=v;},set held(v:boolean){held=v;},set holdFailure(v:boolean){holdFailure=v;},set jobs(v:any[]){jobRows=v;},get calls(){return calls;},get tracking(){return tracking;},get holdCalls(){return holdCalls;}};}
 const write=(body:unknown,origin='https://shop.test')=>new Request('https://shop.test/api/admin/inventory',{method:'PATCH',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -13,6 +14,21 @@ test('paid shipment pagination validates input and reports totals beyond the old
  const page=await handler.shipmentsGet(new Request('https://shop.test/api/admin/shipments?page=3&pageSize=50'));
  assert.equal((await page.json()).page,3);assert.deepEqual(calls[1],[3,50]);
  for(const query of ['page=0','page=-1','page=1.5','pageSize=100000','page=abc'])assert.equal((await handler.shipmentsGet(new Request('https://shop.test/api/admin/shipments?'+query))).status,400);
+});
+test('weekly booking hours save expands the five-day default to the seven-day SQL RPC contract',async()=>{
+ let saved:unknown=null;
+ const handler=createAdminHandlers({getSession:async()=>({googleSubject:'seller'}),subjects:()=>['seller'],inventory:async()=>[],setStock:async()=>{},shipments:async()=>[],shipment:async()=>null,ship:async()=>{},shipmentHold:async()=>{},jobs:async()=>[],bookingHours:async()=>({}),setBookingHours:async hours=>{saved=hours;}});
+ const request=(body:unknown)=>new Request('https://shop.test/api/admin/booking-hours',{method:'PATCH',headers:{origin:'https://shop.test','Content-Type':'application/json'},body:JSON.stringify(body)});
+ const response=await handler.bookingHoursPatch(request({weeklyHours:DEFAULT_WEEKLY_BOOKING_HOURS}));
+ assert.equal(response.status,200);assert.deepEqual(await response.json(),{ok:true});
+ assert.deepEqual(saved,{...DEFAULT_WEEKLY_BOOKING_HOURS,'0':{},'6':{}});
+ assert.equal(Object.keys(saved as object).length,7);
+ const fullWeek={...DEFAULT_WEEKLY_BOOKING_HOURS,'0':DEFAULT_WEEKLY_BOOKING_HOURS['1'],'6':DEFAULT_WEEKLY_BOOKING_HOURS['1']};
+ const fullWeekResponse=await handler.bookingHoursPatch(request({weeklyHours:fullWeek}));
+ assert.equal(fullWeekResponse.status,200);assert.deepEqual(saved,fullWeek);
+ assert.equal((await handler.bookingHoursPatch(request({weeklyHours:{'0':{},'7':{}}}))).status,400);
+ assert.equal((await handler.bookingHoursPatch(request({weeklyHours:{'1':{},'2':{},'3':{},'4':{}}}))).status,400);
+ assert.equal((await handler.bookingHoursPatch(request({weeklyHours:{'1':{'08:15':'available'}}}))).status,400);
 });
 test('admin Google subject allowlist rejects missing and foreign identity before any inventory read/write',async()=>{for(const subject of ['','buyer']){const f=fixture();f.subject=subject;assert.equal((await f.handler.inventoryGet(new Request('https://shop.test'))).status,subject?403:401);assert.equal((await f.handler.inventoryPatch(write({sku:'endplug-plain',onHand:4}))).status,subject?403:401);assert.equal(f.calls,0);}});
 test('admin rejects namespaced Supabase identities even when the allowlist contains them',async()=>{

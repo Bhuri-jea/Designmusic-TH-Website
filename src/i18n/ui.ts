@@ -439,13 +439,12 @@ export const ui = {
     'booking.estimated': '推定価格',
 
   'hero.mission': '革新的な楽器と、丁寧なリペアを。',
-  'hero.title.crafting': '音の',
-  'hero.title.joy': 'よろこびを',
-  'hero.title.through': '丁寧に',
-  'hero.title.perfection': '磨き続ける',
+  'hero.title.crafting': '完璧な',
+  'hero.title.joy': '楽器から',
+  'hero.title.through': '真の',
+  'hero.title.perfection': '歓びを',
 
-  'hero.desc':
-    'どれだけ時間と手間がかかっても、一つひとつ丁寧に向き合い、本当に良いと思えるものだけをお届けしたいと考えています。世界中の学生の方々や演奏家の皆さまへ向けて、楽器・アクセサリー・リペアサービスをご提供しています。',
+  'hero.desc':'どれだけ時間と手間がかかっても、一つひとつ丁寧に向き合い、本当に良いと思えるものだけをお届けしたいと考えています。世界中の学生の方々や演奏家の皆さまへ向けて、楽器・アクセサリー・リペアサービスをご提供しています。',
 
   'hero.cta1': '製品を見る',
   'hero.cta2': 'サービスを見る',
@@ -693,9 +692,9 @@ export const ui = {
       'booking.estimated': '预计价格',
 
     'hero.mission': '创新乐器，卓越匠修。',
-    'hero.title.crafting': '以',
-    'hero.title.joy': '“完美”',
-    'hero.title.through': '成就',
+    'hero.title.crafting': '以完美',
+    'hero.title.joy': '“乐器”',
+    'hero.title.through': '致极致',
     'hero.title.perfection': '“喜悦”',
 
     'hero.desc':

@@ -4,8 +4,32 @@ import { filterGoogleCalendarAvailability, sendGoogleReport, dispatchOutbox, run
 import { notification } from '../src/lib/server/notifications.ts';
 import { SupabaseRequestError } from '../src/lib/server/supabase.ts';
 const id = '22222222-2222-4222-8222-222222222222';
+
+test('refund email retries keep a stable key and never send obsolete action-required notices after completion', async () => {
+ const requests: RequestInit[] = [];
+ const transitions: string[] = [];
+ let state = 'pending', notice = 'pending', accepted = false;
+ const deps: OutboxDependencies = {
+  env: n => ({ RESEND_API_KEY:'test-key', EMAIL_FROM:'sender@example.test', APP_ORIGIN:'https://shop.example.test' }[n]), elapsedNow: () => performance.now(),
+  fetch: async (_url, init) => { requests.push(init!); return accepted ? new Response('{"id":"mail-id"}', {headers:{'content-type':'application/json'}}) : new Response('temporary', {status:503}); },
+  rpc: async <T>(name: string) => {
+   if (name === 'claim_outbox') return [{id:1,topic:'order_refund_buyer',dedupe_key:'refund:re_test:'+notice+':buyer',attempts:1,payload:{refundId:'re_test',orderId:id,refundStatus:notice,recipient:'buyer@example.test',amount:1000,currency:'usd',locale:'en'}}] as T;
+   if (name === 'order_record') return {refundStatus:state} as T;
+   transitions.push(name); return true as T;
+  },
+ };
+ assert.equal((await dispatchOutbox(deps)).sent, 0);
+ assert.deepEqual(transitions, ['fail_outbox']);
+ accepted = true;
+ assert.equal((await dispatchOutbox(deps)).sent, 1);
+ assert.equal(new Headers(requests[0].headers).get('Idempotency-Key'),new Headers(requests[1].headers).get('Idempotency-Key'));
+ assert.match(JSON.parse(String(requests[1].body)).html,/confirmation is pending/);
+ notice = 'requires_action'; state = 'succeeded';
+ await dispatchOutbox(deps);
+ assert.equal(requests.length, 2, 'obsolete notice must not reach the buyer');
+});
 const payload = { bookingId: id, startAt: '2026-10-13T03:00:00Z', endAt: '2026-10-13T04:00:00Z', timeZone: 'Asia/Bangkok', customer: { name: '<Name>', email: 'buyer@example.test', phone: '=123' }, instrument: 'alto', service: 'basic', notes: '<script>bad</script>', locale: 'ja', recipient: 'buyer@example.test' };
-const config: Record<string, string> = { GOOGLE_SHEETS_WEBHOOK_URL: 'https://script.google.com/macros/s/deploy/exec', GOOGLE_SHEETS_WEBHOOK_SECRET: 'secret', RESEND_API_KEY: 'test-key', EMAIL_FROM: 'sender@example.test', SELLER_EMAIL: 'seller@example.test', CRON_SECRET: 'cron-secret' };
+const config: Record<string, string> = { APP_ORIGIN: 'https://shop.example.test', GOOGLE_SHEETS_WEBHOOK_URL: 'https://script.google.com/macros/s/deploy/exec', GOOGLE_SHEETS_WEBHOOK_SECRET: 'secret', RESEND_API_KEY: 'test-key', EMAIL_FROM: 'sender@example.test', SELLER_EMAIL: 'seller@example.test', CRON_SECRET: 'cron-secret' };
 const ack = () => new Response(JSON.stringify({ ok: true, bookingId: id }), { headers: { 'content-type': 'application/json' } });
 test('Google direct acknowledgment and exactly one 302/303 GET redirect succeed without secret/header forwarding', async () => {
   await sendGoogleReport(payload, n => config[n], async () => ack());

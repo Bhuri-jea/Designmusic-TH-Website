@@ -15,10 +15,10 @@
           {#if lang === 'th'}ใส่ใจทุกรายละเอียดตามแนวคิด<strong>โคดาวาริ</strong>ของญี่ปุ่น เพื่อสร้างเสียงที่สมบูรณ์และความสุขในการเล่นดนตรี{:else}Embracing the Japanese philosophy of <strong>Kodawari</strong>. Uncompromising dedication to crafting perfect sound and joy.{/if}
         </p>
         <div class="flex gap-4">
-          <a href="https://www.facebook.com/DesignmusicInstrumentmusicAccessories" target="_blank" rel="noreferrer" class="p-2 border border-white/20 rounded-full hover:bg-white hover:text-black transition-colors">
+          <a href="https://www.facebook.com/DesignmusicInstrumentmusicAccessories" aria-label="Facebook" target="_blank" rel="noreferrer" class="p-2 border border-white/20 rounded-full hover:bg-white hover:text-black transition-colors">
             <Facebook class="h-5 w-5" />
           </a>
-          <a href="https://www.instagram.com/designmusic_instrument/" target="_blank" rel="noreferrer" class="p-2 border border-white/20 rounded-full hover:bg-white hover:text-black transition-colors">
+          <a href="https://www.instagram.com/designmusic_instrument/" aria-label="Instagram" target="_blank" rel="noreferrer" class="p-2 border border-white/20 rounded-full hover:bg-white hover:text-black transition-colors">
             <Instagram class="h-5 w-5" />
           </a>
         </div>

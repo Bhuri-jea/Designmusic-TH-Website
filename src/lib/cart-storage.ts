@@ -34,7 +34,7 @@ export function cartItems(state:CartState):CartInput[] {
 }
 export function addCartItem(state:CartState,input:CartInput):CartState {
  const original={...input,entryId:crypto.randomUUID()};if(!validLot(original) || state.items.length>=100)throw Error('invalid_cart');
- const lot:Lot={productId:input.productId,variant:input.productId==='shakuhachi'?'standard':input.variant,quantity:input.quantity,entryId:original.entryId,...(input.productId==='shakuhachi'?{options:structuredClone(input.options)}:{})};
+ const lot:Lot={productId:input.productId,variant:input.productId==='shakuhachi'?'standard':input.variant,quantity:input.quantity,entryId:original.entryId,...(input.productId==='shakuhachi'?{options:{...input.options}}:{})};
  const next={...state,items:[...state.items,lot]};cartItems(next);return bounded(next);
 }
 export function removeCartItem(state:CartState,input:CartInput):CartState {return {...state,items:state.items.filter(lot=>inputKey(lot)!==inputKey(input))};}
@@ -69,7 +69,19 @@ export function bindOrder(state:CartState,key:string,id:string):CartState {
 }
 export function reconcilePaid(state:CartState,order:any):CartState {
  const attempt=state.attempts.find(a=>a.orderId===order?.id && !a.reconciled);
- if(!attempt || order.status!=='paid' || order.currency!==attempt.quote.currency || order.amountTotal!==attempt.quote.totalAmount || canonical(order.items)!==canonical(attempt.quote.lines))return state;
+ if(!attempt || order.status!=='paid' || order.currency!==attempt.quote.currency || !Array.isArray(order.items) || !order.items.length)return state;
+ if(!order.items.every((line:any)=>line&&Number.isSafeInteger(line.quantity)&&line.quantity>0&&Number.isSafeInteger(line.unitAmount)&&line.unitAmount>=0))return state;
+ const subtotal=order.items.reduce((sum:number,line:any)=>sum+line.unitAmount*line.quantity,0);
+ const shipping=order.shippingAmount??0;
+ if(!Number.isSafeInteger(subtotal)||!Number.isSafeInteger(shipping)||shipping<0||order.amountTotal!==subtotal+shipping||(order.amountSubtotal!==undefined&&order.amountSubtotal!==subtotal))return state;
+ // Prices belong to the server. Match purchased selections/quantities, not stale catalog prices.
+ const selections=(lines:CartInput[])=>lines.map(line=>({key:inputKey(line),quantity:line.quantity})).sort((a,b)=>a.key.localeCompare(b.key));
+ if(canonical(selections(order.items))!==canonical(selections(attempt.quote.lines)))return state;
+ return consumeSubmittedCart(state,attempt.requestKey);
+}
+export function consumeSubmittedCart(state:CartState,requestKey:string):CartState {
+ const attempt=state.attempts.find(a=>a.requestKey===requestKey&&!a.reconciled);
+ if(!attempt)return state;
  const purchased=new Map(attempt.lots.map(lot=>[lot.entryId,lot]));
  return {...state,items:state.items.map(lot=>({...lot,quantity:Math.max(0,lot.quantity-(purchased.get(lot.entryId) && inputKey(purchased.get(lot.entryId)!)===inputKey(lot)?purchased.get(lot.entryId)!.quantity:0))})).filter(lot=>lot.quantity>0),attempts:state.attempts.map(a=>a===attempt?{...a,reconciled:true}:a)};
 }
