@@ -1,12 +1,2 @@
-import type { APIRoute } from 'astro';
-import { select } from '../../lib/server/supabase.ts';
-export const prerender = false;
-export const GET: APIRoute = async () => {
-  try {
-    const rows = await select<any>('inventory', { select: 'sku,price_usd_minor,price_jpy,price_thb_minor' });
-    const prices = Object.fromEntries(rows.map(row => [row.sku, { usd: row.price_usd_minor, jpy: row.price_jpy, thb: row.price_thb_minor }]));
-    return Response.json({ prices }, { headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=300' } });
-  } catch {
-    return Response.json({ prices: {} }, { headers: { 'Cache-Control': 'public, max-age=30' } });
-  }
-};
+import type {APIRoute} from 'astro';import {publishedCatalog} from '../../lib/server/catalog-public';import {errorResponse,jsonResponse} from '../../lib/server/http';
+export const prerender=false;export const GET:APIRoute=async({url})=>{try{const locale=url.searchParams.get('locale')??'en';if(!['en','th','ja','zh-CN'].includes(locale))return jsonResponse({error:'invalid_locale'},400);const products=await publishedCatalog(locale as any),prices=Object.fromEntries(products.flatMap(product=>product.skus.map(sku=>[sku.sku,sku.prices])));return jsonResponse({products,prices});}catch(error){return errorResponse(error);}};

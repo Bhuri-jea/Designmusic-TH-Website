@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { runCheckout } from '../src/lib/checkout-client.ts';
+import { runCheckout, resumeHostedCheckout } from '../src/lib/checkout-client.ts';
 import { addCartItem, bindOrder, emptyCart, submitCart } from '../src/lib/cart-storage.ts';
 
 const orderId='22222222-2222-4222-8222-222222222222';
@@ -21,6 +21,15 @@ test('checkout sends a canonical submission and binds its owned order before nav
  assert.equal(sent.shippingCountry,'TH');assert.equal(sent.shippingMethod,'ems_local');
  assert.deepEqual(sent.items,[{productId:'saxophone-end-plug',variant:'plain',quantity:1}]);
  assert.equal(sent.locale,'ja');assert.equal(f.bound[0],orderId);assert.equal(f.state().attempts[0].orderId,orderId);
+});
+
+test('pending checkout resume accepts only its owned order and a Stripe hosted URL',async()=>{
+ let sent:any;
+ const url=await resumeHostedCheckout('22222222-2222-4222-8222-222222222222',async(input,init)=>{sent=JSON.parse(String(init?.body));assert.equal(input,'/api/orders/resume-checkout');return new Response(JSON.stringify({orderId:sent.orderId,url:'https://checkout.stripe.com/c/pay/resume'}),{status:200});});
+ assert.equal(url,'https://checkout.stripe.com/c/pay/resume');
+ assert.deepEqual(sent,{orderId:'22222222-2222-4222-8222-222222222222'});
+ await assert.rejects(resumeHostedCheckout(sent.orderId,async()=>new Response(JSON.stringify({orderId:sent.orderId,url:'https://evil.example/pay'}),{status:200})),{code:'checkout_unavailable'});
+ await assert.rejects(resumeHostedCheckout(sent.orderId,async()=>new Response(JSON.stringify({error:'checkout_expired'}),{status:409})),{code:'checkout_expired'});
 });
 test('failed requests preserve a retry key and never bind an order',async()=>{
  const f=fixture();const keys:string[]=[];

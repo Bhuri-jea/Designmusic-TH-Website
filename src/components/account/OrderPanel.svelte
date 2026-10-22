@@ -10,10 +10,11 @@
  import type { Locale } from '../../lib/catalog';
  import {orderDelivery} from '../../lib/order-delivery';
  import {serviceLabel} from '../../i18n/shipping';
+ import {CheckoutError, resumeHostedCheckout} from '../../lib/checkout-client';
  type Line = { name:string; sku?:string; variant?:string; options?:Record<string,string>; quantity:number; unitAmount:number };
  type Order = { id:string; status:string; currency:'usd'|'jpy'|'thb'; locale?:Locale; items:Line[]; createdAt:string; amountSubtotal?:number; shippingAmount?:number; amountTotal:number; paymentSummary?:{method?:string|null;brand?:string|null;last4?:string|null}; fulfillmentMethod?:string; shipment?:{service?:string;trackingNumber?:string|null;trackingUrl?:string|null}|null; shippingCountry?:string;cancellationStatus?:string;cancellationReason?:string|null;refundStatus?:string|null;refundedAmount?:number };
  let {lang,orderId,cancelled=false}=$props<{lang:Locale;orderId?:string|null;cancelled?:boolean}>();
- let state=$state('unknown'),order=$state<Order|null>(null),pending=$state(false);let active=true;
+ let state=$state('unknown'),order=$state<Order|null>(null),pending=$state(false),resuming=$state(false),resumeMessage=$state('');let active=true;
  const t=(key:string)=>ui[lang][key as keyof typeof ui.en] || ui.en[key as keyof typeof ui.en];
  const money = (value:number) => new Intl.NumberFormat(lang,{style:'currency',currency:(order?.currency??'usd').toUpperCase(),maximumFractionDigits:order?.currency==='jpy'?0:2}).format(value/(order?.currency==='jpy'?1:100));
  const subtotal = $derived(order?.amountSubtotal ?? (order?.items ?? []).reduce((sum,line)=>sum+line.unitAmount*line.quantity,0));
@@ -21,6 +22,19 @@
  const delivery=$derived(order?orderDelivery(order):null);
  const optionText = (line:Line) => Object.entries(line.options??{}).map(([key,value])=>key==='toneHoles'?t(`product.tone.${value}`)||value:key==='mouthpiece'?t(`product.mouth.${value}`)||value:value).concat(line.variant && line.variant !== 'standard' ? [t(line.variant==='plain'?'product.endplug.plain':line.variant==='twoColor'?'product.endplug.twocolor':'product.endplug.custom')||line.variant] : []).join(' · ');
  async function refresh(){if(pending || !orderId || !/^[0-9a-f-]{36}$/i.test(orderId))return;pending=true;try{const res=await fetch('/api/orders?order_id='+encodeURIComponent(orderId),{cache:'no-store'});const data=await res.json();if(!active)return;if(res.status===401){state='signInRequired';return;}if(!res.ok){state='unavailable';return;}order=data.orders?.find((value:Order)=>value.id===orderId)??null;state=order&&['pending','paid','failed','expired','review'].includes(order.status)?order.status:'unknown';if(state==='paid'){cart.init(lang);cart.reconcile(order);}}catch{state='unavailable';}finally{pending=false;}}
+ async function resumePayment(){
+  if(resuming||pending||state!=='pending'||!orderId)return;
+  resuming=true;resumeMessage='';
+  try{window.location.assign(await resumeHostedCheckout(orderId));}
+  catch(error){
+   const code=error instanceof CheckoutError?error.code:'checkout_unavailable';
+   if(code==='sign_in_required')state='signInRequired';
+   else if(code==='payment_confirmation_pending'){resumeMessage=t('flow.paymentSubmitted');await refresh();}
+   else if(code==='checkout_expired'||code==='checkout_not_active'){resumeMessage=t('flow.resumeExpired');await refresh();}
+   else if(code==='checkout_requires_review'||code==='payment_metadata_mismatch')state='review';
+   else resumeMessage=t('flow.resumeUnavailable');
+  }finally{resuming=false;}
+ }
  onMount(()=>{cart.init(lang);if(cancelled)return;let timer:ReturnType<typeof setTimeout>;let attempts=0;const poll=async()=>{await refresh();if(active&&state==='pending'&&++attempts<5)timer=setTimeout(poll,3000);};void poll();return()=>{active=false;clearTimeout(timer);};});
 </script>
 
@@ -32,7 +46,8 @@
   <h1 class="font-serif text-3xl md:text-4xl mb-3">{t('flow.payment')}</h1><p class="text-lg text-neutral-300 mb-4" role="status">{pending?t('flow.loading'):t(cancelled?'flow.cancelled':'flow.'+state)}</p>
   {#if order}<p class="break-all text-sm text-neutral-400 mb-5">{accountText(lang,'orderId')}: {order.id}</p><OrderFinancialStatus {order} {lang}/>{/if}
   {#if state==='signInRequired'}<a class="btn mb-5" href={localizedPath('/login',lang)+'?returnTo='+encodeURIComponent(localizedPath('/success',lang)+(orderId?'?order_id='+orderId:''))}>{t('flow.login')}</a>{/if}
-  {#if !cancelled && ['pending','unavailable'].includes(state)}<button class="btn mb-5" disabled={pending} onclick={refresh}>{t('flow.retry')}</button>{/if}
+  {#if !cancelled && ['pending','unavailable'].includes(state)}<div class="mb-5 flex flex-wrap justify-center gap-3">{#if state==='pending'&&order}<button class="btn btn-primary" disabled={pending||resuming} onclick={resumePayment}>{resuming?t('flow.resumingCheckout'):t('flow.continueCheckout')}</button>{/if}<button class="btn" disabled={pending||resuming} onclick={refresh}>{t('flow.retry')}</button></div>{/if}
+  {#if resumeMessage}<p class="mx-auto mb-5 max-w-xl text-sm text-amber-100" role="status" aria-live="polite">{resumeMessage}</p>{/if}
   <div class="flex flex-wrap justify-center gap-3"><a class="btn btn-primary" href={localizedPath('/product',lang)}>{t('flow.shop')}</a><a class="btn" href={localizedPath('/profile/orders',lang)}>{accountText(lang,'orders')}</a><a class="btn btn-ghost" href={localizedPath('/profile',lang)}>{t('flow.account')}</a></div>
  </section>
  {#if order && order.items?.length}

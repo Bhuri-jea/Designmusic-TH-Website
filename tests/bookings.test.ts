@@ -4,7 +4,7 @@ import { bookingSlots, bookingCalendarSlots, bookingDateWindow, bookingDayHours,
 import { bookingAvailability, cancelBooking, createBooking, ownedBookings, rescheduleBooking, type BookingDependencies } from '../src/lib/server/bookings.ts';
 const key = '22222222-2222-4222-8222-222222222222';
 const now = Date.parse('2026-10-12T16:59:59Z'); // 23:59:59 Monday Bangkok
-const body = { requestKey: key, slot: '2026-10-13T03:00:00.000Z', instrument: 'alto', service: 'basic', notes: '  careful  ', locale: 'ja' };
+const body = { requestKey: key, slot: '2026-10-13T03:00:00.000Z', instrument: 'alto', service: 'basic', contactName: '  Nori  ', contactInformation: ' LINE: nori-music ', notes: '  careful  ', locale: 'ja' };
 test('customer booking ordering puts nearest upcoming first and retains recent history/cancellations',()=>{
   const rows=[{id:'past',status:'confirmed',startAt:'2026-10-10T03:00:00Z'},{id:'far',status:'confirmed',startAt:'2026-10-15T03:00:00Z'},{id:'near',status:'confirmed',startAt:'2026-10-13T03:00:00Z'},{id:'cancelled',status:'cancelled',startAt:'2026-10-14T03:00:00Z'}];
   assert.deepEqual(sortBookingsUpcomingFirst(rows,Date.parse('2026-10-12T00:00:00Z')).map(row=>row.id),['near','far','cancelled','past']);
@@ -37,10 +37,15 @@ test('calendar month bounds include today and clamp month-end dates in Bangkok',
 test('booking canonical IDs, strict schema, notes bounds and locale determine fingerprint', async () => {
   const valid = await validateBooking(body, now);
   assert.equal(valid.notes, 'careful');
+  assert.equal(valid.contactName, 'Nori');
+  assert.equal(valid.contactInformation, 'LINE: nori-music');
   assert.equal(valid.locale, 'ja');
   assert.equal((await validateBooking({ ...body, locale: undefined }, now)).locale, 'en');
   assert.equal(valid.fingerprint, (await validateBooking({ ...body, notes: 'careful' }, now)).fingerprint);
   assert.notEqual(valid.fingerprint, (await validateBooking({ ...body, locale: 'th' }, now)).fingerprint);
+  assert.notEqual(valid.fingerprint, (await validateBooking({ ...body, contactInformation: 'Phone 0812345678' }, now)).fingerprint);
+  for (const patch of [{ contactName: '' }, { contactName: 'x'.repeat(121) }, { contactInformation: '' }, { contactInformation: 'x'.repeat(501) }, { contactInformation: 'LINE:\u0000bad' }])
+    await assert.rejects(validateBooking({ ...body, ...patch }, now));
   for (const patch of [{ requestKey: 'bad' }, { instrument: 'Alto' }, { instrument: ['alto'] }, { service: 'Basic' }, { instrument: 'bassoon', service: 'basic' }, { locale: 'xx' }, { notes: 'x'.repeat(2001) }, { customerId: key }, { email: 'attacker@example.test' }, { slot: '2026-10-12T03:00:00Z' }, { slot: '2026-10-18T03:00:00Z' }, { slot: '2027-01-12T03:00:00Z' }, { slot: '2026-10-13T19:00:00Z' }, { slot: '2026-10-13T03:00:01Z' }])
     await assert.rejects(validateBooking({ ...body, ...patch }, now));
 });
@@ -65,6 +70,8 @@ test('creation resolves stable server customer and passes validated immutable lo
   assert.equal(f.calls[0].name, 'create_booking');
   assert.equal(f.calls[0].args.p_customer_id, key);
   assert.equal(f.calls[0].args.p_locale, 'ja');
+  assert.equal(f.calls[0].args.p_contact_name, 'Nori');
+  assert.equal(f.calls[0].args.p_contact_information, 'LINE: nori-music');
   assert.equal('customerId' in result, false);
   assert.equal('fingerprint' in result, false);
 });
@@ -105,6 +112,12 @@ test('admin availability remains editable when Google fails, while public availa
   assert.ok(admin.calendarSlots.some(slot => slot.status === 'unavailable'));
   assert.deepEqual(admin.slots, []);
   await assert.rejects(bookingAvailability(f.deps), /transport_http_503/);
+});
+test('booking contact details are projected only for the authorized admin calendar', async()=>{
+ const f=fixture();f.deps.calendarAvailability=async slots=>slots;
+ f.deps.select=async <T>(_table:string,filters:Record<string,string>)=>filters.select?.includes('customer_snapshot')?[{id:key,start_at:body.slot,end_at:'2026-10-13T04:00:00.000Z',status:'confirmed',instrument:'alto',service:'basic',notes:'careful',customer_snapshot:{contactName:'Nori',contactInformation:'LINE: nori-music'}}] as T[]:filters.select==='start_at,end_at'?[{start_at:body.slot,end_at:'2026-10-13T04:00:00.000Z'}] as T[]:[];
+ const publicResult=await bookingAvailability(f.deps);assert.equal('bookings' in publicResult,false);
+ const admin=await bookingAvailability(f.deps,{includePast:true,includeAdminDetails:true});assert.deepEqual(admin.bookings?.[0],{id:key,startAt:body.slot,endAt:'2026-10-13T04:00:00.000Z',status:'confirmed',instrument:'alto',service:'basic',notes:'careful',contactName:'Nori',contactInformation:'LINE: nori-music'});
 });
 test('public calendar omits past starts, admin calendar retains today, and database range ends after the final Bangkok day', async () => {
   const f = fixture();

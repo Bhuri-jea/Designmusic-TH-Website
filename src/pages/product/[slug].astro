@@ -1,0 +1,5 @@
+---
+import CatalogProductPage from '../../components/product/CatalogProductPage.astro';
+export const prerender=false;const {slug}=Astro.params;if(!slug)return new Response(null,{status:404});
+---
+<CatalogProductPage lang="en" {slug}/>

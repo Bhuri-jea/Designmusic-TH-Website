@@ -4,6 +4,7 @@ export type CartInput = { productId: string; variant?: string; options?: Record<
 export type CatalogLine = { sku: string; productId: string; variant: string; options: Record<string, string>; quantity: number; name: string; unitAmount: number };
 export type CartQuote = { currency: Currency; lines: CatalogLine[]; totalAmount: number; fingerprint: string };
 export type CatalogPrices = Record<string, Partial<Record<Currency, number>>>;
+export type TrustedCatalogSku={sku:string;productSlug:string;optionCodes:string[];name:string;salesMode:'checkout'|'reservation_only';productLifecycle:'draft'|'published'|'archived';skuLifecycle:'active'|'archived';prices:Partial<Record<Currency,number>>};
 
 const currencyByLocale: Record<Locale, Currency> = { en: 'usd', 'zh-CN': 'usd', ja: 'jpy', th: 'thb' };
 const plugs = {
@@ -21,7 +22,7 @@ function stable(value: unknown): string {
   return JSON.stringify(value);
 }
 
-export function quoteCartDetails({ items, locale, prices }: { items: unknown; locale: unknown; prices?: CatalogPrices }): Omit<CartQuote, 'fingerprint'> {
+export function quoteCartDetails({ items, locale, prices, catalogSkus }: { items: unknown; locale: unknown; prices?: CatalogPrices;catalogSkus?:TrustedCatalogSku[] }): Omit<CartQuote, 'fingerprint'> {
   if (typeof locale !== 'string' || !Object.hasOwn(currencyByLocale, locale)) throw new Error('Unsupported locale');
   if (!Array.isArray(items) || items.length < 1 || items.length > 20) throw new Error('Cart must contain 1 to 20 rows');
   const currency = currencyByLocale[locale as Locale];
@@ -31,7 +32,12 @@ export function quoteCartDetails({ items, locale, prices }: { items: unknown; lo
     const { productId, variant, options, quantity } = item;
     if (typeof productId !== 'string' || !Number.isSafeInteger(quantity) || (quantity as number) < 1 || (quantity as number) > 10) throw new Error('Invalid product or quantity');
     let sku: string, name: string, unitAmount: number, normalizedOptions: Record<string, string> = {}, normalizedVariant: string;
-    if (productId === 'saxophone-end-plug') {
+    const dynamic=catalogSkus?.filter(row=>row.productSlug===productId).find(row=>variant===row.sku||!options&&row.optionCodes.length===1&&row.optionCodes[0]===variant||isObject(options)&&row.optionCodes.length===Object.keys(options).length&&row.optionCodes.every(code=>Object.values(options).includes(code)));
+    if(dynamic){
+      if(dynamic.productLifecycle!=='published'||dynamic.skuLifecycle!=='active'||dynamic.salesMode!=='checkout')throw new Error('Product is not saleable');
+      sku=dynamic.sku;name=dynamic.name;normalizedVariant=sku;normalizedOptions=isObject(options)?Object.fromEntries(Object.entries(options).map(([k,v])=>[k,String(v)])):{};unitAmount=dynamic.prices[currency]??NaN;if(!Number.isSafeInteger(unitAmount)||unitAmount<=0)throw new Error('Product price unavailable');
+    } else if (catalogSkus) throw new Error('Product is not saleable');
+    else if (productId === 'saxophone-end-plug') {
       if (typeof variant !== 'string' || !Object.hasOwn(plugs, variant) || options !== undefined && (!isObject(options) || Object.keys(options).length !== 0)) throw new Error('Invalid end plug selection');
       normalizedVariant = variant; sku = `endplug-${variant}`; name = `Saxophone End Plug (${variant})`; unitAmount = prices?.[sku]?.[currency] ?? plugs[variant as keyof typeof plugs][currency];
     } else if (productId === 'shakuhachi') {
@@ -53,7 +59,7 @@ export function quoteCartDetails({ items, locale, prices }: { items: unknown; lo
   return { currency, lines, totalAmount };
 }
 
-export async function quoteCart(input: {items:unknown;locale:unknown;prices?:CatalogPrices}):Promise<CartQuote> {
+export async function quoteCart(input: {items:unknown;locale:unknown;prices?:CatalogPrices;catalogSkus?:TrustedCatalogSku[]}):Promise<CartQuote> {
   const {currency,lines,totalAmount}=quoteCartDetails(input);
   const canonical = stable({ currency, lines });
   const digest = await globalThis.crypto.subtle.digest('SHA-256', encoder.encode(canonical));

@@ -3,6 +3,7 @@ import { quoteCart, type Currency } from '../catalog.ts';
 import { HttpError } from './http.ts';
 import { select, rpc } from './supabase.ts';
 import { loadExchangeRates, convertPostage, type ExchangeRates } from './exchange-rates.ts';
+import {trustedSkusFromInventory} from './catalog-trust.ts';
 
 export type ShippingMethod = 'ems_local'|'ems_world'|'epacket'|'flash'|'pickup';
 export type ShippingQuote = { currency:Currency;amount:number;weightGrams:number;method:ShippingMethod;country:string;subtotal:number;total:number;fxMarginApplied:boolean;referenceThbRate?:number|null;referenceFxDate?:string|null };
@@ -24,7 +25,9 @@ export async function quoteShipping(items:unknown,locale:unknown,country:unknown
  if(method==='pickup'&&(country!=='TH'||cfg.pickup_enabled!==true)||method==='ems_local'&&country!=='TH'||method==='flash'&&country!=='TH'||(method==='ems_world'||method==='epacket')&&country==='TH')throw new HttpError(400,'shipping_service_unavailable');
  const inventory=await deps.inventory();
  const prices:any={};for(const row of inventory){const price:any={};if(Number.isInteger(row.price_usd_minor))price.usd=row.price_usd_minor;if(Number.isInteger(row.price_jpy))price.jpy=row.price_jpy;if(Number.isInteger(row.price_thb_minor))price.thb=row.price_thb_minor;prices[row.sku]=price;}
- const quote=await quoteCart({items,locale,prices});
+ const quote=await quoteCart({items,locale,prices,catalogSkus:trustedSkusFromInventory(inventory,locale as any)});
+ const unavailable=quote.lines.filter(item=>{const stock=inventory.find(row=>row.sku===item.sku);return !stock||!Number.isInteger(stock.on_hand)||!Number.isInteger(stock.reserved)||stock.on_hand-stock.reserved<item.quantity;}).map(item=>item.name);
+ if(unavailable.length)throw new HttpError(409,'stock_unavailable',{items:unavailable});
  if(method==='pickup')return{currency:quote.currency,amount:0,weightGrams:0,method:'pickup' as const,country,subtotal:quote.totalAmount,total:quote.totalAmount,fxMarginApplied:false};
  const weights=new Map(inventory.map(row=>[row.sku,row.weight_grams]));
  let weightGrams=0;

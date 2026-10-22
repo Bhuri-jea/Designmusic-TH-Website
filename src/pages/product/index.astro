@@ -1,9 +1,10 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { products } from '../../lib/products';
+import { publishedCatalog } from '../../lib/server/catalog-public';
 
 // Show all top-level products on the index (no category filter)
-const allProducts = products;
+export const prerender=false;
+const allProducts = await publishedCatalog('en');
 ---
 
 <Layout title="Products">
@@ -40,7 +41,7 @@ const allProducts = products;
               <span class="badge self-start mb-2">{p.badge}</span>
             )}
             <p class="text-neutral-400 font-light text-sm mb-6">
-              {p.shortDesc}
+              {p.shortDescription}
             </p>
             <span class="mt-auto text-xs font-medium tracking-widest uppercase text-[#c2aa6a]">View Details</span>
           </div>

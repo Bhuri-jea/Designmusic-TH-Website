@@ -12,7 +12,7 @@ function calendarSetupError(error:unknown){
 export const GET:APIRoute=async({request})=>{
  try{
   await requireAdmin(request);
-  const [weeklyHours,overrides,availability]=await Promise.all([rpc('booking_weekly_hours',{}),rpc('booking_date_hours',{}),bookingAvailability(undefined,{googleFailure:'unavailable',includePast:true})]);
+  const [weeklyHours,overrides,availability]=await Promise.all([rpc('booking_weekly_hours',{}),rpc('booking_date_hours',{}),bookingAvailability(undefined,{googleFailure:'unavailable',includePast:true,includeAdminDetails:true})]);
   return jsonResponse({...availability,...bookingDateWindow(),weeklyHours,overrides});
  }catch(error){return errorResponse(calendarSetupError(error));}
 };

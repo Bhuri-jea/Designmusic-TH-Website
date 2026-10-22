@@ -72,7 +72,9 @@ test('customer quote responses omit internal identity, fingerprint and approval 
 
 test('quote requests reject insufficient available inventory before storing a request',async()=>{
  const f=fixture();f.deps.inventory=async()=>[{sku:'endplug-plain',on_hand:3,reserved:2,weight_grams:1500}];
- await assert.rejects(requestShippingQuote(new Request('https://shop.test'),body,f.deps),/stock_unavailable/);
+ let caught:unknown;try{await requestShippingQuote(new Request('https://shop.test'),body,f.deps);}catch(error){caught=error;}
+ assert.equal((caught as any).code,'stock_unavailable');
+ assert.deepEqual((caught as any).details,{items:['Saxophone End Plug (plain)']});
  assert.equal(f.calls.length,0);
 });
 test('seller decline requires a reason and cannot decline payment-started quotes',async()=>{

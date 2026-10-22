@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { quoteCart, type Locale, type CatalogPrices } from '../catalog.ts';
+import {trustedSkusFromInventory} from './catalog-trust.ts';
 import { requireCustomer, type Customer } from './customer.ts';
 import { getEnv } from './env.ts';
 import { HttpError } from './http.ts';
@@ -125,7 +126,7 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
     try {
         const prices:CatalogPrices={};for(const row of inventory){const value:CatalogPrices[string]={};if(Number.isInteger(row.price_usd_minor))value.usd=row.price_usd_minor;if(Number.isInteger(row.price_jpy))value.jpy=row.price_jpy;if(Number.isInteger(row.price_thb_minor))value.thb=row.price_thb_minor;if(Object.keys(value).length)prices[row.sku]=value;}
         if(approved)for(const item of approved.items){if(!Number.isSafeInteger(item.unitAmount)||item.unitAmount<=0)throw Error('invalid_quote_price');prices[item.sku]={[approved.currency]:item.unitAmount};}
-        quote = await quoteCart({items: body.items, locale: body.locale, prices});
+        quote = await quoteCart({items: body.items, locale: body.locale, prices,catalogSkus:trustedSkusFromInventory(inventory,body.locale as Locale)});
     }
     catch {
         throw new HttpError(400, 'invalid_cart');
@@ -218,6 +219,37 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
     return {
         orderId: attached.id, url: activeUrl(attached.checkoutUrl)
     };
+}
+
+export async function resumeCheckout(request: Request, body: Record<string, unknown>, deps = paymentDependencies): Promise<{ orderId: string; url: string }> {
+    const customer = await deps.customer(request);
+    if (Object.keys(body).join(',') !== 'orderId' || !uuid(body.orderId))
+        throw new HttpError(400, 'invalid_order_id');
+    const rows = await deps.select<{ id: string }>('orders', {
+        customer_id: `eq.${customer.id}`, id: `eq.${body.orderId}`
+    });
+    if (rows.length !== 1)
+        throw new HttpError(404, 'order_not_found');
+    const order = await deps.rpc<OrderRecord>('order_record', { p_id: body.orderId });
+    if (!order || order.customerId !== customer.id)
+        throw new HttpError(404, 'order_not_found');
+    if (order.status !== 'pending' || order.cancellationStatus && order.cancellationStatus !== 'none'
+        || order.refundStatus || (order.refundedAmount ?? 0) > 0)
+        throw new HttpError(409, 'checkout_not_active');
+    if (!order.checkoutSessionId || !order.checkoutUrl)
+        throw new HttpError(409, 'checkout_requires_review');
+    const config = paymentCredentials(deps.env);
+    const session = await deps.stripe(config.key).retrieve(order.checkoutSessionId, { timeout: 8000, maxNetworkRetries: 0 });
+    sessionMatches(session, order, config.live);
+    const databaseExpiry = Date.parse(order.expiresAt);
+    const providerExpiry = session.expires_at * 1000;
+    if (!Number.isFinite(databaseExpiry) || !Number.isFinite(providerExpiry) || databaseExpiry !== providerExpiry)
+        throw new HttpError(409, 'checkout_requires_review');
+    if (session.status === 'expired' || providerExpiry <= deps.now())
+        throw new HttpError(409, 'checkout_expired');
+    if (session.status !== 'open' || session.payment_status !== 'unpaid')
+        throw new HttpError(409, 'payment_confirmation_pending');
+    return { orderId: order.id, url: activeUrl(order.checkoutUrl) };
 }
 const eventTypes = new Set(['checkout.session.completed', 'checkout.session.async_payment_succeeded', 'checkout.session.async_payment_failed', 'checkout.session.expired']);
 export async function applySessionEvent(order: OrderRecord, session: Stripe.Checkout.Session, eventId: string, eventType: string, created: number, deps: PaymentDependencies) {

@@ -2,7 +2,7 @@ import { quoteCart } from '../src/lib/catalog.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import Stripe from 'stripe';
-import { checkout, paymentConfig, processWebhook, ownedOrders, ownedOrdersPage, applySessionEvent, type PaymentDependencies } from '../src/lib/server/payments.ts';
+import { checkout, resumeCheckout, paymentConfig, processWebhook, ownedOrders, ownedOrdersPage, applySessionEvent, type PaymentDependencies } from '../src/lib/server/payments.ts';
 import { reconcilePayments } from '../src/lib/server/reconciliation.ts';
 import { HttpError } from '../src/lib/server/http.ts';
 import { SupabaseRequestError } from '../src/lib/server/supabase.ts';
@@ -78,7 +78,7 @@ function fixture() {
                     ...session(order!), url: 'https://checkout.stripe.com/c/pay', expires_at: params.expires_at!, status: 'open'
                 } as unknown as Stripe.Checkout.Session;
             }, retrieve: async () => ({
-                ...session(order!), status: 'open'
+                ...session(order!), status: 'open', payment_status: 'unpaid'
             } as unknown as Stripe.Checkout.Session)
         })
     };
@@ -108,11 +108,54 @@ test('a cancellation request blocks reopening or creating another Checkout sessi
  await assert.rejects(checkout(request,body,f.deps),error=>(error as any).code==='checkout_not_active');
  assert.equal(f.creates.length,1);
 });
+
+test('customer resumes the same verified open Checkout session without creating another session',async()=>{
+ const f=fixture();const request=new Request('https://shop.example.test/api/orders/resume-checkout');
+ await checkout(request,body,f.deps);const created=f.creates.length;
+ const first=await resumeCheckout(request,{orderId:key},f.deps);
+ const second=await resumeCheckout(request,{orderId:key},f.deps);
+ assert.deepEqual(first,{orderId:key,url:'https://checkout.stripe.com/c/pay'});
+ assert.deepEqual(second,first);assert.equal(f.creates.length,created);
+});
+
+test('resume Checkout verifies ownership and rejects inactive financial states',async()=>{
+ const request=new Request('https://shop.example.test/api/orders/resume-checkout');
+ for(const patch of [{customerId:'other'},{status:'paid'},{cancellationStatus:'requested'},{refundStatus:'pending'},{refundedAmount:1}]){
+  const f=fixture();await checkout(request,body,f.deps);f.order={...f.order!,...patch} as OrderRecord;
+  await assert.rejects(resumeCheckout(request,{orderId:key},f.deps),error=>['order_not_found','checkout_not_active'].includes((error as any).code));
+ }
+});
+
+test('resume Checkout distinguishes provider confirmation, expiry and review states',async()=>{
+ const request=new Request('https://shop.example.test/api/orders/resume-checkout');
+ for(const [providerPatch,code] of [
+  [{status:'complete',payment_status:'paid'},'payment_confirmation_pending'],
+  [{status:'complete',payment_status:'unpaid'},'payment_confirmation_pending'],
+  [{status:'expired',payment_status:'unpaid'},'checkout_expired'],
+ ] as const){
+  const f=fixture();await checkout(request,body,f.deps);
+  f.deps.stripe=()=>({create:async()=>{throw Error('must not create');},retrieve:async()=>({...session(f.order!),...providerPatch}) as any});
+  await assert.rejects(resumeCheckout(request,{orderId:key},f.deps),error=>(error as any).code===code);
+ }
+ const missing=fixture();await checkout(request,body,missing.deps);missing.order={...missing.order!,checkoutSessionId:null,checkoutUrl:null};
+ await assert.rejects(resumeCheckout(request,{orderId:key},missing.deps),error=>(error as any).code==='checkout_requires_review');
+});
+
+test('resume Checkout rejects expired, mismatched and unsafe stored sessions',async()=>{
+ const request=new Request('https://shop.example.test/api/orders/resume-checkout');
+ for(const mode of ['past','mismatch','unsafe']){
+  const f=fixture();await checkout(request,body,f.deps);
+  if(mode==='past')f.deps.now=()=>Date.parse(f.order!.expiresAt)+1;
+  if(mode==='mismatch')f.deps.stripe=()=>({create:async()=>{throw Error('unused');},retrieve:async()=>({...session(f.order!),status:'open',payment_status:'unpaid',amount_total:1}) as any});
+  if(mode==='unsafe')f.order={...f.order!,checkoutUrl:'https://evil.example/pay'};
+  await assert.rejects(resumeCheckout(request,{orderId:key},f.deps));
+ }
+});
 function session(order: OrderRecord) {
     return {
         object: 'checkout.session', id: 'cs_1', client_reference_id: order.id, mode: 'payment', status: 'complete', livemode: false, payment_status: 'paid', metadata: {
             order_id: order.id, customer_id: order.customerId
-        }, currency: 'usd', amount_total: 3000, collected_information: {
+        }, currency: 'usd', amount_total: 3000, expires_at: Math.floor(Date.parse(order.expiresAt) / 1000), collected_information: {
             shipping_details: {
                 name: 'Buyer', address: {
                     line1: '1 Street', city: 'Bangkok', postal_code: '10000', country: 'TH'
