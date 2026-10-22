@@ -1,5 +1,5 @@
 import { type CartInput, type Locale } from '../lib/catalog.ts';
-import { displayPriceFor } from './catalog-pricing.svelte.ts';
+import { catalogPricing,displayNameFor,displayPriceFor } from './catalog-pricing.svelte.ts';
 import { CART_STORAGE_KEY, emptyCart, restoreCart, addCartItem, removeCartItem, setCartQuantity, cartItems, submitCart, mergeCartSubmission, bindOrder, reconcilePaid, consumeSubmittedCart } from '../lib/cart-storage.ts';
 class Cart {
  state=$state(emptyCart());
@@ -9,13 +9,13 @@ class Cart {
  initialized=false;
  init(locale:Locale){this.locale=locale;if(this.initialized)return;this.initialized=true;try{this.state=restoreCart(localStorage.getItem(CART_STORAGE_KEY));}catch{this.storageAvailable=false;}}
  persist(){try{localStorage.setItem(CART_STORAGE_KEY,JSON.stringify($state.snapshot(this.state)));this.storageAvailable=true;}catch{this.storageAvailable=false;}}
- get items(){return cartItems(this.state).map(item=>({...item,name:item.productId==='shakuhachi'?'Shakuhachi S-1/D':'Saxophone End Plug',price:displayPriceFor(item.productId,item.variant,this.locale,item.options)??0}));}
+ get items(){return cartItems(this.state).map(item=>({...item,name:displayNameFor(item.productId,item.variant)??(item.productId==='shakuhachi'?'Shakuhachi S-1/D':item.productId==='saxophone-end-plug'?'Saxophone End Plug':item.productId),price:displayPriceFor(item.productId,item.variant,this.locale,item.options)??0}));}
  get count(){return this.items.reduce((sum,item)=>sum+item.quantity,0);}
  get total(){return this.items.reduce((sum,item)=>sum+item.price*item.quantity,0);}
  add(item:CartInput){this.state=addCartItem($state.snapshot(this.state),item);this.persist();}
  remove(item:CartInput){this.state=removeCartItem($state.snapshot(this.state),item);this.persist();}
  setQuantity(item:CartInput,quantity:number){this.state=setCartQuantity($state.snapshot(this.state),item,quantity);this.persist();}
- async submit(locale:Locale){const submission=await submitCart($state.snapshot(this.state),locale);this.state=mergeCartSubmission($state.snapshot(this.state),submission.state,submission.request.requestKey);this.persist();if(!this.storageAvailable)throw Error('storage_unavailable');return submission.request;}
+ async submit(locale:Locale){const submission=await submitCart($state.snapshot(this.state),locale,$state.snapshot(catalogPricing.skus));this.state=mergeCartSubmission($state.snapshot(this.state),submission.state,submission.request.requestKey);this.persist();if(!this.storageAvailable)throw Error('storage_unavailable');return submission.request;}
  bind(key:string,id:string){this.state=bindOrder($state.snapshot(this.state),key,id);this.persist();if(!this.storageAvailable)throw Error('storage_unavailable');}
  reconcile(order:unknown){this.state=reconcilePaid($state.snapshot(this.state),order);this.persist();}
  consumeSubmission(requestKey:string){this.state=consumeSubmittedCart($state.snapshot(this.state),requestKey);this.persist();}

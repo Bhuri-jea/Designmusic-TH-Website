@@ -1,12 +1,14 @@
 export class HttpError extends Error {
   readonly status: number;
   readonly code: string;
+  readonly details?: { items: string[] };
 
-  constructor(status: number, code: string) {
+  constructor(status: number, code: string, details?: { items: string[] }) {
     super(code);
     this.name = 'HttpError';
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 export const MAX_JSON_BYTES = 2048;
@@ -19,7 +21,12 @@ export function jsonResponse(data: unknown, status = 200): Response {
 }
 
 export function errorResponse(error: unknown): Response {
-  if (error instanceof HttpError) return jsonResponse({ error: error.code }, error.status);
+  if (error instanceof HttpError) {
+    const items=error.code==='stock_unavailable'&&Array.isArray(error.details?.items)
+      ? [...new Set(error.details.items.filter(item=>typeof item==='string'&&item.trim()).map(item=>item.trim().slice(0,160)))].slice(0,20)
+      : [];
+    return jsonResponse(items.length?{error:error.code,items}:{error:error.code},error.status);
+  }
   return jsonResponse({ error: 'service_unavailable' }, 503);
 }
 

@@ -1,0 +1,8 @@
+---
+import ProductLayout from '../../layouts/ProductLayout.astro';import CatalogPurchase from './CatalogPurchase.svelte';import {publishedProduct} from '../../lib/server/catalog-public';import type {Locale} from '../../lib/catalog';
+const {lang='en',slug}=Astro.props as {lang:Locale;slug:string};const product=await publishedProduct(lang,slug);if(!product)return new Response(null,{status:404});
+const back={en:'Back to Products',th:'กลับไปยังผลิตภัณฑ์',ja:'製品一覧に戻る','zh-CN':'返回产品'}[lang];
+---
+<ProductLayout title={product.name} pageTitle={product.name} badge={product.badge} heroImage={product.thumbnail} galleryImages={product.images.map(image=>image.url)} backHref={`${lang==='en'?'':'/'+lang}/product`} backLabel={back} {lang}>
+ <CatalogPurchase slot="purchase" client:load {product} {lang}/><div class="prose max-w-none"><p>{product.description}</p></div>
+</ProductLayout>

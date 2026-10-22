@@ -1,4 +1,5 @@
 import { quoteCart } from '../catalog.ts';
+import {trustedSkusFromInventory} from './catalog-trust.ts';
 import { bookingUuid } from '../booking.ts';
 import { requireCustomer, type Customer } from './customer.ts';
 import { requireAdmin } from './admin.ts';
@@ -49,9 +50,11 @@ export async function requestShippingQuote(request:Request,body:Record<string,un
  const inventory=await deps.inventory();
  const prices:any=Object.fromEntries(inventory.map(row=>[row.sku,{usd:row.price_usd_minor,jpy:row.price_jpy,thb:row.price_thb_minor}]));
  let cart:Awaited<ReturnType<typeof quoteCart>>;
- try{cart=await quoteCart({items:body.items,locale:body.locale,prices});}catch{throw new HttpError(400,'invalid_cart');}
+ try{cart=await quoteCart({items:body.items,locale:body.locale,prices,catalogSkus:trustedSkusFromInventory(inventory,body.locale as any)});}catch{throw new HttpError(400,'invalid_cart');}
  let grams=0;
- for(const line of cart.lines){const stock=inventory.find(row=>row.sku===line.sku);if(!stock||!Number.isInteger(stock.on_hand)||!Number.isInteger(stock.reserved)||stock.on_hand-stock.reserved<line.quantity)throw new HttpError(409,'stock_unavailable');const weight=stock.weight_grams;if(!Number.isInteger(weight)||weight<=0)throw new HttpError(400,'product_weight_unconfigured');grams+=weight*line.quantity;}
+ const unavailable=cart.lines.filter(line=>{const stock=inventory.find(row=>row.sku===line.sku);return !stock||!Number.isInteger(stock.on_hand)||!Number.isInteger(stock.reserved)||stock.on_hand-stock.reserved<line.quantity;}).map(line=>line.name);
+ if(unavailable.length)throw new HttpError(409,'stock_unavailable',{items:unavailable});
+ for(const line of cart.lines){const stock=inventory.find(row=>row.sku===line.sku)!;const weight=stock.weight_grams;if(!Number.isInteger(weight)||weight<=0)throw new HttpError(400,'product_weight_unconfigured');grams+=weight*line.quantity;}
  if(grams<=2000){
   try{await quoteShipping(body.items,'th',body.country,method,{config:async()=>config,inventory:async()=>inventory,exchangeRates:loadExchangeRates},address);}
   catch(error){if(error instanceof HttpError&&['shipping_rate_unconfigured','shipping_weight_uncovered','shipping_service_unavailable'].includes(error.code)){/* seller quote required */}else throw error;

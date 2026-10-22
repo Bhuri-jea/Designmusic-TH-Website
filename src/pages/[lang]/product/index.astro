@@ -1,12 +1,12 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
-import { products } from '../../../lib/products';
+import { publishedCatalog } from '../../../lib/server/catalog-public';
 import { isSupportedLocale } from '../../../lib/server/locales';
-import { localizeProduct } from '../../../i18n/products';
 
 const { lang } = Astro.params;
 if (!isSupportedLocale(lang) || lang === 'en') return new Response(null, { status: 404 });
-const allProducts = products;
+export const prerender=false;
+const allProducts = await publishedCatalog(lang);
 
 const translations = {
   en: {
@@ -44,7 +44,7 @@ const translations = {
 };
 
 const copy = translations[lang] ?? translations.en;
-const localizedProducts = allProducts.map(product => localizeProduct(product, lang));
+const localizedProducts = allProducts;
 ---
 
 <Layout title={copy.pageTitle}>
@@ -82,7 +82,7 @@ const localizedProducts = allProducts.map(product => localizeProduct(product, la
               <span class="badge self-start mb-2">{p.badge}</span>
             )}
             <p class="text-neutral-400 font-light text-sm mb-6">
-              {p.shortDesc}
+              {p.shortDescription}
             </p>
             <span class="mt-auto text-xs font-medium tracking-widest uppercase text-[#c2aa6a]">{copy.viewDetails}</span>
           </div>

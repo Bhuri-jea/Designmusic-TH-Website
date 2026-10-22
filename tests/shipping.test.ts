@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { quoteShipping } from '../src/lib/server/shipping.ts';
 import { shopEmsRates } from '../src/lib/shipping-rates.ts';
+import { HttpError, errorResponse } from '../src/lib/server/http.ts';
 
 const item = { productId: 'saxophone-end-plug', variant: 'plain', quantity: 1 };
 const address={line1:'1 Example Road',line2:'',city:'Tokyo',state:'',postal_code:'100-0001',country:'JP'};
@@ -11,7 +12,7 @@ function fixture(grams: number) {
       allowed_countries: ['TH', 'JP'], pickup_enabled: true, usd_thb: 35, jpy_thb: 0.25,
       shipping_rates: { 'TH:ems_local': shopEmsRates('TH'), 'JP:epacket': shopEmsRates('JP') },
     }),
-    inventory: async () => [{ sku: 'endplug-plain', weight_grams: grams,
+    inventory: async () => [{ sku: 'endplug-plain', on_hand: 10, reserved: 0, weight_grams: grams,
       price_usd_minor: 1500, price_jpy: 2500, price_thb_minor: 20000 }],
     exchangeRates:async()=>({usdThb:35,jpyThb:.25,date:'2026-10-20',source:'Frankfurter' as const}),
   };
@@ -60,4 +61,16 @@ test('maximum weight selects the smallest covering band and international minimu
 test('a blank covering price means unsupported even if a heavier priced band exists',async()=>{
  const deps={...fixture(150),config:async()=>({allowed_countries:['TH'],shipping_rates:{'TH:ems_local':[{maxGrams:100,thbMinor:3500},{maxGrams:200,thbMinor:null},{maxGrams:300,thbMinor:7000}]}})};
  await assert.rejects(quoteShipping([item],'th','TH','ems_local',deps),/shipping_service_unavailable/);
+});
+test('out-of-stock products are reported before the over-2 kg rule',async()=>{
+ const deps=fixture(2500);
+ deps.inventory=async()=>[{sku:'endplug-plain',on_hand:1,reserved:1,weight_grams:2500,price_usd_minor:1500,price_jpy:2500,price_thb_minor:20000}];
+ let caught:unknown;
+ try{await quoteShipping([item],'th','TH','ems_local',deps);}catch(error){caught=error;}
+ assert.ok(caught instanceof HttpError);
+ assert.equal(caught.code,'stock_unavailable');
+ assert.deepEqual(caught.details,{items:['Saxophone End Plug (plain)']});
+ const response=errorResponse(caught);
+ assert.equal(response.status,409);
+ assert.deepEqual(await response.json(),{error:'stock_unavailable',items:['Saxophone End Plug (plain)']});
 });

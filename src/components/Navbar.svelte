@@ -13,6 +13,7 @@
   import { shippingText, serviceLabel } from '../i18n/shipping';
 
   let { lang = 'en', currentPath = '/', session = null } = $props<{ lang?: keyof typeof ui, currentPath?: string, session?: any }>();
+  let catalogProducts=$state(products);
 
   function t(key: keyof typeof ui[typeof defaultLang]) {
     return ui[lang]?.[key] || ui[defaultLang][key];
@@ -23,6 +24,7 @@
   let isMenuOpen=$state(false),isLangOpen=$state(false);
   let menuDialog=$state<HTMLDialogElement>(),cartDialog=$state<HTMLDialogElement>(),languageTrigger=$state<HTMLButtonElement>(),cartTrigger=$state<HTMLButtonElement>(),menuTrigger=$state<HTMLButtonElement>();
   let checkoutStatus=$state('');
+  let unavailableItemNames=$state<string[]>([]);
   let quoteRequestState=$state(''),isRequestingQuote=$state(false),acceptedQuoteId=$state('');
   type DeliveryService='ems_local'|'ems_world'|'epacket'|'flash'|'pickup';
   type ShippingAddress={line1:string;line2:string;city:string;state:string;postal_code:string;country:string};
@@ -45,8 +47,9 @@
   function variantLabel(value:string){const token=value==='twoColor'?'product.endplug.twocolor':value==='plain'?'product.endplug.plain':'product.endplug.custom';return ui[lang]?.[token]||ui.en[token];}
   onMount(()=>{
     cart.init(lang as Locale);
-    void loadCatalogPricing();
+    void loadCatalogPricing(lang as Locale);
     void initializeShipping();
+    void fetch(`/api/catalog?locale=${encodeURIComponent(lang)}`,{cache:'no-store'}).then(response=>response.ok?response.json():Promise.reject()).then(data=>{if(Array.isArray(data.products))catalogProducts=data.products.map((p:any)=>({slug:p.slug,name:p.name,badge:p.badge,thumbnail:p.thumbnail,heroImage:p.thumbnail,galleryImages:p.images?.map((x:any)=>x.url)??[],shortDesc:p.shortDescription,category:p.collectionSlug}));}).catch(()=>{});
     const onKeydown=(event:KeyboardEvent)=>{if(event.key==='Escape' && isLangOpen){isLangOpen=false;languageTrigger?.focus();}};
     document.addEventListener('keydown',onKeydown);
     return ()=>document.removeEventListener('keydown',onKeydown);
@@ -74,13 +77,15 @@
   $effect(()=>{if(cart.isOpen && cartDialog && !cartDialog.open){cartDialog.showModal();}if(isMenuOpen && menuDialog && !menuDialog.open){menuDialog.showModal();}if(cart.isOpen || isMenuOpen){const old=document.body.style.overflow;document.body.style.overflow='hidden';return ()=>{document.body.style.overflow=old;};}});
   let isCheckingOut = $state(false);
 
+  function stockNames(value:unknown){return Array.isArray(value)?[...new Set(value.filter((item):item is string=>typeof item==='string'&&item.trim()).map(item=>item.trim()))].slice(0,20):[];}
+  function stockMessage(){return unavailableItemNames.length?`${t('flow.stockNamed')} ${unavailableItemNames.join(', ')}`:t('flow.stock');}
   async function refreshShippingQuote(){
-    const sequence=++quoteSequence;shippingQuote=null;shippingStatus='';quoteRequestState='';
+    const sequence=++quoteSequence;shippingQuote=null;shippingStatus='';quoteRequestState='';unavailableItemNames=[];
     if(configError){shippingStatus='shipping-options-unavailable';quoting=false;return;}
     if(!cart.items.length||!shippingCountry||!configLoaded||!profileLoaded)return;
     if(international&&(!savedAddressMatches||addressDirty||profileLoginRequired||profileError)){quoting=false;return;}
     quoting=true;
-    try{const response=await fetch('/api/shipping-quote',{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(15000),body:JSON.stringify({items:cart.items.map(({productId,variant,options,quantity})=>({productId,variant,options,quantity})),locale:lang,country:shippingCountry,method:shippingMethod})});const data=await response.json();if(sequence!==quoteSequence)return;if(!response.ok)throw new Error(data?.error??'shipping_unavailable');shippingQuote=data;}
+    try{const response=await fetch('/api/shipping-quote',{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(15000),body:JSON.stringify({items:cart.items.map(({productId,variant,options,quantity})=>({productId,variant,options,quantity})),locale:lang,country:shippingCountry,method:shippingMethod})});const data=await response.json();if(sequence!==quoteSequence)return;if(!response.ok){if(data?.error==='stock_unavailable')unavailableItemNames=stockNames(data.items);throw new Error(data?.error??'shipping_unavailable');}shippingQuote=data;}
     catch(error){if(sequence===quoteSequence){const code=error instanceof Error?error.message:'shipping_unavailable';shippingStatus=['shipping_rate_unconfigured','shipping_weight_uncovered','shipping_service_unavailable'].includes(code)?'shipping_contact_required':code;}}
     finally{if(sequence===quoteSequence)quoting=false;}
   }
@@ -101,7 +106,7 @@
         code==='shipping_address_required'?t('cart.shippingAddressNeeded'):code==='shipping_address_country_mismatch'?t('cart.shippingAddressMismatch'):
         code==='storage_unavailable'||code==='storage_limit'?t('flow.storage'):
         code==='attempt_limit'?t('flow.attemptLimit'):
-        code==='database_conflict'||code==='invalid_cart'?t('flow.stock'):
+        code==='stock_unavailable'||code==='database_conflict'||code==='invalid_cart'?stockMessage():
         code==='checkout_requires_review'||code==='checkout_not_active'||code==='checkout_conflict'?t('flow.review'):
         code==='payment_configuration_unavailable'?t('flow.unavailable'):code==='shipping_rate_unconfigured'||code==='shipping_fx_unconfigured'||code==='product_weight_unconfigured'?t('flow.unavailable'):t('flow.failed');
     } finally {
@@ -120,6 +125,7 @@
       const data=await response.json().catch(()=>({}));
       if(response.status===401){quoteRequestState='login';return;}
       if(!response.ok){
+        if(data?.error==='stock_unavailable'||data?.error==='insufficient_stock')unavailableItemNames=stockNames(data.items);
         quoteRequestState=data?.error==='shipping_address_required'?'address_required':data?.error==='shipping_address_country_mismatch'?'address_mismatch':['insufficient_stock','stock_unavailable','database_conflict'].includes(data?.error)?'stock':'error';
         return;
       }
@@ -153,7 +159,7 @@
         <div class="absolute left-0 top-full pt-2 hidden group-hover:block group-focus-within:block z-50 min-w-[200px]">
           <div class="product-menu bg-neutral-900 border border-white/10 rounded-md shadow-lg overflow-hidden">
             <a href={getPath('/product')} class="product-menu-heading">{t('nav.products')}</a>
-            {#each products as p}
+            {#each catalogProducts as p}
               <a href={getPath(`/product/${p.slug}`)} class="product-menu-item flex items-center px-4 py-2.5 text-sm text-white hover:bg-white/10 transition-colors">
                 <span>{localizeProduct(p, lang as Locale).name}</span>
               </a>
@@ -219,7 +225,7 @@
       <div class="mobile-product-menu relative text-left">
         <a href={getPath('/product')} class="text-white hover:text-neutral-400" onclick={toggleMenu}>{t('nav.products')}</a>
         <div class="mobile-product-items mt-3 flex flex-col space-y-3">
-          {#each products as p}
+          {#each catalogProducts as p}
             <a href={getPath(`/product/${p.slug}`)} class="text-lg text-neutral-400 hover:text-white transition-colors" onclick={toggleMenu}>
               {localizeProduct(p, lang as Locale).name}
             </a>
@@ -310,7 +316,7 @@
           {:else if shippingStatus==='shipping_contact_required'}<div class="space-y-3 text-sm text-amber-100" role="status"><p>{t('cart.shippingQuoteIntro')}</p><div class="flex flex-wrap gap-2"><a class="btn btn-secondary btn-sm" href="mailto:designmusicthailand@gmail.com">{t('cart.contactEmail')}</a><a class="btn btn-secondary btn-sm" href="https://www.facebook.com/DesignmusicInstrumentmusicAccessories" target="_blank" rel="noreferrer">Facebook</a><a class="btn btn-secondary btn-sm" href="https://www.instagram.com/designmusic_instrument/" target="_blank" rel="noreferrer">Instagram</a></div></div>
           {:else if shippingStatus==='shipping_address_required'||shippingStatus==='shipping_address_country_mismatch'}<p class="text-sm text-amber-200" role="alert">{t(shippingStatus==='shipping_address_required'?'cart.shippingAddressNeeded':'cart.shippingAddressMismatch')} <a class="underline" href={getPath('/profile')}>{t('cart.viewProfile')}</a></p>
           {:else if ['shipping_rate_unconfigured','shipping_weight_uncovered','shipping_service_unavailable','shipping_destination_unavailable'].includes(shippingStatus)}<div class="text-sm text-amber-100" role="status"><p>{shippingText(lang as Locale,'contact')}</p><div class="flex flex-wrap gap-3 mt-3"><a class="underline" href="mailto:designmusicthailand@gmail.com">{t('cart.contactEmail')}</a><a class="underline" href="https://www.facebook.com/DesignmusicInstrumentmusicAccessories" target="_blank" rel="noreferrer">Facebook</a><a class="underline" href="https://www.instagram.com/designmusic_instrument/" target="_blank" rel="noreferrer">Instagram</a></div></div>
-          {:else if shippingStatus}<p class="text-sm text-amber-200" role="alert">{shippingStatus==='shipping_fx_unavailable'?shippingText(lang as Locale,'fxError'):t(shippingStatus==='shipping-options-unavailable'?'cart.shippingUnavailable':'flow.unavailable')} <button class="underline" disabled={quoting} onclick={()=>configError?initializeShipping():refreshShippingQuote()}>{t('flow.retry')}</button></p>
+          {:else if shippingStatus}<p class="text-sm text-amber-200" role="alert">{shippingStatus==='stock_unavailable'?stockMessage():shippingStatus==='shipping_fx_unavailable'?shippingText(lang as Locale,'fxError'):t(shippingStatus==='shipping-options-unavailable'?'cart.shippingUnavailable':'flow.unavailable')} <button class="underline" disabled={quoting} onclick={()=>configError?initializeShipping():refreshShippingQuote()}>{t('flow.retry')}</button></p>
           {:else if quoting}<p class="text-sm text-neutral-300" role="status">{t('cart.calculatingShipping')}</p>
           {:else if international}<p class="text-sm text-neutral-300" role="status">{t('cart.shippingAddressNeeded')}</p>{/if}
         </div>
@@ -324,7 +330,7 @@
         {#if quoteRequestState==='sent'}<p class="text-emerald-200" role="status">{t('cart.shippingQuoteSent')}</p><a class="underline" href={getPath('/profile/orders')}>{t('flow.orders')}</a>
         {:else if quoteRequestState==='login'}<p class="text-amber-200" role="alert">{t('cart.shippingQuoteLogin')}</p><a class="underline" href={getPath('/login')}>{t('flow.login')}</a>
         {:else if quoteRequestState==='address_required'||quoteRequestState==='address_mismatch'}<p class="text-amber-200" role="alert">{t(quoteRequestState==='address_required'?'cart.shippingAddressNeeded':'cart.shippingAddressMismatch')}</p><a class="underline" href={getPath('/profile')}>{t('cart.viewProfile')}</a>
-        {:else if quoteRequestState==='stock'}<p class="text-amber-200" role="alert">{t('flow.stock')}</p>
+        {:else if quoteRequestState==='stock'}<p class="text-amber-200" role="alert">{stockMessage()}</p>
         {:else if quoteRequestState==='error'}<p class="text-amber-200" role="alert">{t('cart.shippingQuoteError')}</p>{/if}
         {#if quoteRequestState!=='sent'}{#if profileLoginRequired}<a class="btn btn-outline w-full" href={profileLink()}>{t('flow.login')}</a>{:else if addressRequiredForCountry()}<p class="text-amber-200" role="alert">{t('cart.shippingAddressNeeded')} <a class="underline" href={getPath('/profile')}>{t('cart.viewProfile')}</a></p>{:else}<button class="btn btn-primary w-full" onclick={requestShippingQuote} disabled={isRequestingQuote || !cart.storageAvailable}>{isRequestingQuote?t('cart.shippingQuoteSubmitting'):t('cart.requestShippingQuote')}</button>{/if}{/if}
       </div>

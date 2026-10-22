@@ -34,7 +34,7 @@ export async function createBooking(request: Request, body: Record<string, unkno
   }
   let record: BookingRecord;
   try {
-    record = await deps.rpc<BookingRecord>('create_booking', { p_customer_id: customer.id, p_request_key: validated.requestKey, p_fingerprint: validated.fingerprint, p_start_at: validated.startAt, p_end_at: validated.endAt, p_instrument: validated.instrument, p_service: validated.service, p_notes: validated.notes, p_locale: validated.locale });
+    record = await deps.rpc<BookingRecord>('create_booking', { p_customer_id: customer.id, p_request_key: validated.requestKey, p_fingerprint: validated.fingerprint, p_start_at: validated.startAt, p_end_at: validated.endAt, p_instrument: validated.instrument, p_service: validated.service, p_contact_name: validated.contactName, p_contact_information: validated.contactInformation, p_notes: validated.notes, p_locale: validated.locale });
   } catch (error) {
     if (error instanceof SupabaseRequestError && error.status === 409) throw new HttpError(409, 'booking_conflict');
     if (error instanceof SupabaseRequestError && error.databaseCode === '22023') throw new HttpError(400, 'invalid_booking');
@@ -53,15 +53,16 @@ export async function ownedBookings(request: Request, id?: string, deps = bookin
     return publicBooking({ id: row.id, customerId: row.customer_id, requestKey: '', fingerprint: '', startAt: row.start_at, endAt: row.end_at, instrument: row.instrument, service: row.service, notes: row.notes, locale: row.locale, status: row.status, createdAt: row.created_at });
   });
 }
-export async function bookingAvailability(deps = bookingDependencies, options: { googleFailure?: 'throw' | 'unavailable'; includePast?: boolean } = {}) {
+type AdminBookingDetail = { id:string; startAt:string; endAt:string; status:string; instrument:string; service:string; notes:string; contactName:string; contactInformation:string };
+export async function bookingAvailability(deps = bookingDependencies, options: { googleFailure?: 'throw' | 'unavailable'; includePast?: boolean; includeAdminDetails?: boolean } = {}) {
   const weeklyHours = deps.weeklyHours ? await deps.weeklyHours() : DEFAULT_WEEKLY_BOOKING_HOURS;
   const dailyHours=deps.dailyHours?await deps.dailyHours():{};
   const calendarOptions = bookingCalendarSlots(deps.now(), weeklyHours, dailyHours);
   const window = bookingDateWindow(deps.now());
   const startAt = options.includePast ? new Date(Date.parse(`${window.from}T00:00:00Z`)-7*3600000).toISOString() : new Date(deps.now()).toISOString();
   const endAt = new Date(Date.parse(`${window.to}T00:00:00Z`) - 7 * 3600000 + 86400000).toISOString();
-  const taken = await deps.select<{ start_at: string; end_at: string }>('bookings', {
-    select: 'start_at,end_at', status: 'eq.confirmed', start_at: `lt.${endAt}`,
+  const taken = await deps.select<{ id?:string; start_at: string; end_at: string; status?:string; instrument?:string; service?:string; notes?:string; customer_snapshot?:Record<string,unknown> }>('bookings', {
+    select: options.includeAdminDetails ? 'id,start_at,end_at,status,instrument,service,notes,customer_snapshot' : 'start_at,end_at', status: 'eq.confirmed', start_at: `lt.${endAt}`,
     end_at: `gt.${startAt}`, limit: '1000',
   });
   const withBooking = calendarOptions.map(slot => taken.some(row => Date.parse(row.start_at) < Date.parse(slot.endAt) && Date.parse(row.end_at) > Date.parse(slot.startAt))
@@ -85,7 +86,7 @@ export async function bookingAvailability(deps = bookingDependencies, options: {
   fullCalendarSlots.sort((a,b)=>Date.parse(a.startAt)-Date.parse(b.startAt));
   const calendarSlots = options.includePast ? fullCalendarSlots : fullCalendarSlots.filter(slot => Date.parse(slot.startAt) > deps.now());
   const bookable = calendarAvailable === null ? candidates : candidates.filter(slot => availableStarts.has(slot.startAt));
-  return {
+  const result: Record<string,unknown> = {
     timeZone: BOOKING_TIME_ZONE,
     ...window,
     source: calendarFailed ? 'unavailable' : calendarAvailable === null ? 'database' : 'google-calendar',
@@ -93,6 +94,13 @@ export async function bookingAvailability(deps = bookingDependencies, options: {
     slots: bookable,
     calendarSlots,
   };
+  if (options.includeAdminDetails) result.bookings = taken.map((row):AdminBookingDetail => ({
+    id: row.id ?? '', startAt: row.start_at, endAt: row.end_at, status: row.status ?? 'confirmed',
+    instrument: row.instrument ?? '', service: row.service ?? '', notes: row.notes ?? '',
+    contactName: typeof row.customer_snapshot?.contactName === 'string' && row.customer_snapshot.contactName.trim() ? row.customer_snapshot.contactName : 'Contact information not provided',
+    contactInformation: typeof row.customer_snapshot?.contactInformation === 'string' && row.customer_snapshot.contactInformation.trim() ? row.customer_snapshot.contactInformation : 'Contact information not provided',
+  }));
+  return result as { timeZone:string; from:string; to:string; source:string; availabilityError:string|null; slots:BookingSlot[]; calendarSlots:Array<BookingSlot&{status:BookingSlotStatus}>; bookings?:AdminBookingDetail[] };
 }
 
 function mutationError(error: unknown): never {

@@ -1,4 +1,4 @@
-import { quoteCart, quoteCartDetails, priceFor, type CartInput, type CartQuote, type Locale } from './catalog.ts';
+import { quoteCart, quoteCartDetails, priceFor, type CartInput, type CartQuote, type Locale,type TrustedCatalogSku } from './catalog.ts';
 type Lot = CartInput & { entryId: string };
 type Attempt = {requestKey:string;locale:Locale;quote:CartQuote;lots:Lot[];orderId?:string;reconciled:boolean};
 export type CartState = {version:1;items:Lot[];attempts:Attempt[]};
@@ -11,7 +11,8 @@ export function emptyCart():CartState { return {version:1,items:[],attempts:[]};
 function validLot(value:any):value is Lot {
  if(!value || typeof value!=='object' || Object.keys(value).some(k=>!['entryId','productId','variant','options','quantity'].includes(k)) || !uuid.test(value.entryId) || !Number.isInteger(value.quantity) || value.quantity<1 || value.quantity>10)return false;
  if(value.productId==='saxophone-end-plug')return priceFor(value.productId,value.variant,'en')!==undefined && (value.options===undefined || value.options && typeof value.options==='object' && !Array.isArray(value.options) && Object.keys(value.options).length===0);
- return value.productId==='shakuhachi' && (!value.variant || value.variant==='standard') && value.options && typeof value.options==='object' && !Array.isArray(value.options) && Object.keys(value.options).sort().join(',')==='mouthpiece,toneHoles' && ['standard','large'].includes(value.options.toneHoles) && ['balance','traditional','modern'].includes(value.options.mouthpiece);
+ if(value.productId==='shakuhachi')return (!value.variant || value.variant==='standard') && value.options && typeof value.options==='object' && !Array.isArray(value.options) && Object.keys(value.options).sort().join(',')==='mouthpiece,toneHoles' && ['standard','large'].includes(value.options.toneHoles) && ['balance','traditional','modern'].includes(value.options.mouthpiece);
+ return typeof value.productId==='string'&&/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value.productId)&&typeof value.variant==='string'&&/^[A-Za-z0-9_-]{1,120}$/.test(value.variant)&&(value.options===undefined||value.options&&typeof value.options==='object'&&!Array.isArray(value.options)&&Object.keys(value.options).length<=12&&Object.entries(value.options).every(([key,item])=>/^[A-Za-z0-9_-]{1,64}$/.test(key)&&typeof item==='string'&&/^[A-Za-z0-9_-]{1,64}$/.test(item)));
 }
 export function restoreCart(raw:string|null):CartState {
  try {
@@ -20,8 +21,9 @@ export function restoreCart(raw:string|null):CartState {
   if(new Set(value.attempts.map((a:Attempt)=>a.requestKey)).size!==value.attempts.length)return emptyCart();
   for(const a of value.attempts){
    if(!a || Object.keys(a).some(k=>!['requestKey','locale','quote','lots','orderId','reconciled'].includes(k)) || !uuid.test(a.requestKey) || !['en','ja','th','zh-CN'].includes(a.locale) || typeof a.reconciled!=='boolean' || a.orderId!==undefined && !uuid.test(a.orderId) || !Array.isArray(a.lots) || !a.lots.length || a.lots.length>100 || !a.lots.every(validLot) || new Set(a.lots.map((lot:Lot)=>lot.entryId)).size!==a.lots.length || !a.quote || Object.keys(a.quote).sort().join(',')!=='currency,fingerprint,lines,totalAmount' || !/^[0-9a-f]{64}$/.test(a.quote.fingerprint))return emptyCart();
-   const expected=quoteCartDetails({items:cartItems({version:1,items:a.lots,attempts:[]}),locale:a.locale});
-   if(canonical({currency:a.quote.currency,lines:a.quote.lines,totalAmount:a.quote.totalAmount})!==canonical(expected))return emptyCart();
+   const dynamic=a.lots.some((lot:Lot)=>!['saxophone-end-plug','shakuhachi'].includes(lot.productId));
+   if(!dynamic){const expected=quoteCartDetails({items:cartItems({version:1,items:a.lots,attempts:[]}),locale:a.locale});if(canonical({currency:a.quote.currency,lines:a.quote.lines,totalAmount:a.quote.totalAmount})!==canonical(expected))return emptyCart();}
+   else if(!Array.isArray(a.quote.lines)||!Number.isSafeInteger(a.quote.totalAmount)||a.quote.totalAmount<=0)return emptyCart();
   }
   cartItems(value); return value;
  } catch {return emptyCart();}
@@ -34,7 +36,7 @@ export function cartItems(state:CartState):CartInput[] {
 }
 export function addCartItem(state:CartState,input:CartInput):CartState {
  const original={...input,entryId:crypto.randomUUID()};if(!validLot(original) || state.items.length>=100)throw Error('invalid_cart');
- const lot:Lot={productId:input.productId,variant:input.productId==='shakuhachi'?'standard':input.variant,quantity:input.quantity,entryId:original.entryId,...(input.productId==='shakuhachi'?{options:{...input.options}}:{})};
+ const lot:Lot={productId:input.productId,variant:input.productId==='shakuhachi'?'standard':input.variant,quantity:input.quantity,entryId:original.entryId,...(input.options?{options:{...input.options}}:{})};
  const next={...state,items:[...state.items,lot]};cartItems(next);return bounded(next);
 }
 export function removeCartItem(state:CartState,input:CartInput):CartState {return {...state,items:state.items.filter(lot=>inputKey(lot)!==inputKey(input))};}
@@ -48,9 +50,9 @@ export function setCartQuantity(state:CartState,input:CartInput,quantity:number)
  for(let index=items.length-1;index>=0&&remove>0;index--){if(inputKey(items[index])!==key)continue;const count=Math.min(remove,items[index].quantity);items[index].quantity-=count;remove-=count;}
  return {...state,items:items.filter(lot=>lot.quantity>0)};
 }
-export async function submitCart(state:CartState,locale:Locale) {
+export async function submitCart(state:CartState,locale:Locale,catalogSkus?:TrustedCatalogSku[]) {
  state={...state,attempts:state.attempts.filter(a=>!a.reconciled)};
- const items=cartItems(state);const quote=await quoteCart({items,locale});
+ const items=cartItems(state);const quote=await quoteCart({items,locale,...(catalogSkus?.length?{catalogSkus}: {})});
  let attempt=state.attempts.find(a=>!a.reconciled && a.locale===locale && a.quote.fingerprint===quote.fingerprint && canonical(a.lots)===canonical(state.items));
  if(!attempt){if(state.attempts.length>=30)throw Error('attempt_limit');attempt={requestKey:crypto.randomUUID(),locale,quote,lots:structuredClone(state.items),reconciled:false};state={...state,attempts:[...state.attempts,attempt]};}
  return {state:bounded(state),request:{requestKey:attempt.requestKey,locale,items}};

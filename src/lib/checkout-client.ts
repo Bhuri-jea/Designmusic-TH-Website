@@ -14,6 +14,20 @@ function hostedUrl(value: unknown): value is string {
   return url.protocol === 'https:' && !url.username && !url.password && (url.hostname === 'checkout.stripe.com' || url.hostname.endsWith('.checkout.stripe.com'));
  } catch { return false; }
 }
+export async function resumeHostedCheckout(orderId: string, fetcher: typeof fetch = fetch): Promise<string> {
+ if (!uuid.test(orderId)) throw new CheckoutError('checkout_unavailable');
+ const response = await fetcher('/api/orders/resume-checkout', {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId }),
+ });
+ let data: any;
+ try { data = await response.json(); } catch { throw new CheckoutError('checkout_unavailable'); }
+ if (!response.ok) {
+  if (response.status === 401 || response.status === 403) throw new CheckoutError('sign_in_required');
+  throw new CheckoutError(typeof data?.error === 'string' ? data.error : 'checkout_unavailable');
+ }
+ if (data?.orderId !== orderId || !hostedUrl(data.url)) throw new CheckoutError('checkout_unavailable');
+ return data.url;
+}
 export async function runCheckout(cart: CheckoutCart, locale: Locale, shipping: { country:string; method:'ems_local'|'ems_world'|'epacket'|'flash'|'pickup' }, fetcher: typeof fetch = fetch): Promise<string> {
  const request = await cart.submit(locale);
  const response = await fetcher('/api/checkout', {

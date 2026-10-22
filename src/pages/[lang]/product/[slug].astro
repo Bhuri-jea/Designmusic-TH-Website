@@ -1,83 +1,35 @@
 ---
 import ProductLayout from '../../../layouts/ProductLayout.astro';
-import { readFile } from 'fs/promises';
-import { resolve } from 'path';
 import { isSupportedLocale } from '../../../lib/server/locales';
+import {publishedProduct} from '../../../lib/server/catalog-public';
+import CatalogPurchase from '../../../components/product/CatalogPurchase.svelte';
 
 const { lang, slug } = Astro.params;
-const supportedSlugs = ['shakuhachi', 'siliconepads', 'saxophone-end-plug', 'woodwindaccessories'];
-if (!isSupportedLocale(lang) || lang === 'en' || !slug || !supportedSlugs.includes(slug)) return new Response(null, { status: 404 });
+export const prerender=false;
+if (!isSupportedLocale(lang) || lang === 'en' || !slug) return new Response(null, { status: 404 });
+const product=await publishedProduct(lang,slug);if(!product)return new Response(null,{status:404});
 
-// Try localized markdown first, then fallback to default
-const candidatePaths = [
-  resolve(process.cwd(), `src/content/products/${slug}/${lang}/${slug}.md`),
-  resolve(process.cwd(), `src/content/products/${slug}/${slug}.${lang}.md`),
-  resolve(process.cwd(), `src/content/products/${slug}/${slug}.md`),
-];
-
-let raw = '';
-let foundPath: string | null = null;
-for (const p of candidatePaths) {
-  try {
-    raw = await readFile(p, 'utf-8');
-    foundPath = p;
-    break;
-  } catch (e) {
-    // ignore and continue to next candidate
-  }
-}
-
-if (!foundPath) {
-  return Astro.redirect('/404');
-}
-
-// Simple front-matter extraction
-const frontMatterMatch = raw.match(/^---\n([\s\S]*?)\n---/);
-let fm: any = {};
-let description = '';
-if (frontMatterMatch) {
-  const fmText = frontMatterMatch[1];
-  fmText.split('\n').forEach(line => {
-    const [key, ...rest] = line.split(':');
-    if (key && rest.length) {
-      fm[key.trim()] = rest.join(':').trim().replace(/^"|"$/g, '');
-    }
-  });
-  description = raw.slice(frontMatterMatch[0].length).trim();
-}
-
-// Small UI translations for the detail page
 const ui = {
   en: { backLabel: 'Back to Products' },
   ja: { backLabel: '製品一覧に戻る' },
   'zh-CN': { backLabel: '返回产品' },
   th: { backLabel: 'กลับไปยังผลิตภัณฑ์' },
 };
-
 const backLabel = ui[lang]?.backLabel ?? ui.en.backLabel;
-
-// Handle markdown content (very basic, can be improved with a markdown parser)
-const renderedDescription = description
-  .replace(/^### (.*$)/gim, '<h3 class="font-serif text-xl text-white mt-8 mb-4">$1</h3>')
-  .replace(/^\* (.*$)/gim, '<li class="ml-4 list-disc text-neutral-400">$1</li>')
-  .replace(/\n\n/g, '</p><p class="mb-4 text-neutral-300 font-light leading-relaxed">')
-  .replace(/^/, '<p class="mb-4 text-neutral-300 font-light leading-relaxed">')
-  .concat('</p>');
 ---
 
 <ProductLayout
-  title={fm.title}
-  pageTitle={fm.title}
-  badge={fm.badge}
-  heroImage={fm.image}
-  galleryImages={fm.galleryImages}
+  title={product.name}
+  pageTitle={product.name}
+  badge={product.badge}
+  heroImage={product.thumbnail}
+  galleryImages={product.images.map(image=>image.url)}
   backHref={`/${lang}/product`}
   backLabel={backLabel}
   lang={lang}
 >
-  <div class="prose prose-invert max-w-none">
-    <Fragment set:html={renderedDescription} />
-  </div>
+  <CatalogPurchase slot="purchase" client:load {product} {lang}/>
+  <div class="prose prose-invert max-w-none"><p>{product.description}</p></div>
 </ProductLayout>
 
 

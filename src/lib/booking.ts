@@ -79,21 +79,25 @@ export function bookingUuid(value: unknown): value is string {
 }
 export async function validateBooking(body: Record<string, unknown>, now = Date.now(), options: { checkWindow?: boolean } = {}) {
   const { requestKey, slot, instrument, service } = body;
+  const { contactName, contactInformation } = body;
   const locale = body.locale === undefined ? 'en' : body.locale;
   const notes = body.notes === undefined ? '' : body.notes;
-  if (Object.keys(body).some(k => !['requestKey', 'slot', 'instrument', 'service', 'notes', 'locale'].includes(k)) ||
+  const unsafeControl = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+  if (Object.keys(body).some(k => !['requestKey', 'slot', 'instrument', 'service', 'contactName', 'contactInformation', 'notes', 'locale'].includes(k)) ||
     !bookingUuid(requestKey) || typeof slot !== 'string' || typeof instrument !== 'string' ||
     !(instruments as readonly string[]).includes(instrument) || typeof service !== 'string' ||
     !(services as readonly string[]).includes(service) || instrument === 'bassoon' && service === 'basic' ||
     typeof locale !== 'string' || !['en', 'ja', 'zh-CN', 'th'].includes(locale) ||
-    typeof notes !== 'string' || notes.length > 2000 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(notes)) throw Error('invalid_booking');
+    typeof contactName !== 'string' || !contactName.trim() || contactName.trim().length > 120 || unsafeControl.test(contactName) ||
+    typeof contactInformation !== 'string' || !contactInformation.trim() || contactInformation.trim().length > 500 || unsafeControl.test(contactInformation) ||
+    typeof notes !== 'string' || notes.length > 2000 || unsafeControl.test(notes)) throw Error('invalid_booking');
   if (!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{3})?Z$/.test(slot) || !Number.isFinite(Date.parse(slot))) throw Error('invalid_booking_slot');
   const startAt = new Date(slot).toISOString();
   if (startAt.slice(0, 19) !== slot.slice(0, 19)) throw Error('invalid_booking_slot');
   const endAt = new Date(Date.parse(slot) + 3600000).toISOString();
   if (options.checkWindow !== false && !bookingSlots(now).some(s => s.startAt === startAt)) throw Error('invalid_booking_slot');
-  const normalized = { requestKey: requestKey.toLowerCase(), startAt, endAt, instrument, service, notes: notes.trim(), locale: locale as Locale };
-  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(['booking-v1', startAt, endAt, instrument, service, normalized.notes, locale])));
+  const normalized = { requestKey: requestKey.toLowerCase(), startAt, endAt, instrument, service, contactName: contactName.trim(), contactInformation: contactInformation.trim(), notes: notes.trim(), locale: locale as Locale };
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(['booking-v2', startAt, endAt, instrument, service, normalized.contactName, normalized.contactInformation, normalized.notes, locale])));
   const fingerprint = [...new Uint8Array(bytes)].map(b => b.toString(16).padStart(2, '0')).join('');
   return { ...normalized, fingerprint };
 }
