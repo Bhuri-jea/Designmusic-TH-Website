@@ -37,8 +37,7 @@ dialog[aria-label] a{border-radius:10px;transition:background-color 80ms ease-ou
 /* A dark scrim behind the full copy area keeps photo highlights from washing out text. */
 .editorial-hero::after{background:linear-gradient(90deg,#19151bf2 0%,#19151bdc 55%,#19151b40 100%)!important}
 @media(max-width:639px){.editorial-hero::after{background:linear-gradient(0deg,#19151bf5 0%,#19151bc9 80%,#19151bbd 100%)!important}}
-:root{--editorial-plum:#271d25;--editorial-deep:#19151b;--editorial-brass:#d8ba78;--editorial-chalk:#f5f1e8;--editorial-sage:#d9dfd7;--editorial-ink:#252923;--editorial-muted:#51594d;--editorial-page:clamp(22px,5.8vw,96px)}
-@theme{--font-serif:"Bodoni MT",Didot,"Iowan Old Style",Georgia,serif;--color-accent:#d8ba78}
+:root{--editorial-plum:#271d25;--editorial-deep:#19151b;--editorial-brass:#d8ba78;--editorial-chalk:#f5f1e8;--editorial-sage:#d9dfd7;--editorial-ink:#252923;--editorial-muted:#51594d;--editorial-page:clamp(22px,5.8vw,96px);--font-serif:"Bodoni MT",Didot,"Iowan Old Style",Georgia,serif;--color-accent:#d8ba78}
 html{scroll-padding-top:104px}body{background:var(--editorial-plum);color:var(--editorial-chalk);line-height:1.65}
 body>main{padding-top:88px}img{max-width:100%}a,button,input,select,textarea,summary{touch-action:manipulation}
 button,a,input,select,textarea{scroll-margin-block:110px}a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--editorial-brass);outline-offset:5px}
