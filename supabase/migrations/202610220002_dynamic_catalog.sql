@@ -7,7 +7,7 @@ create table if not exists public.catalog_products(
 );
 create table if not exists public.catalog_product_translations(
  product_id uuid not null references public.catalog_products(id) on delete cascade, locale text not null check(locale in('en','th','ja','zh-CN')),
- name text not null check(length(btrim(name)) between 1 and 160), badge text not null default '', short_description text not null, description text not null,
+ name text not null check(length(btrim(name))<=160), badge text not null default '', short_description text not null, description text not null,
  primary key(product_id,locale)
 );
 create table if not exists public.catalog_product_images(
@@ -33,8 +33,7 @@ alter table public.inventory add column if not exists sales_mode text not null d
 alter table public.inventory add column if not exists lifecycle text not null default 'active' check(lifecycle in('active','archived'));
 alter table public.inventory drop constraint if exists inventory_prices_positive;
 alter table public.inventory alter column price_usd_minor drop not null,alter column price_jpy drop not null,alter column price_thb_minor drop not null,alter column weight_grams drop not null;
-alter table public.inventory add constraint inventory_catalog_values check(sales_mode='reservation_only' or (price_usd_minor between 1 and 1000000000 and price_jpy between 1 and 1000000000 and price_thb_minor between 1 and 1000000000 and weight_grams between 1 and 30000));
-create unique index if not exists inventory_product_options_unique on public.inventory(product_id,option_value_ids) where product_id is not null;
+alter table public.inventory add constraint inventory_catalog_values check(product_lifecycle<>'published' or sales_mode='reservation_only' or (price_usd_minor between 1 and 1000000000 and price_jpy between 1 and 1000000000 and price_thb_minor between 1 and 1000000000 and weight_grams between 1 and 30000));
 
 alter table public.catalog_products enable row level security; alter table public.catalog_product_translations enable row level security;
 alter table public.catalog_product_images enable row level security; alter table public.catalog_option_groups enable row level security; alter table public.catalog_option_values enable row level security;
@@ -43,7 +42,7 @@ grant all on public.catalog_products,public.catalog_product_translations,public.
 
 -- Seed product identities without changing inventory quantities, prices, reservations or weights.
 insert into public.catalog_products(slug,collection_slug,lifecycle,published_at) values
- ('saxophone-end-plug',null,'published',now()),('shakuhachi',null,'published',now()),('siliconepads','woodwindaccessories','published',now()) on conflict(slug) do nothing;
+ ('saxophone-end-plug',null,'draft',null),('shakuhachi',null,'draft',null),('siliconepads','woodwindaccessories','published',now()) on conflict(slug) do nothing;
 insert into public.catalog_product_translations(product_id,locale,name,badge,short_description,description)
 select p.id,l.locale,
  case p.slug when 'saxophone-end-plug' then case l.locale when 'th' then 'จุกอุดแซกโซโฟน' when 'ja' then 'サクソフォン エンドプラグ' when 'zh-CN' then '萨克斯管端塞' else 'Saxophone End Plug' end when 'shakuhachi' then 'Shakuhachi S-1/D' else case l.locale when 'th' then 'แผ่นซิลิโคน' when 'ja' then 'シリコンパッド' when 'zh-CN' then '硅胶垫' else 'Silicone Pads' end end,
@@ -66,14 +65,24 @@ update public.inventory set product_id=(select id from public.catalog_products w
 update public.inventory set product_id=(select id from public.catalog_products where slug='shakuhachi') where sku like 'shakuhachi-%' and product_id is null;
 update public.inventory set product_slug='saxophone-end-plug',option_codes=array[substring(sku from 9)] where sku like 'endplug-%';
 update public.inventory set product_slug='shakuhachi',option_codes=string_to_array(substring(sku from 12),'-') where sku like 'shakuhachi-%';
-update public.inventory set product_lifecycle='published' where product_id is not null;
 update public.inventory i set option_value_ids=(select array_agg(v.id order by g.position) from public.catalog_option_values v join public.catalog_option_groups g on g.id=v.group_id where g.product_id=i.product_id and v.code=any(i.option_codes)) where i.product_id is not null;
+create unique index if not exists inventory_product_options_unique on public.inventory(product_id,option_value_ids) where product_id is not null;
 insert into public.inventory(sku,on_hand,reserved,price_usd_minor,price_jpy,price_thb_minor,weight_grams,product_id,product_slug,product_lifecycle,option_codes,sales_mode,lifecycle)
 select 'siliconepads-reservation',0,0,null,null,null,null,id,slug,'published','{}','reservation_only','active' from public.catalog_products where slug='siliconepads' on conflict(sku) do nothing;
+update public.catalog_products product set lifecycle='published',published_at=coalesce(published_at,now())
+where product.slug in('saxophone-end-plug','shakuhachi')
+  and not exists(select 1 from public.inventory item where item.product_id=product.id and item.sales_mode='checkout' and (item.price_usd_minor<=0 or item.price_jpy<=0 or item.price_thb_minor<=0 or item.weight_grams<=0));
+update public.inventory item set product_lifecycle=product.lifecycle
+from public.catalog_products product where product.id=item.product_id;
 
 create or replace function public.admin_create_catalog_product() returns uuid language plpgsql security definer set search_path='' as $$
 declare result uuid;
-begin insert into public.catalog_products(slug) values('draft-'||replace(gen_random_uuid()::text,'-','')) returning id into result; return result; end $$;
+begin
+ insert into public.catalog_products(slug) values('draft-'||replace(gen_random_uuid()::text,'-','')) returning id into result;
+ insert into public.catalog_product_translations(product_id,locale,name,badge,short_description,description)
+ select result,locale,'','','','' from unnest(array['en','th','ja','zh-CN']) locale;
+ return result;
+end $$;
 
 -- Complete saves are one transaction. Reserved stock is always retained from the database.
 create or replace function public.admin_save_catalog_product(p_payload jsonb) returns uuid language plpgsql security definer set search_path='' as $$

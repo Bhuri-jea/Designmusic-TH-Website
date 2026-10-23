@@ -22,15 +22,15 @@
 - Supported locales are `en`, `ja`, `zh-CN`, and `th`. English is the unprefixed default; other locales use a URL prefix.
 - Use [navigation.ts](src/utils/navigation.ts) for locale-aware links and [i18n/utils.ts](src/i18n/utils.ts) for translation lookup and fallback behavior.
 - Localized home, about, and product-index routes live under `src/pages/[lang]/`; explicit locale pages also exist under `src/pages/ja/`, `src/pages/th/`, and `src/pages/zh-CN/`.
-- Product detail paths are statically enumerated in `src/pages/[lang]/product/[slug].astro`. Update its slug list when adding a product, and check for duplicate explicit locale routes.
+- Product detail paths use the database-backed renderer in `src/pages/[lang]/product/[slug].astro` and `src/pages/product/[slug].astro`. Published catalog products require no route edits or redeployment.
 - Add UI strings to [ui.ts](src/i18n/ui.ts) for every supported locale when translations are available. English is the fallback for missing keys.
 
 ## Products And Content
 
-- [products.ts](src/lib/products.ts) is the product registry for navigation, cards, galleries, metadata, categories, and prices.
-- Product Markdown is read directly from `src/content/products/`, not through Astro Content Collections.
-- The dynamic product page looks for `<slug>/<lang>/<slug>.md`, then `<slug>/<slug>.<lang>.md`, then the base `<slug>/<slug>.md`.
-- Keep product front matter compatible with the simple parser in [slug].astro; do not assume full YAML or Markdown support there.
+- Supabase catalog tables and inventory are the authority for published product content, explicit SKU combinations, stock, prices, and packaged weight.
+- Seller editing is at `/admin/products` and `/th/admin/products`; see [PRODUCT-MANAGEMENT.md](PRODUCT-MANAGEMENT.md).
+- [products.ts](src/lib/products.ts) remains legacy reference content used by some collection views. Do not use its prices to authorize checkout.
+- Preserve historical order snapshots and permanent SKU identities when changing the catalog. Archive products and SKUs instead of deleting them.
 - Put static assets in `public/images/` and reference them with root-relative paths.
 
 ## Checkout And Auth
