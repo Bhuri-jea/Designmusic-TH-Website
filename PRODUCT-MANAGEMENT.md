@@ -33,7 +33,7 @@ Stock means total stock on hand. Reserved quantity is shown separately and canno
 3. Leave **Collection slug** blank unless the product belongs to a collection. Use `woodwindaccessories` for the existing Woodwind Accessories collection.
 4. Fill in Name, Short description, and Description for English, Thai, Japanese, and Simplified Chinese. Badge is optional. Incomplete translations may be saved in a draft; all four must be complete before publication.
 5. Add absolute HTTPS image URLs. Select exactly one primary image. Use the arrows to set gallery order. Existing migrated `/images/...` URLs may be retained; new images must use HTTPS.
-6. If the product has variants, add option groups, such as `size`, and values, such as `small` and `large`. Supply labels in all four languages. Value codes must be unique across the product.
+6. If the product has variants, add option groups, such as `size`, and values, such as `small` and `large`. Supply labels and a brief one-line explanation in all four languages. Explanations appear under each selectable option and accept up to 240 characters. Value codes must be unique across the product.
 7. Click **Add SKU** once for every combination that you actually sell. Give each SKU a unique code and select one value from each option group. For a product without options, create one SKU with no option selections.
 8. For **checkout**, enter stock, positive USD/JPY/THB prices, and positive gross weight. For **reservation only**, customers contact the shop directly and cannot add the item to the cart.
 9. Click **Save complete product**. Use **Preview** and its language selector to inspect draft text and the main image.
@@ -56,3 +56,5 @@ Stock means total stock on hand. Reserved quantity is shown separately and canno
 - **Conflict:** another product may already use the slug or SKU, or stock may have become reserved. Reopen the product before retrying stock edits.
 
 The draft preview is a content preview; verify the published page for the final gallery, options, stock, and purchasing experience.
+
+The public product page displays the badge, product name, description, options and explanations, price, stock availability, and Add to cart in that order in the right-hand column. Reservation-only items display a shop invitation and a booking link, followed by Facebook, Instagram, email, and phone links.

@@ -48,56 +48,56 @@ const {
         <div class="product-configuration-column">
           {badge && <div class="product-badge">{badge}</div>}
           <h1>{pageTitle}</h1>
+          {Astro.slots.has('default') && <div class="product-description"><slot /></div>}
           <div class="product-purchase"><slot name="purchase" /></div>
         </div>
       </div>
-      <div class="product-description"><slot /></div>
     </div>
   </div>
 </Layout>
 
 <style>
-  .product-detail-shell{--product-ink:#252923;--product-muted:#50584d;--product-line:#aab2a5;background:#d9dfd7;color:var(--product-ink);min-height:75svh}
+  .product-detail-shell{--product-ink:#2b252a;--product-muted:#625b60;--product-line:#b9b0a4;--product-surface:#fcfaf5;--product-action:#30242d;--product-control:#92877f;--product-focus:#78551f;background:#f3efe6;color:var(--product-ink);min-height:75svh}
   .product-detail-inner{max-width:1440px;margin-inline:auto;padding:32px clamp(22px,5.5vw,88px) 90px}
   .product-back{display:inline-flex;align-items:center;gap:10px;min-height:44px;margin-bottom:30px;color:var(--product-muted);font-size:.85rem;text-decoration:none}
   .product-back svg{width:18px;height:18px}.product-back:hover{text-decoration:underline;text-underline-offset:5px}
   .product-stage{display:grid;grid-template-columns:minmax(0,1.06fr) minmax(0,1fr);align-items:start;gap:clamp(32px,5.5vw,88px)}
   .product-gallery-column{min-width:0;position:sticky;top:112px}
   .product-configuration-column{min-width:0;padding-block:14px 0}
-  .product-badge{font-size:.8rem;line-height:1.5;border-bottom:1px solid var(--product-line);padding-bottom:12px;margin-bottom:24px;width:fit-content;color:var(--product-muted)}
+  .product-badge{font-size:.9rem;font-weight:600;line-height:1.5;border:1px solid #b39a68;border-radius:999px;padding:6px 14px;margin-bottom:22px;width:fit-content;color:#57401f;background:#eee0c5}
   h1{font-family:'Bodoni MT',Didot,'Times New Roman',serif;font-size:clamp(2.5rem,4.3vw,4.3rem);line-height:1.07;letter-spacing:-.035em;font-weight:400;text-wrap:balance;overflow-wrap:anywhere}
   .product-purchase{margin-top:26px}
-  .product-description{margin-top:70px;padding-top:44px;border-top:1px solid var(--product-line);max-width:1040px}
+  .product-description{margin-top:24px;max-width:100%;overflow-wrap:anywhere}
   .product-description :global(p),.product-description :global(li){font-size:1rem;line-height:1.8;max-width:76ch}
   .product-description :global(h2){font-size:clamp(1.8rem,3vw,2.8rem);line-height:1.2}
   .product-description :global(h3),.product-description :global(h4){line-height:1.4}
   .product-detail-shell :global([class~="text-white"]){color:var(--product-ink)!important;text-shadow:none!important}
   .product-detail-shell :global([class*="text-neutral-"]){color:var(--product-muted)!important}
   .product-detail-shell :global([class*="border-white/"]){border-color:var(--product-line)!important}
-  .product-detail-shell :global([class*="bg-white/"]){background:#e6eae0!important;backdrop-filter:none!important}
-  .product-detail-shell :global([class*="bg-neutral-900"]){background:#e5e9df!important;box-shadow:none!important;border-radius:3px!important}
+  .product-detail-shell :global([class*="bg-white/"]){background:#fcfaf5!important;backdrop-filter:none!important}
+  .product-detail-shell :global([class*="bg-neutral-900"]){background:#fcfaf5!important;box-shadow:none!important;border-radius:3px!important}
   .product-detail-shell :global([class~="stroke-white"]){stroke:var(--product-muted)}
   .product-purchase :global(.space-y-10){margin-top:0!important;row-gap:0}
   .product-purchase :global(.space-y-10> :not(:last-child)){margin-block-end:26px!important}
   .product-purchase :global(.space-y-6> :not(:last-child)){margin-block-end:12px!important}
   .product-purchase :global(h3){font-family:inherit;font-weight:500;font-size:.85rem;letter-spacing:0;text-transform:none}
-  .product-purchase :global(button[aria-pressed]){padding:17px 15px;min-height:64px;gap:10px;border:1px solid #9ca694!important;border-radius:3px;box-shadow:none!important;transition:background 140ms ease,color 140ms ease}
-  .product-purchase :global(button[aria-pressed="false"]){background:#e5e9df!important;color:var(--product-ink)!important}
-  .product-purchase :global(button[aria-pressed="true"]){background:#271d25!important;border-color:#271d25!important;color:#f5f1e8!important}
+  .product-purchase :global(button[aria-pressed]){padding:17px 15px;min-height:64px;gap:10px;border:1px solid #92877f!important;border-radius:3px;box-shadow:none!important;transition:background 140ms ease,color 140ms ease}
+  .product-purchase :global(button[aria-pressed="false"]){background:#fcfaf5!important;color:var(--product-ink)!important}
+  .product-purchase :global(button[aria-pressed="true"]){background:#30242d!important;border-color:#30242d!important;color:#f5f1e8!important}
   .product-purchase :global(button[aria-pressed] span){color:inherit!important;letter-spacing:0;text-transform:none}
-  .product-purchase :global(button[aria-pressed="false"]:hover){background:#c8d0c2!important}
+  .product-purchase :global(button[aria-pressed="false"]:hover){background:#ece5da!important}
   .product-purchase :global(.grid){gap:10px}
   .product-purchase :global(.p-8){padding:24px 0!important;border-inline:0!important;border-bottom:0!important;align-items:stretch!important;gap:22px;flex-direction:column!important;background:transparent!important}
-  .product-purchase :global(.btn-primary){min-height:54px;width:100%;padding:15px 22px;background:#271d25!important;border:1px solid #271d25!important;border-radius:3px;color:#f5f1e8!important;font-weight:500;box-shadow:none!important}
+  .product-purchase :global(.btn-primary){min-height:54px;width:100%;padding:15px 22px;background:#30242d!important;border:1px solid #30242d!important;border-radius:3px;color:#f5f1e8!important;font-weight:500;box-shadow:none!important}
   .product-purchase :global(.btn-primary:hover){background:#44333f!important}
-  .product-purchase :global(select),.product-purchase :global(input),.product-purchase :global(textarea),.product-purchase :global(option){background:#eef0e9;color:var(--product-ink);color-scheme:light;border-color:#8e9988}
-  .product-detail-shell :global(:focus-visible){outline:2px solid #665126!important;outline-offset:4px}
+  .product-purchase :global(select),.product-purchase :global(input),.product-purchase :global(textarea),.product-purchase :global(option){background:#fcfaf5;color:var(--product-ink);color-scheme:light;border-color:#92877f}
+  .product-detail-shell :global(:focus-visible){outline:2px solid #78551f!important;outline-offset:4px}
   .product-description :global(a){text-decoration:underline;text-underline-offset:4px}
   .product-purchase :global(.reservation-notice){display:grid!important;grid-template-columns:24px minmax(0,1fr);align-items:start!important;gap:18px;padding:24px!important}
   .product-purchase :global(.reservation-notice>div){min-width:0}
   .product-purchase :global(.reservation-notice>div:last-child){grid-column:1/-1;width:100%!important;margin:0}
-  .product-purchase :global(.reservation-notice a){display:block;box-sizing:border-box;max-width:100%;padding:14px 16px;white-space:normal;overflow-wrap:anywhere;line-height:1.5;background:#271d25;color:#f5f1e8!important;border-radius:8px}
-  @media(max-width:900px){.product-stage{grid-template-columns:minmax(0,1fr);gap:30px}.product-gallery-column{position:static}.product-configuration-column{padding-top:0}.product-description{margin-top:45px;padding-top:30px}.product-detail-inner{padding-bottom:55px}.product-back{margin-bottom:20px}}
+  .product-purchase :global(.reservation-notice a){display:block;box-sizing:border-box;max-width:100%;padding:14px 16px;white-space:normal;overflow-wrap:anywhere;line-height:1.5;background:#30242d;color:#f5f1e8!important;border-radius:8px}
+  @media(max-width:900px){.product-stage{grid-template-columns:minmax(0,1fr);gap:30px}.product-gallery-column{position:static}.product-configuration-column{padding-top:0}.product-description{margin-top:20px}.product-detail-inner{padding-bottom:55px}.product-back{margin-bottom:20px}}
   @media(min-width:1024px){.product-back,.product-badge,.product-purchase :global(h3){font-size:1rem}.product-description :global(p),.product-description :global(li){font-size:1.125rem}}
   @media(prefers-reduced-motion:reduce){.product-purchase :global(button){transition:none!important}}
 </style>
