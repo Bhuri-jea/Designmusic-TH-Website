@@ -1,5 +1,6 @@
 <script lang="ts">
  import { onMount } from 'svelte';
+ import {bookingDayKey,groupBookingSlotsByDay} from '../../lib/booking';
  import { ui } from '../../i18n/ui';
  import { localizedPath } from '../../utils/navigation';
  import type { Locale } from '../../lib/catalog';
@@ -11,7 +12,7 @@
  let selectedDate = $state(''), month = $state({year:0, month:0});
  const t = (key:string) => ui[lang][key as keyof typeof ui.en] || ui.en[key as keyof typeof ui.en];
  const statusText = (status:SlotStatus) => t(status==='available'?'booking.statusAvailable':status==='booked'?'booking.statusBooked':status==='contact_directly'?'booking.statusContact':'booking.statusUnavailable');
- const dateKey = (value:string) => new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
+ const dateKey = bookingDayKey;
  const dateLabel = (value:string) => new Intl.DateTimeFormat(lang,{timeZone:'Asia/Bangkok',weekday:'long',month:'long',day:'numeric'}).format(new Date(`${value}T12:00:00+07:00`));
  const timeLabel = (value:string) => new Intl.DateTimeFormat(lang,{timeZone:'Asia/Bangkok',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(value));
  const statusRank:Record<SlotStatus,number>={available:0,contact_directly:1,booked:2,unavailable:3};

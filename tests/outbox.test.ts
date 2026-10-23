@@ -4,6 +4,21 @@ import { filterGoogleCalendarAvailability, sendGoogleReport, dispatchOutbox, run
 import { notification } from '../src/lib/server/notifications.ts';
 import { SupabaseRequestError } from '../src/lib/server/supabase.ts';
 const id = '22222222-2222-4222-8222-222222222222';
+test('seller booking emails use preferred contact and separate account email in every language',()=>{
+ const env=(name:string)=>({EMAIL_FROM:'shop@example.test',SELLER_EMAIL:'seller@example.test'}[name]);
+ for(const locale of ['en','th','ja','zh-CN']){
+  const payload={bookingId:id,startAt:'2026-10-28T04:00:00Z',instrument:'soprano',service:'standard',notes:'',locale,recipient:'account@example.test',customer:{name:'Account Name',email:'account@example.test',contactName:'Booking Name',contactInformation:'LINE: <bhuri> & Facebook: Bhuri',accountEmail:'account@example.test'}};
+  const mail=notification('booking_seller',payload,env);
+  assert.match(mail.html,/LINE: &lt;bhuri&gt; &amp; Facebook: Bhuri/);
+  assert.match(mail.html,/Booking Name/);assert.match(mail.html,/account@example.test/);
+  assert.doesNotMatch(mail.html,/Account Name| \/ /);
+  assert.equal(notification('booking_buyer',payload,env).to,'account@example.test');
+ }
+});
+test('legacy seller booking emails label missing preferred contact without substituting account email',()=>{
+ const mail=notification('booking_seller',{bookingId:id,startAt:'2026-10-28T04:00:00Z',locale:'en',instrument:'alto',service:'basic',customer:{name:'Old booking',email:'account@example.test'}},name=>({EMAIL_FROM:'shop@example.test',SELLER_EMAIL:'seller@example.test'}[name]));
+ assert.match(mail.html,/Not provided/);assert.doesNotMatch(mail.html,/ \/ /);
+});
 
 test('refund email retries keep a stable key and never send obsolete action-required notices after completion', async () => {
  const requests: RequestInit[] = [];

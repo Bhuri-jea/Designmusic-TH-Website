@@ -108,14 +108,19 @@ export function notification(topic: string, payload: Record<string, unknown>, en
  const subject = booking ? seller ? c.sellerBooking : c.booking : seller ? c.sellerOrder : c.order;
  let content: string;
  if (booking) {
-  const customer = payload.customer as { name?: string; email?: string; phone?: string } | undefined;
+  const customer = payload.customer as { name?: string; email?: string; contactName?:string; contactInformation?:string; accountEmail?:string } | undefined;
   const at = new Date(String(payload.startAt));
   if (!Number.isFinite(at.getTime())) throw Error('invalid_notification_payload');
   const instrument = instrumentNames[locale][['soprano','alto','tenor','baritone','bassoon','other'].indexOf(String(payload.instrument))] ?? payload.instrument;
   const service = serviceNames[locale][['basic','standard','overhaul','assessment'].indexOf(String(payload.service))] ?? payload.service;
   const date = new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Bangkok' }).format(at);
   content = '<p>' + escape(payload.bookingId) + '</p><p>' + escape(c.time) + ': ' + escape(date) + '</p><p>' + escape(c.instrument) + ': ' + escape(instrument) + '</p><p>' + escape(c.service) + ': ' + escape(service) + '</p><p>' + escape(c.notes) + ': ' + escape(payload.notes) + '</p>';
-  if (seller) content += '<p>' + escape(c.contact) + ': ' + escape(customer?.name) + ' / ' + escape(customer?.email) + ' / ' + escape(customer?.phone) + '</p>';
+  if (seller) {
+   const labels={en:{name:'Customer name',account:'Account email',missing:'Not provided'},th:{name:'ชื่อลูกค้า',account:'อีเมลบัญชี',missing:'ไม่ได้ระบุช่องทางติดต่อ'},ja:{name:'お客様名',account:'アカウントのメール',missing:'連絡先未記入'},'zh-CN':{name:'客户姓名',account:'账户邮箱',missing:'未提供联系方式'}}[locale];
+   content+='<p>'+escape(labels.name)+': '+escape(customer?.contactName||customer?.name)+'</p><p>'+escape(c.contact)+': '+escape(customer?.contactInformation?.trim()||labels.missing)+'</p>';
+   const accountEmail=customer?.accountEmail||customer?.email;
+   if(accountEmail)content+='<p>'+escape(labels.account)+': '+escape(accountEmail)+'</p>';
+  }
  } else {
   const items = Array.isArray(payload.items) ? payload.items as { name: unknown; quantity: unknown }[] : [];
   const currency = String(payload.currency);

@@ -28,7 +28,8 @@ async function bahtSummary(value: unknown, now: Date, load: () => Promise<Exchan
       rates = await load();
       const at = Date.parse(rates.date + 'T00:00:00Z');
       if (![rates.usdThb, rates.jpyThb].every(rate => Number.isFinite(rate) && rate > 0)
-        || !/^\d{4}-\d{2}-\d{2}$/.test(rates.date) || !Number.isFinite(at) || at > now.getTime()) throw Error();
+        || !/^\d{4}-\d{2}-\d{2}$/.test(rates.date) || !Number.isFinite(at)
+        || rates.date > new Date(now.getTime()+7*3600000).toISOString().slice(0,10)) throw Error();
       // Weekend/holiday observations are dated explicitly; older observations cannot be called current.
       if (now.getTime() - at > 4 * 86400000) return { status: 'stale', rates, totals: null };
     } catch { return { status: 'unavailable', rates: null, totals: null }; }
