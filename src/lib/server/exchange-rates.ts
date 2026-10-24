@@ -13,17 +13,16 @@ export function createExchangeRateLoader(deps: Dependencies = { fetch: globalThi
     if (pending) return { ...await pending };
     pending = (async () => {
       try {
-        const response = await deps.fetch('https://api.frankfurter.dev/v2/rates?base=USD&quotes=THB,JPY', { signal: AbortSignal.timeout(8000) });
+        const response = await deps.fetch('https://api.frankfurter.app/latest?from=USD&to=THB,JPY', { signal: AbortSignal.timeout(8000) });
         if (!response.ok) throw Error();
-        const rows = await response.json();
-        if (!Array.isArray(rows)) throw Error();
-        const thb = rows.find(row => row.base === 'USD' && row.quote === 'THB');
-        const jpy = rows.find(row => row.base === 'USD' && row.quote === 'JPY');
-        if (!thb || !jpy || thb.date !== jpy.date || !/^\d{4}-\d{2}-\d{2}$/.test(thb.date)
-          || !Number.isFinite(thb.rate) || thb.rate <= 0 || !Number.isFinite(jpy.rate) || jpy.rate <= 0) throw Error();
-        const dateTime = Date.parse(thb.date + 'T00:00:00Z');
+        const data = await response.json();
+        if (!data || typeof data !== 'object' || !data.rates || typeof data.rates !== 'object') throw Error();
+        const thbRate = data.rates.THB, jpyRate = data.rates.JPY, rateDate = data.date;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(rateDate)
+          || !Number.isFinite(thbRate) || thbRate <= 0 || !Number.isFinite(jpyRate) || jpyRate <= 0) throw Error();
+        const dateTime = Date.parse(rateDate + 'T00:00:00Z');
         if (!Number.isFinite(dateTime) || dateTime > deps.now() + 86400000 || deps.now() - dateTime > MAX_RATE_AGE) throw Error();
-        cached = { usdThb: thb.rate, jpyThb: thb.rate / jpy.rate, date: thb.date, source: 'Frankfurter' };
+        cached = { usdThb: thbRate, jpyThb: thbRate / jpyRate, date: rateDate, source: 'Frankfurter' };
         expiresAt = deps.now() + 3600000;
         return cached;
       } catch { throw new HttpError(503, 'shipping_fx_unavailable'); }
