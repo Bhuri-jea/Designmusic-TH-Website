@@ -1,12 +1,16 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import ProductCategoryFilter from '../../../components/product/ProductCategoryFilter.astro';
 import { publishedCatalog } from '../../../lib/server/catalog-public';
 import { isSupportedLocale } from '../../../lib/server/locales';
 
 const { lang } = Astro.params;
 if (!isSupportedLocale(lang) || lang === 'en') return new Response(null, { status: 404 });
 export const prerender=false;
-const allProducts = await publishedCatalog(lang);
+const catalog = await publishedCatalog(lang);
+const categories=Array.from(new Map(catalog.filter(p=>p.collectionSlug&&p.collectionName).map(p=>[p.collectionSlug,{value:p.collectionSlug,label:p.collectionName}])).values());
+const category=Astro.url.searchParams.get('category')??'';
+const allProducts=category?catalog.filter(p=>p.collectionSlug===category):catalog;
 
 const translations = {
   en: {
@@ -60,7 +64,7 @@ const localizedProducts = allProducts;
       </p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+    <ProductCategoryFilter categories={categories} selected={category} lang={lang}/><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
       {localizedProducts.map((p, i) => (
         <a
           href={`/${lang}/product/${p.slug}`}
@@ -91,3 +95,4 @@ const localizedProducts = allProducts;
     </div>
   </div>
 </Layout>
+

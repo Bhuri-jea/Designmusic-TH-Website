@@ -3,6 +3,14 @@ export const BOOKING_TIME_ZONE = 'Asia/Bangkok';
 export const instruments = ['soprano', 'alto', 'tenor', 'baritone', 'bassoon', 'other'] as const;
 export const services = ['basic', 'standard', 'overhaul', 'assessment'] as const;
 export type BookingSlot = { startAt: string; endAt: string };
+export function bookingDayKey(value:string):string {
+  return new Date(Date.parse(value)+7*3600000).toISOString().slice(0,10);
+}
+export function groupBookingSlotsByDay<T extends {startAt:string}>(slots:readonly T[]):Map<string,T[]> {
+  const days=new Map<string,T[]>();
+  for(const slot of slots){const key=bookingDayKey(slot.startAt);const day=days.get(key);if(day)day.push(slot);else days.set(key,[slot]);}
+  return days;
+}
 export type BookingSlotStatus = 'available' | 'booked' | 'contact_directly' | 'unavailable';
 export type WeeklyBookingHours = Record<string, Record<string, 'available' | 'contact_directly'>>;
 export type DailyBookingHours = Record<string, Record<string, 'available' | 'contact_directly'>>;

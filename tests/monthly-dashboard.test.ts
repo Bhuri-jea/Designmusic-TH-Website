@@ -18,6 +18,14 @@ test('monthly report defaults to Thailand month across UTC month boundary', asyn
 const reportRow = (currency: string, net: number, shipping = 0, refund = 0, shippingRefund = 0) => ({ currency, paidOrders: 1, refundedOrders: refund ? 1 : 0, merchandiseGrossMinor: net + refund - shippingRefund, merchandiseNetMinor: net, shippingCollectedMinor: shipping, shippingRefundedMinor: shippingRefund, refundMinor: refund, estimatedPaidDates: 0, unknownPaidDates: 0, unallocatedRefunds: 0 });
 const reportNow = new Date('2026-10-21T09:00:00Z');
 const rates = { usdThb: 35, jpyThb: .25, date: '2026-10-20', source: 'Frankfurter' as const };
+test('rate date for today in Thailand is accepted before UTC midnight but tomorrow is rejected',async()=>{
+ const instant=new Date('2026-10-23T18:30:00Z');
+ for(const [date,expected] of [['2026-10-24','available'],['2026-10-25','unavailable']]){
+  const handler=createMonthlyDashboardHandler({authorize:async()=>{},now:()=>instant,summary:async()=>[reportRow('usd',1000)],exchangeRates:async()=>({...rates,date})});
+  const data=await (await handler(new Request('https://shop.test/api/admin/monthly-dashboard'))).json();
+  assert.equal(data.bahtSummary.status,expected);if(expected==='available')assert.equal(data.bahtSummary.totals.merchandiseNetTHB,350);
+ }
+});
 async function convertedReport(rows: ReturnType<typeof reportRow>[], exchangeRates: () => Promise<typeof rates>) {
  const response = await createMonthlyDashboardHandler({ authorize: async () => {}, now: () => reportNow, summary: async () => rows, exchangeRates })(new Request('https://shop.test/api/admin/monthly-dashboard'));
  assert.equal(response.status, 200);

@@ -1,0 +1,7 @@
+---
+import type {Locale} from '../../lib/catalog';
+const {categories,selected='',lang='en'}=Astro.props as {categories:{value:string;label:string}[];selected:string;lang:Locale};
+const words={en:{category:'Category',all:'All products',apply:'Show products'},th:{category:'หมวดหมู่',all:'สินค้าทั้งหมด',apply:'แสดงสินค้า'},ja:{category:'カテゴリー',all:'すべての製品',apply:'製品を表示'},'zh-CN':{category:'分类',all:'全部产品',apply:'显示产品'}}[lang];
+---
+<form class="category-filter" method="get"><label>{words.category}<select name="category"><option value="">{words.all}</option>{categories.map(category=><option value={category.value} selected={selected===category.value}>{category.label}</option>)}</select></label><button class="btn" type="submit">{words.apply}</button></form>
+<style>.category-filter{display:flex;align-items:end;gap:.8rem;flex-wrap:wrap;margin-block:1.5rem 2rem}.category-filter label{display:grid;gap:.4rem;min-width:min(100%,18rem)}select{min-height:48px;padding:.65rem .9rem;background:#f5f1e8;color:#2b252a;border:1px solid #b8adb0;border-radius:.5rem;font:inherit}.category-filter button{min-height:48px}</style>
