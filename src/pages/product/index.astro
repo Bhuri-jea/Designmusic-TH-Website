@@ -1,10 +1,14 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import ProductCategoryFilter from '../../components/product/ProductCategoryFilter.astro';
 import { publishedCatalog } from '../../lib/server/catalog-public';
 
-// Show all top-level products on the index (no category filter)
+// Published products with optional category filtering.
 export const prerender=false;
-const allProducts = await publishedCatalog('en');
+const catalog = await publishedCatalog('en');
+const categories=Array.from(new Map(catalog.filter(p=>p.collectionSlug&&p.collectionName).map(p=>[p.collectionSlug,{value:p.collectionSlug,label:p.collectionName}])).values());
+const category=Astro.url.searchParams.get('category')??'';
+const allProducts=category?catalog.filter(p=>p.collectionSlug===category):catalog;
 ---
 
 <Layout title="Products">
@@ -19,7 +23,7 @@ const allProducts = await publishedCatalog('en');
       </p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+    <ProductCategoryFilter categories={categories} selected={category} lang="en"/><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
       {allProducts.map((p, i) => (
         <a
           href={`/product/${p.slug}`}
@@ -50,3 +54,4 @@ const allProducts = await publishedCatalog('en');
     </div>
   </div>
 </Layout>
+

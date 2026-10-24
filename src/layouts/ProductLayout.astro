@@ -46,10 +46,12 @@ const {
           <ProductGallery client:load heroImage={heroImage} galleryImages={galleryImages} alt={pageTitle} />
         </div>
         <div class="product-configuration-column">
+          {Astro.slots.has('configuration')?<div class="product-purchase"><slot name="configuration" /></div>:<>
           {badge && <div class="product-badge">{badge}</div>}
           <h1>{pageTitle}</h1>
           {Astro.slots.has('default') && <div class="product-description"><slot /></div>}
           <div class="product-purchase"><slot name="purchase" /></div>
+          </>}
         </div>
       </div>
     </div>
