@@ -11,9 +11,9 @@ function fixture() {
  const events = new Map<string, any>();
  let locked = false, calendarFails = false, sheetFails = false, flushFails = false, insertions = 0, permitLock = true;
  const visibleRows = () => { const visible = rows.slice(); pendingRows.forEach((value, row) => visible[row] = value); return visible; };
- const sheet = { getLastRow: () => visibleRows().length, getRange: (row: number, _column: number, count: number) => ({
-   getValues: () => visibleRows().slice(row - 1, row - 1 + count),
-   setValues: (values: unknown[][]) => { assert.equal(locked, true); if (sheetFails) throw Error('sheet failed'); operations.push('write'); values.forEach((v, i) => pendingRows.set(row - 1 + i, v)); },
+ const sheet = { getLastRow: () => visibleRows().length, getRange: (row: number, column: number, count: number, width: number) => ({
+   getValues: () => visibleRows().slice(row - 1, row - 1 + count).map(value => value.slice(column - 1, column - 1 + width)),
+   setValues: (values: unknown[][]) => { assert.equal(locked, true); if (sheetFails) throw Error('sheet failed'); operations.push('write'); values.forEach((v, i) => { const cells = [...(visibleRows()[row - 1 + i] ?? [])]; v.forEach((cell, offset) => cells[column - 1 + offset] = cell); pendingRows.set(row - 1 + i, cells); }); },
  }) };
  const context = vm.createContext({
    PropertiesService: { getScriptProperties: () => ({ getProperty: (name: string) => ({ BOOKING_REPORT_SECRET: 'secret', SPREADSHEET_ID: 'sheet', CALENDAR_ID: 'calendar' } as Record<string,string>)[name] }) },
@@ -91,4 +91,40 @@ test('Apps Script rejects secret/shape/duration/ID errors before destination wri
 
 test('Apps Script lock failure returns a negative acknowledgment and does not release an unheld lock', () => {
  const f=fixture(); f.permitLock=false; assert.deepEqual(f.send(),{ok:false}); assert.equal(f.rows.length,0);
+});
+
+test('Apps Script accepts booking contact snapshots and preserves them through move, cancel and replay', () => {
+ const f=fixture();
+ const customer={name:'Account name',email:'buyer@example.test',contactName:'Booking name',contactInformation:'=LINE: musician / Facebook: Music',accountEmail:'buyer@example.test'};
+ const booking={...payload,customer};
+ assert.deepEqual(f.send(booking),{ok:true,bookingId:id});
+ assert.equal(f.rows[0][12],'Contact information');
+ assert.equal(f.rows[1][4],customer.contactName);
+ assert.equal(f.rows[1][12],"'"+customer.contactInformation);
+ const eventId=id.replaceAll('-','');
+ assert.match(f.events.get(eventId).description,/Contact information: =LINE: musician/);
+ const moved={...booking,startAt:'2026-10-13T04:00:00Z',endAt:'2026-10-13T05:00:00Z',version:2};
+ assert.equal(f.send(moved).ok,true);assert.equal(f.send(moved).ok,true);
+ assert.equal(f.insertions,1);assert.equal(f.rows.length,2);
+ assert.equal(f.rows[1][12],"'"+customer.contactInformation);
+ assert.equal(f.send({...moved,status:'cancelled',version:3}).ok,true);assert.equal(f.events.size,0);
+ assert.equal(f.send(booking).ok,true);assert.equal(f.events.size,0);
+});
+test('Apps Script accepts long preferred contact but rejects invalid or unexpected customer fields before writes',()=>{
+ const customer={name:'Name',email:'buyer@example.test',contactName:'Name',contactInformation:'x'.repeat(500),accountEmail:'buyer@example.test'};
+ assert.equal(fixture().send({...payload,customer}).ok,true);
+ for(const patch of [{contactInformation:'x'.repeat(501)},{contactName:42},{accountEmail:null},{unexpected:'x'},{contactInformation:'bad\u0000contact'}]){
+  const f=fixture();assert.equal(f.send({...payload,customer:{...customer,...patch}}).ok,false);assert.equal(f.rows.length,0);
+ }
+});
+
+test('Apps Script appends the contact column to an existing legacy Sheet without changing old rows',()=>{
+ const f=fixture();assert.equal(f.send().ok,true);
+ f.rows[0]=f.rows[0].slice(0,12);f.rows[1]=f.rows[1].slice(0,12);
+ const oldRow=[...f.rows[1]];
+ const secondId='33333333-3333-4333-8333-333333333333';
+ const customer={name:'Name',email:'buyer@example.test',contactName:'Name',contactInformation:'LINE: player',accountEmail:'buyer@example.test',phone:null};
+ assert.deepEqual(f.send({...payload,bookingId:secondId,customer}),{ok:true,bookingId:secondId});
+ assert.equal(f.rows[0][12],'Contact information');assert.deepEqual(f.rows[1],oldRow);
+ assert.equal(f.rows[2][12],customer.contactInformation);assert.equal(f.events.size,2);
 });
