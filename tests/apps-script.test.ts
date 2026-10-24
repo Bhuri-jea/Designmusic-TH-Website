@@ -92,3 +92,31 @@ test('Apps Script rejects secret/shape/duration/ID errors before destination wri
 test('Apps Script lock failure returns a negative acknowledgment and does not release an unheld lock', () => {
  const f=fixture(); f.permitLock=false; assert.deepEqual(f.send(),{ok:false}); assert.equal(f.rows.length,0);
 });
+
+test('Apps Script accepts booking contact snapshots and preserves them through move, cancel and replay', () => {
+ const f = fixture();
+ const customer = {name:'Account name',email:'buyer@example.test',contactName:'Booking name',contactInformation:'=LINE: musician / Facebook: Music',accountEmail:'buyer@example.test'};
+ const booking = {...payload,customer};
+ assert.deepEqual(f.send(booking),{ok:true,bookingId:id});
+ assert.equal(f.rows[0][12],'Contact information');
+ assert.equal(f.rows[1][4],customer.contactName);
+ assert.equal(f.rows[1][12],"'"+customer.contactInformation);
+ const eventId=id.replaceAll('-','');
+ assert.match(f.events.get(eventId).description,/Contact information: =LINE: musician \/ Facebook: Music/);
+ const moved={...booking,startAt:'2026-10-13T04:00:00Z',endAt:'2026-10-13T05:00:00Z',version:2};
+ assert.equal(f.send(moved).ok,true);
+ assert.equal(f.send(moved).ok,true);
+ assert.equal(f.insertions,1); assert.equal(f.rows.length,2);
+ assert.equal(f.rows[1][12],"'"+customer.contactInformation);
+ assert.equal(f.send({...moved,status:'cancelled',version:3}).ok,true);
+ assert.equal(f.events.size,0);
+ assert.equal(f.send(booking).ok,true);assert.equal(f.events.size,0);
+});
+
+test('Apps Script accepts long preferred contact but rejects unknown or invalid customer fields before writing', () => {
+ const customer={name:'Name',email:'buyer@example.test',contactName:'Name',contactInformation:'x'.repeat(500),accountEmail:'buyer@example.test'};
+ assert.equal(fixture().send({...payload,customer}).ok,true);
+ for(const patch of [{contactInformation:'x'.repeat(501)},{contactName:42},{accountEmail:null},{unexpected:'x'},{contactInformation:'bad\u0000contact'}]){
+  const f=fixture();assert.equal(f.send({...payload,customer:{...customer,...patch}}).ok,false);assert.equal(f.rows.length,0);
+ }
+});
