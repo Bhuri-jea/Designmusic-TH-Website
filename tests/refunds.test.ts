@@ -39,3 +39,11 @@ test('unpaid session is verified expired before reservations are released',async
  const f=fixture();f.order.status='pending';f.session.payment_status='unpaid';f.session.status='open';
  await cancelOrder(request(),body,f.deps);assert.equal(f.creates,0);assert.ok(f.calls.some(call=>call[0]==='apply_stripe_event'));assert.ok(f.calls.some(call=>call[0]==='finish_unpaid_cancellation'));
 });
+
+test('a seller-created SKU can be cancelled without another refund or restock',async()=>{
+ const f=fixture();const dynamic={...body,restock:{'custom-sku-2026':0}};
+ await cancelOrder(request(),dynamic,f.deps);
+ assert.equal(f.creates,1);
+ await cancelOrder(request(),dynamic,f.deps);
+ assert.equal(f.creates,1);
+});

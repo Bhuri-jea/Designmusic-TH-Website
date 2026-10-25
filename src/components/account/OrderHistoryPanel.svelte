@@ -1,5 +1,6 @@
 <script lang="ts">
  import {WORKSHOP_MAP_URL} from '../../lib/workshop';
+ import {orderDelivery} from '../../lib/order-delivery';
  import { onMount } from 'svelte';
  import { ui } from '../../i18n/ui';
  import { accountText, type AccountCopyKey } from '../../i18n/account-ui';
@@ -43,15 +44,16 @@
  {:else if orders.length === 0}<p class="text-neutral-300">{accountText(lang, 'emptyOrders')}</p>
  {:else}<div class="space-y-4">{#each visibleOrders as order (order.id)}
   {@const totalQuantity = (order.items ?? []).reduce((sum, item) => sum + (Number.isSafeInteger(item.quantity) && (item.quantity ?? 0) > 0 ? item.quantity! : 0), 0)}
+  {@const delivery = orderDelivery(order)}
   <article class="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6">
    <h2 class="font-medium leading-relaxed"><a class="text-amber-100 underline underline-offset-4" href={localizedPath('/success',lang)+'?order_id='+encodeURIComponent(order.id)}>{accountText(lang,'orderLabel')} {date(order.createdAt)} · {totalQuantity} {accountText(lang,'quantity')}</a></h2>
    {#if !order.cancellationStatus||order.cancellationStatus==='none'}<p class="mt-2 text-sm text-neutral-200">{statusText(order.status)}</p>{/if}
    <OrderFinancialStatus {order} {lang}/>
    <p class="mt-1 text-xs text-neutral-400">{accountText(lang,'orderId')}: <span class="break-all font-mono">{order.id}</span></p>
    {#if order.status === 'paid'&&(!order.cancellationStatus||order.cancellationStatus==='none')}
-   {#if order.shipment?.trackingNumber}<p class="mt-3 text-sm text-neutral-200">{accountText(lang,'trackingNumber')}: <span class="font-mono">{order.shipment.trackingNumber}</span></p>{/if}
-   {#if serviceCode(order) === 'pickup'}<p class="mt-2 text-sm">{accountText(lang,'shippingService')}: <a class="text-amber-200 underline underline-offset-4" href={WORKSHOP_MAP_URL} target="_blank" rel="noopener noreferrer">{serviceName('pickup')}</a></p>
-   {:else if serviceCode(order)}<p class="mt-2 text-sm">{accountText(lang,'shippingService')}: {#if trackingUrl(order)}<a class="text-amber-200 underline underline-offset-4" href={trackingUrl(order)} target="_blank" rel="noopener noreferrer">{serviceName(serviceCode(order)!)}</a>{:else}<span class="text-neutral-300">{serviceName(serviceCode(order)!)}</span>{/if}</p>{/if}
+   {#if delivery?.trackingNumber}<p class="mt-3 text-sm text-neutral-200">{accountText(lang,'trackingNumber')}: <span class="font-mono">{delivery.trackingNumber}</span></p>{/if}
+   {#if delivery?.service === 'pickup'}<p class="mt-2 text-sm">{accountText(lang,'shippingService')}: <a class="text-amber-200 underline underline-offset-4" href={WORKSHOP_MAP_URL} target="_blank" rel="noopener noreferrer">{serviceName('pickup')}</a></p>
+   {:else if delivery?.service}<p class="mt-2 text-sm">{accountText(lang,'shippingService')}: {#if delivery.url}<a class="text-amber-200 underline underline-offset-4" href={delivery.url} target="_blank" rel="noopener noreferrer">{serviceName(delivery.service)}</a>{:else}<span class="text-neutral-300">{serviceName(delivery.service)}</span>{/if}</p>{/if}
    {/if}
   </article>
  {/each}</div>

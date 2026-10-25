@@ -22,7 +22,7 @@ async function recordRefund(refund:Stripe.Refund,order:OrderRecord,pi:string,dep
 export async function cancelOrder(request:Request,body:Record<string,unknown>,deps=refundDependencies):Promise<{order:OrderRecord;needsReview?:boolean}>{
  const actor=await deps.admin(request);assertSameOrigin(request);
  if(Object.keys(body).sort().join(',')!=='orderId,reason,restock'||!uuid(body.orderId)||typeof body.reason!=='string'||!body.reason.trim()||body.reason.trim().length>1000||!body.restock||typeof body.restock!=='object'||Array.isArray(body.restock)
-  ||Object.entries(body.restock).some(([sku,quantity])=>!/^endplug-(plain|twoColor|custom)$|^shakuhachi-(standard|large)-(balance|traditional|modern)$/.test(sku)||!Number.isInteger(quantity)||(quantity as number)<0||(quantity as number)>10))throw new HttpError(400,'invalid_cancellation');
+  ||Object.entries(body.restock).some(([sku,quantity])=>!sku||sku.length>120||/[\u0000-\u001f\u007f]/.test(sku)||!Number.isInteger(quantity)||(quantity as number)<0||(quantity as number)>10))throw new HttpError(400,'invalid_cancellation');
  const config=paymentCredentials(deps.env),stripe=deps.stripe(config.key);
  const operation=await deps.rpc<any>('begin_order_cancellation',{p_order_id:body.orderId,p_reason:body.reason.trim(),p_restock:body.restock,p_actor:actor});
  let order=operation.order as OrderRecord;
