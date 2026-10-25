@@ -11,9 +11,9 @@ function fixture() {
  const events = new Map<string, any>();
  let locked = false, calendarFails = false, sheetFails = false, flushFails = false, insertions = 0, permitLock = true;
  const visibleRows = () => { const visible = rows.slice(); pendingRows.forEach((value, row) => visible[row] = value); return visible; };
- const sheet = { getLastRow: () => visibleRows().length, getRange: (row: number, _column: number, count: number) => ({
-   getValues: () => visibleRows().slice(row - 1, row - 1 + count),
-   setValues: (values: unknown[][]) => { assert.equal(locked, true); if (sheetFails) throw Error('sheet failed'); operations.push('write'); values.forEach((v, i) => pendingRows.set(row - 1 + i, v)); },
+ const sheet = { getLastRow: () => visibleRows().length, getRange: (row: number, column: number, count: number, width: number) => ({
+   getValues: () => visibleRows().slice(row - 1, row - 1 + count).map(value => value.slice(column - 1, column - 1 + width)),
+   setValues: (values: unknown[][]) => { assert.equal(locked, true); if (sheetFails) throw Error('sheet failed'); operations.push('write'); values.forEach((v, i) => { const cells = [...(visibleRows()[row - 1 + i] ?? [])]; v.forEach((cell, offset) => cells[column - 1 + offset] = cell); pendingRows.set(row - 1 + i, cells); }); },
  }) };
  const context = vm.createContext({
    PropertiesService: { getScriptProperties: () => ({ getProperty: (name: string) => ({ BOOKING_REPORT_SECRET: 'secret', SPREADSHEET_ID: 'sheet', CALENDAR_ID: 'calendar' } as Record<string,string>)[name] }) },
