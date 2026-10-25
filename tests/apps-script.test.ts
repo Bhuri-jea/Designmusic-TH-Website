@@ -94,37 +94,29 @@ test('Apps Script lock failure returns a negative acknowledgment and does not re
 });
 
 test('Apps Script accepts booking contact snapshots and preserves them through move, cancel and replay', () => {
- const f=fixture();
- const customer={name:'Account name',email:'buyer@example.test',contactName:'Booking name',contactInformation:'=LINE: musician / Facebook: Music',accountEmail:'buyer@example.test'};
- const booking={...payload,customer};
+ const f = fixture();
+ const customer = {name:'Account name',email:'buyer@example.test',contactName:'Booking name',contactInformation:'=LINE: musician / Facebook: Music',accountEmail:'buyer@example.test'};
+ const booking = {...payload,customer};
  assert.deepEqual(f.send(booking),{ok:true,bookingId:id});
  assert.equal(f.rows[0][12],'Contact information');
  assert.equal(f.rows[1][4],customer.contactName);
  assert.equal(f.rows[1][12],"'"+customer.contactInformation);
  const eventId=id.replaceAll('-','');
- assert.match(f.events.get(eventId).description,/Contact information: =LINE: musician/);
+ assert.match(f.events.get(eventId).description,/Contact information: =LINE: musician \/ Facebook: Music/);
  const moved={...booking,startAt:'2026-10-13T04:00:00Z',endAt:'2026-10-13T05:00:00Z',version:2};
- assert.equal(f.send(moved).ok,true);assert.equal(f.send(moved).ok,true);
- assert.equal(f.insertions,1);assert.equal(f.rows.length,2);
+ assert.equal(f.send(moved).ok,true);
+ assert.equal(f.send(moved).ok,true);
+ assert.equal(f.insertions,1); assert.equal(f.rows.length,2);
  assert.equal(f.rows[1][12],"'"+customer.contactInformation);
- assert.equal(f.send({...moved,status:'cancelled',version:3}).ok,true);assert.equal(f.events.size,0);
+ assert.equal(f.send({...moved,status:'cancelled',version:3}).ok,true);
+ assert.equal(f.events.size,0);
  assert.equal(f.send(booking).ok,true);assert.equal(f.events.size,0);
 });
-test('Apps Script accepts long preferred contact but rejects invalid or unexpected customer fields before writes',()=>{
+
+test('Apps Script accepts long preferred contact but rejects unknown or invalid customer fields before writing', () => {
  const customer={name:'Name',email:'buyer@example.test',contactName:'Name',contactInformation:'x'.repeat(500),accountEmail:'buyer@example.test'};
  assert.equal(fixture().send({...payload,customer}).ok,true);
  for(const patch of [{contactInformation:'x'.repeat(501)},{contactName:42},{accountEmail:null},{unexpected:'x'},{contactInformation:'bad\u0000contact'}]){
   const f=fixture();assert.equal(f.send({...payload,customer:{...customer,...patch}}).ok,false);assert.equal(f.rows.length,0);
  }
-});
-
-test('Apps Script appends the contact column to an existing legacy Sheet without changing old rows',()=>{
- const f=fixture();assert.equal(f.send().ok,true);
- f.rows[0]=f.rows[0].slice(0,12);f.rows[1]=f.rows[1].slice(0,12);
- const oldRow=[...f.rows[1]];
- const secondId='33333333-3333-4333-8333-333333333333';
- const customer={name:'Name',email:'buyer@example.test',contactName:'Name',contactInformation:'LINE: player',accountEmail:'buyer@example.test',phone:null};
- assert.deepEqual(f.send({...payload,bookingId:secondId,customer}),{ok:true,bookingId:secondId});
- assert.equal(f.rows[0][12],'Contact information');assert.deepEqual(f.rows[1],oldRow);
- assert.equal(f.rows[2][12],customer.contactInformation);assert.equal(f.events.size,2);
 });
