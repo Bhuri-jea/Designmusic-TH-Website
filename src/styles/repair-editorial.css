@@ -55,6 +55,13 @@
 @media(max-width:600px){.repair-hero{min-height:620px;align-items:flex-end;}.repair-hero::after{background:linear-gradient(0deg,rgba(25,21,27,.97) 4%,rgba(25,21,27,.8) 50%,rgba(25,21,27,.25));}.repair-hero-image{object-position:65% center;}.repair-hero-content{padding:60px 24px 52px;}.repair-hero-content h1{font-size:clamp(52px,14vw,72px);margin-bottom:24px;}.repair-hero-content p{font-size:15px;line-height:1.7;}.repair-content{padding:36px 20px 64px;}.repair-calendar{margin:0 -16px 30px;}.repair-content>.alert{padding:20px 0;gap:10px;}.repair-workshop{margin-bottom:44px;}.repair-workshop-image{height:300px;object-position:58% center;}.repair-content>.mb-32{margin-bottom:64px;}.repair-content .card .card-body{padding:28px 24px;}.booking-story{min-height:460px;}.booking-story-content{padding:48px 24px 40px;}.booking-story-content h1{font-size:clamp(46px,12vw,62px);margin-bottom:20px;}.booking-story-content p{font-size:15px;}.booking-workspace{padding:24px 16px 56px;}.booking-workspace>a{margin-left:8px;}}
 @media(prefers-reduced-motion:reduce){.repair-editorial *,.booking-editorial *{scroll-behavior:auto;transition:none!important;}}
 
+/* Keep the booking story and form as full-width rows on narrow viewports. */
+@media(max-width:900px){
+ .booking-editorial{display:flex;flex-direction:column;width:100%;min-width:0;overflow-x:clip}
+ .booking-story,.booking-workspace,.booking-live-form,.booking-live-form>astro-island,.booking-live-form>astro-island>div{box-sizing:border-box;width:100%;min-width:0;max-width:100%}
+ .booking-story,.booking-workspace{flex:none}
+}
+
 /* The interactive form keeps its existing selected/error states on the paper surface. */
 .booking-live-form{container-type:inline-size}
 .booking-live-form .booking-calendar{grid-template-columns:minmax(0,1fr)!important;color:#f5f1e8}
