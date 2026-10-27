@@ -61,6 +61,11 @@
  .booking-story,.booking-workspace,.booking-live-form,.booking-live-form>astro-island,.booking-live-form>astro-island>div{box-sizing:border-box;width:100%;min-width:0;max-width:100%}
  .booking-story,.booking-workspace{flex:none}
 }
+@media(max-width:639px){
+ .booking-story-content{min-width:0;max-width:100%}
+ html[lang] body[data-design-surface="booking"] #main-content .booking-story-content h1{font-size:clamp(2.625rem,14vw,3.625rem)!important;line-height:1.04;max-width:100%;overflow-wrap:anywhere}
+ .booking-story-content p{max-width:100%;overflow-wrap:anywhere}
+}
 
 /* The interactive form keeps its existing selected/error states on the paper surface. */
 .booking-live-form{container-type:inline-size}
