@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bookingSlots, bookingCalendarSlots, bookingDateWindow, bookingDayHours, DEFAULT_WEEKLY_BOOKING_HOURS, sortBookingsUpcomingFirst, validateBooking, type DailyBookingHours } from '../src/lib/booking.ts';
-import { bookingAvailability, cancelBooking, createBooking, ownedBookings, rescheduleBooking, type BookingDependencies } from '../src/lib/server/bookings.ts';
+import { adminCancelBooking, bookingAvailability, cancelBooking, createBooking, ownedBookings, rescheduleBooking, type BookingDependencies } from '../src/lib/server/bookings.ts';
 const key = '22222222-2222-4222-8222-222222222222';
 const now = Date.parse('2026-10-12T16:59:59Z'); // 23:59:59 Monday Bangkok
 const body = { requestKey: key, slot: '2026-10-13T03:00:00.000Z', instrument: 'alto', service: 'basic', contactName: '  Nori  ', contactInformation: ' LINE: nori-music ', notes: '  careful  ', locale: 'ja' };
@@ -119,6 +119,16 @@ test('booking contact details are projected only for the authorized admin calend
  const publicResult=await bookingAvailability(f.deps);assert.equal('bookings' in publicResult,false);
  const admin=await bookingAvailability(f.deps,{includePast:true,includeAdminDetails:true});assert.deepEqual(admin.bookings?.[0],{id:key,startAt:body.slot,endAt:'2026-10-13T04:00:00.000Z',status:'confirmed',instrument:'alto',service:'basic',notes:'careful',contactName:'Nori',contactInformation:'LINE: nori-music'});
 });
+test('admin calendar does not duplicate a booked slot when Supabase uses a UTC offset', async()=>{
+ const f=fixture();f.deps.calendarAvailability=async slots=>slots;
+ const offsetStart=body.slot.replace('.000Z','+00:00');
+ f.deps.select=async <T>(_table:string,filters:Record<string,string>)=>filters.select?.includes('customer_snapshot')
+  ?[{id:key,start_at:offsetStart,end_at:'2026-10-13T04:00:00+00:00',status:'confirmed',instrument:'alto',service:'basic',notes:'',customer_snapshot:{contactName:'Nori',contactInformation:'LINE: nori'}}] as T[]
+  :[] as T[];
+ const calendar=await bookingAvailability(f.deps,{includePast:true,includeAdminDetails:true});
+ assert.equal(calendar.calendarSlots.filter(slot=>Date.parse(slot.startAt)===Date.parse(body.slot)).length,1);
+ assert.equal(calendar.bookings?.[0]?.startAt,offsetStart);
+});
 test('public calendar omits past starts, admin calendar retains today, and database range ends after the final Bangkok day', async () => {
   const f = fixture();
   f.deps.calendarAvailability = async slots => slots;
@@ -155,6 +165,36 @@ test('owned booking reads filter stable customer; malformed ID and missing owned
   await assert.rejects(ownedBookings(new Request('https://shop.test'), 'bad', f.deps));
   f.deps.select = async () => [];
   await assert.rejects(ownedBookings(new Request('https://shop.test'), key, f.deps), /booking_not_found/);
+});
+
+test('admin cancellation requires a reason and passes only the authenticated actor to the atomic RPC', async () => {
+  const calls: Array<{name:string;args:Record<string,unknown>}> = [];
+  const deps = {
+    now: () => now,
+    admin: async () => 'google-admin-subject',
+    rpc: async <T>(name:string,args:Record<string,unknown>) => {
+      calls.push({name,args});
+      return {id:key,status:'cancelled',cancelledBy:'admin',cancellationReason:args.p_reason} as T;
+    },
+  };
+  const request = new Request('https://shop.test');
+  for (const reason of ['', '  ', 'x'.repeat(501), 'bad\u0000reason']) {
+    await assert.rejects(adminCancelBooking(request,key,{reason},deps), /invalid_booking/);
+  }
+  assert.equal(calls.length,0);
+  const result=await adminCancelBooking(request,key,{reason:'  Workshop unavailable  '},deps);
+  assert.equal(result.cancellationReason,'Workshop unavailable');
+  assert.equal(result.cancelledBy,'admin');
+  assert.deepEqual(calls,[{name:'admin_cancel_booking',args:{p_booking_id:key,p_reason:'Workshop unavailable',p_actor:'google-admin-subject'}}]);
+  await assert.rejects(adminCancelBooking(request,'bad',{reason:'x'},deps),/invalid_booking/);
+});
+
+test('customer booking list includes an admin cancellation reason only from owned rows', async () => {
+  const f=fixture();
+  f.deps.select=async <T>() => [{id:key,customer_id:key,start_at:body.slot,end_at:'2026-10-13T04:00:00Z',instrument:'alto',service:'basic',notes:'',locale:'en',status:'cancelled',created_at:'2026-10-12T00:00:00Z',cancelled_by:'admin',cancellation_reason:'Workshop unavailable'}] as T[];
+  const [booking]=await ownedBookings(new Request('https://shop.test'),undefined,f.deps);
+  assert.equal(booking.cancelledBy,'admin');
+  assert.equal(booking.cancellationReason,'Workshop unavailable');
 });
 
 test('rescheduling uses current availability and cancellation stays owner-scoped and idempotent', async () => {
