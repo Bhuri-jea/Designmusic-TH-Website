@@ -53,9 +53,11 @@ button,a,input,select,textarea{scroll-margin-block:110px}a:focus-visible,button:
 .input,.select,.textarea{border-radius:3px}.card{border-radius:2px}.card-title{font-weight:400}
 .site-footer{margin-top:0;background:var(--editorial-deep);padding:80px var(--editorial-page) 30px;border-color:#f5f1e826}.site-footer>div{max-width:1500px;padding:0}.site-footer h3{font-size:36px;letter-spacing:-.045em;text-transform:none}.site-footer h4{font-size:14px;letter-spacing:.02em;text-transform:none}.site-footer p,.site-footer li{font-size:14px}.site-footer a{overflow-wrap:anywhere}.site-footer :is(.text-neutral-400,.text-neutral-500){color:#c7bec5}.site-footer>div>div:first-child{grid-template-columns:1.3fr 1fr 1fr;gap:clamp(28px,5vw,80px)}.site-footer>div>div:first-child>div:first-child{grid-column:span 1}
 .editorial-hero{position:relative;isolation:isolate;display:flex;align-items:center;min-height:650px;height:calc(100svh - 88px);max-height:980px;overflow:hidden;background:var(--editorial-deep)}
+.editorial-hero{height:auto;min-height:max(650px,calc(100svh - 88px));max-height:none}
 .editorial-hero::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#19151beF 0%,#19151bbd 33%,#19151b18 78%),linear-gradient(0deg,#19151b70,transparent 45%)}
 .editorial-hero-image{position:absolute;inset:0;width:100%;height:100%;z-index:-2;object-fit:cover;object-position:68% 45%}
 .editorial-hero-content{width:100%;max-width:1600px;margin:auto;padding:70px var(--editorial-page) 90px}.editorial-hero-copy{max-width:730px}.editorial-hero h1{font-size:clamp(60px,7.6vw,108px);font-weight:400;line-height:1.03;letter-spacing:-.045em;margin-bottom:28px}.editorial-hero h1 span{font-style:normal;color:inherit}.editorial-hero-copy>p:first-child{font-size:12px;letter-spacing:.06em;text-transform:none;color:#e4d6c4}.editorial-hero-copy>p:not(:first-child){max-width:47ch;font-size:17px;line-height:1.8;color:#f0e8ed}.hero-actions{align-items:center;gap:24px}.hero-actions .btn-primary{justify-content:space-between;gap:38px;padding-inline:24px;min-width:210px}.hero-actions .btn-secondary{border:0;border-bottom:1px solid #eee3e8;padding-inline:0;min-height:44px;background:transparent}.hero-actions .btn-primary span{font-size:22px}
+@media(min-width:1024px){.editorial-hero-copy{max-width:min(950px,70vw)}.editorial-hero h1{font-size:clamp(64px,5.3vw,88px);line-height:1.08}}
 .home-story{background:var(--editorial-sage);color:var(--editorial-ink);padding:110px var(--editorial-page)}.home-story>div{max-width:1400px;padding:0;gap:8%}.home-story h2{font-size:clamp(38px,4.3vw,66px);line-height:1.07;letter-spacing:-.025em}.home-story :is(p,.text-neutral-400){color:var(--editorial-muted)}.home-story a{color:var(--editorial-ink);border-color:#58604f}.home-story .ikigai-glass{padding:0;border:0;background:none;border-radius:0}.home-story img{object-fit:cover}.home-story>div>div:first-child{order:2}.home-story>div>div:last-child{order:1}
 .home-collection{padding:100px var(--editorial-page);background:var(--editorial-plum)}.home-collection>div{max-width:1400px;padding:0}.home-collection>div>div:first-child{text-align:left}.home-collection h2{font-size:clamp(40px,4.5vw,68px);line-height:1.07;letter-spacing:-.025em}.home-collection .ikigai-glass{border:0;background:none;border-radius:0}.home-collection a>div:last-child{padding:22px 0}.home-collection a>div:first-child{border:0;background:#e4dfd3;border-radius:0;padding:12px}.home-collection :is(.text-neutral-400,.text-neutral-500){color:#d0c5cc}.home-collection h3{font-size:30px}.home-collection .object-contain{transition:transform 180ms}.home-collection a:hover .object-contain{transform:scale(1.015)}
 .home-final-banner{isolation:isolate;min-height:460px;padding:100px var(--editorial-page);justify-content:flex-start;background:var(--editorial-deep) url('/images/soprano%20sax.jpg') center/cover no-repeat}.home-final-banner::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#19151be8,#19151b28);z-index:-1}.home-final-banner>div{margin:0;text-align:left;max-width:760px}.home-final-banner h2{font-size:clamp(42px,4.8vw,72px);line-height:1.08}
@@ -85,4 +87,14 @@ body[data-design-surface=account] #main-content{background:var(--editorial-plum)
  .site-header .product-menu-heading,.site-header .product-menu-item{font-size:16px}
  .site-footer :is(p,li,a,h4){font-size:17px}
  body[data-design-surface=home] #main-content .editorial-hero-copy>p:first-child{font-size:15px}
+}
+
+/* Readable editorial copy at 100% zoom, including the dark About callout. */
+body[data-design-surface=about] #main-content :is(.text-neutral-400,.text-neutral-500){color:#354237}
+body[data-design-surface=about] #main-content .about-feature .text-neutral-300{color:#243127}
+body[data-design-surface=about] #main-content .about-callout :is(.text-white,.btn-secondary){color:#f5f1e8}
+body[data-design-surface=about] #main-content .about-callout .btn-secondary{border-color:#c8bec7}
+@media(min-width:1024px){
+ body[data-design-surface=about] #main-content p{font-size:clamp(1.2rem,1.4vw,1.45rem);line-height:1.75}
+ body[data-design-surface=product] #main-content :is(p,li,legend,label,button,select){font-size:1.05rem}
 }

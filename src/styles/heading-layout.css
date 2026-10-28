@@ -79,3 +79,8 @@ html[lang="zh-CN"] body[data-design-route="/profile/orders"] #main-content h1{fo
 }
 
 @media(max-width:639px){#main-content h1 span{font-size:inherit!important;line-height:inherit!important}}
+/* Keep editorial headings readable at normal browser zoom on small screens. */
+@media(max-width:639px){
+ html[lang] body[data-design-route="/about"] #main-content h1{font-size:clamp(2rem,8vw,3.25rem)!important;line-height:1.12}
+ html[lang] body[data-design-surface="product"] #main-content h1{font-size:clamp(2.2rem,9vw,3.5rem)!important;line-height:1.1}
+}

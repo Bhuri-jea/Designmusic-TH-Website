@@ -7,13 +7,14 @@
  import AccountNav from './AccountNav.svelte';
  import { sortBookingsUpcomingFirst } from '../../lib/booking';
 
- type Booking = { id: string; startAt: string; endAt: string; createdAt?: string; instrument: string; service: string; status: string };
+ type Booking = { id: string; startAt: string; endAt: string; createdAt?: string; instrument: string; service: string; status: string; cancelledBy?: string | null; cancellationReason?: string | null };
  type Slot = { startAt: string; endAt: string };
  let { lang } = $props<{ lang: Locale }>();
  let bookings = $state<Booking[] | null>(null), slots = $state<Slot[]>([]), visibleCount = $state(5);
  let selected = $state<Record<string, string>>({}), pending = $state<string | null>(null);
  let status = $state(''), bookingError = $state(false), availabilityError = $state(false);
  const t = (key: string) => ui[lang][key as keyof typeof ui.en] || ui.en[key as keyof typeof ui.en];
+ const shopCancellationReason = { en: 'Reason from the shop', th: 'เหตุผลจากร้าน', ja: '店舗からのキャンセル理由', 'zh-CN': '店铺取消原因' };
  const at = (value: string) => new Intl.DateTimeFormat(lang, { timeZone: 'Asia/Bangkok', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
  const visibleBookings = $derived(sortBookingsUpcomingFirst(bookings ?? []).slice(0, visibleCount));
  const manageable = (booking: Booking) => booking.status === 'confirmed' && Date.parse(booking.startAt) > Date.now();
@@ -80,6 +81,9 @@
   <section class="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6">
    <div class="flex flex-wrap items-start justify-between gap-4"><div><h2 class="font-serif text-xl">{instrumentLabel(booking)} · {serviceLabel(booking)}</h2><p class="text-neutral-300 mt-2">{at(booking.startAt)} · Asia/Bangkok (UTC+7)</p><p class="text-sm text-neutral-400 mt-2">{t(booking.status === 'cancelled' ? 'booking.statusCancelled' : Date.parse(booking.startAt) <= Date.now() ? 'booking.statusPast' : 'booking.statusUpcoming')}</p></div>
    {#if booking.status === 'cancelled'}<button class="btn btn-ghost" disabled={pending !== null} onclick={() => archive(booking)}>{pending === booking.id ? t('flow.saving') : accountText(lang, 'archive')}</button>{/if}</div>
+   {#if booking.status === 'cancelled' && booking.cancelledBy === 'admin' && booking.cancellationReason}
+    <p class="mt-4 rounded-md border border-amber-300/40 bg-amber-300/10 p-3 text-amber-50"><strong>{shopCancellationReason[lang]}:</strong> {booking.cancellationReason}</p>
+   {/if}
    {#if manageable(booking)}<label class="block mt-5 mb-2" for={`slot-${booking.id}`}>{t('booking.newTime')}</label><div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto]"><select id={`slot-${booking.id}`} class="select w-full" bind:value={selected[booking.id]} disabled={pending !== null || availabilityError}><option value="">{t('booking.chooseTime')}</option>{#each slots.filter(slot => slot.startAt !== booking.startAt) as slot (slot.startAt)}<option value={slot.startAt}>{at(slot.startAt)} – {new Intl.DateTimeFormat(lang, { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(slot.endAt))}</option>{/each}</select><button class="btn btn-primary" disabled={pending !== null || !slots.some(slot => slot.startAt === selected[booking.id] && slot.startAt !== booking.startAt)} onclick={() => reschedule(booking)}>{pending === booking.id ? t('flow.saving') : t('booking.reschedule')}</button><button class="btn btn-ghost" disabled={pending !== null} onclick={() => cancel(booking)}>{t('booking.cancel')}</button></div>{/if}
   </section>
  {/each}</div>

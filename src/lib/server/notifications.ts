@@ -9,6 +9,12 @@ const copy = {
  'zh-CN': { booking: '维修预约已确认', order: '已收到付款', sellerBooking: '新的维修预约', sellerOrder: '待准备的已付款订单', time: '预约时间（曼谷时间）', instrument: '乐器', service: '服务', notes: '备注', total: '总计', contact: '客户联系方式' },
  th: { booking: 'ยืนยันการนัดหมายซ่อมแล้ว', order: 'ได้รับการชำระเงินแล้ว', sellerBooking: 'การนัดหมายซ่อมใหม่', sellerOrder: 'คำสั่งซื้อที่ชำระแล้วรอจัดเตรียม', time: 'เวลานัดหมาย (กรุงเทพฯ)', instrument: 'เครื่องดนตรี', service: 'บริการ', notes: 'หมายเหตุ', total: 'ยอดรวม', contact: 'ข้อมูลติดต่อลูกค้า' },
 };
+const bookingChangeCopy = {
+ en: { rescheduledBuyer: 'Repair appointment changed', rescheduledSeller: 'Customer changed a repair appointment', cancelledBuyer: 'Repair appointment cancelled', cancelledSeller: 'Customer cancelled a repair appointment', adminCancelledBuyer: 'The shop cancelled your repair appointment', adminCancelledSeller: 'Shop cancellation of a repair appointment', previous: 'Previous appointment (Asia/Bangkok)', reason: 'Cancellation reason' },
+ ja: { rescheduledBuyer: '修理予約の日時が変更されました', rescheduledSeller: 'お客様が修理予約の日時を変更しました', cancelledBuyer: '修理予約はキャンセルされました', cancelledSeller: 'お客様が修理予約をキャンセルしました', adminCancelledBuyer: '店舗が修理予約をキャンセルしました', adminCancelledSeller: '店舗による修理予約のキャンセル', previous: '変更前の日時（バンコク時間）', reason: 'キャンセル理由' },
+ 'zh-CN': { rescheduledBuyer: '维修预约时间已更改', rescheduledSeller: '客户更改了维修预约', cancelledBuyer: '维修预约已取消', cancelledSeller: '客户取消了维修预约', adminCancelledBuyer: '店铺取消了您的维修预约', adminCancelledSeller: '店铺取消维修预约', previous: '原预约时间（曼谷时间）', reason: '取消原因' },
+ th: { rescheduledBuyer: 'เปลี่ยนเวลานัดหมายซ่อมแล้ว', rescheduledSeller: 'ลูกค้าเปลี่ยนเวลานัดหมายซ่อม', cancelledBuyer: 'ยกเลิกนัดหมายซ่อมแล้ว', cancelledSeller: 'ลูกค้ายกเลิกนัดหมายซ่อม', adminCancelledBuyer: 'ร้านยกเลิกนัดหมายซ่อมของคุณ', adminCancelledSeller: 'ร้านยกเลิกนัดหมายซ่อม', previous: 'เวลานัดหมายเดิม (กรุงเทพฯ)', reason: 'เหตุผลในการยกเลิก' },
+};
 const instrumentNames = {
  en: ['Soprano saxophone','Alto saxophone','Tenor saxophone','Baritone saxophone','Bassoon','Other'],
  ja: ['ソプラノサックス','アルトサックス','テナーサックス','バリトンサックス','ファゴット','その他'],
@@ -105,7 +111,12 @@ export function notification(topic: string, payload: Record<string, unknown>, en
   }
   return { from, to, subject, html: '<!doctype html><html lang="' + locale + '"><body><h1>' + escape(subject) + '</h1>' + content + '</body></html>' };
  }
- const subject = booking ? seller ? c.sellerBooking : c.booking : seller ? c.sellerOrder : c.order;
+ const change = booking ? bookingChangeCopy[locale] : null;
+ const event = booking && (payload.event === 'rescheduled' || payload.event === 'cancelled') ? payload.event : null;
+ if (event === 'cancelled' && payload.cancelledBy === 'admin' && (typeof payload.cancellationReason !== 'string' || !payload.cancellationReason.trim())) throw Error('invalid_notification_payload');
+ const subject = booking && event === 'rescheduled' ? seller ? change!.rescheduledSeller : change!.rescheduledBuyer
+  : booking && event === 'cancelled' ? payload.cancelledBy === 'admin' ? seller ? change!.adminCancelledSeller : change!.adminCancelledBuyer : seller ? change!.cancelledSeller : change!.cancelledBuyer
+  : booking ? seller ? c.sellerBooking : c.booking : seller ? c.sellerOrder : c.order;
  let content: string;
  if (booking) {
   const customer = payload.customer as { name?: string; email?: string; contactName?:string; contactInformation?:string; accountEmail?:string } | undefined;
@@ -115,6 +126,12 @@ export function notification(topic: string, payload: Record<string, unknown>, en
   const service = serviceNames[locale][['basic','standard','overhaul','assessment'].indexOf(String(payload.service))] ?? payload.service;
   const date = new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Bangkok' }).format(at);
   content = '<p>' + escape(payload.bookingId) + '</p><p>' + escape(c.time) + ': ' + escape(date) + '</p><p>' + escape(c.instrument) + ': ' + escape(instrument) + '</p><p>' + escape(c.service) + ': ' + escape(service) + '</p><p>' + escape(c.notes) + ': ' + escape(payload.notes) + '</p>';
+  if (event === 'rescheduled') {
+   const previous = new Date(String(payload.previousStartAt));
+   if (!Number.isFinite(previous.getTime())) throw Error('invalid_notification_payload');
+   content += '<p>' + escape(change!.previous) + ': ' + escape(new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Bangkok' }).format(previous)) + '</p>';
+  }
+  if (event === 'cancelled' && payload.cancelledBy === 'admin') content += '<p>' + escape(change!.reason) + ': ' + escape(payload.cancellationReason) + '</p>';
   if (seller) {
    const labels={en:{name:'Customer name',account:'Account email',missing:'Not provided'},th:{name:'ชื่อลูกค้า',account:'อีเมลบัญชี',missing:'ไม่ได้ระบุช่องทางติดต่อ'},ja:{name:'お客様名',account:'アカウントのメール',missing:'連絡先未記入'},'zh-CN':{name:'客户姓名',account:'账户邮箱',missing:'未提供联系方式'}}[locale];
    content+='<p>'+escape(labels.name)+': '+escape(customer?.contactName||customer?.name)+'</p><p>'+escape(c.contact)+': '+escape(customer?.contactInformation?.trim()||labels.missing)+'</p>';
