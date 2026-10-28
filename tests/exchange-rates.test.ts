@@ -2,15 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createExchangeRateLoader, convertPostage, shipmentReferenceRates } from '../src/lib/server/exchange-rates.ts';
 const now = Date.parse('2026-10-21T12:00:00Z');
-const data = [{base:'USD',quote:'THB',date:'2026-10-20',rate:35},{base:'USD',quote:'JPY',date:'2026-10-20',rate:140}];
+const data = { amount: 1, base: 'USD', date: '2026-10-20', rates: { THB: 35, JPY: 140 } };
 test('Frankfurter pairs share one cached request and produce THB per USD/JPY', async () => {
  let calls=0; const load=createExchangeRateLoader({now:()=>now,fetch:async()=>{calls++;return Response.json(data);}});
  const [a,b]=await Promise.all([load(),load()]);
  assert.deepEqual(a,{usdThb:35,jpyThb:.25,date:'2026-10-20',source:'Frankfurter'});assert.deepEqual(b,a);
  a.usdThb=1;assert.equal((await load()).usdThb,35);assert.equal(calls,1);
 });
-test('FX outages, invalid values, mismatched/stale dates fail closed without a made-up fallback',async()=>{
- for(const value of [[],data.map(r=>({...r,rate:0})),[data[0],{...data[1],date:'2026-10-19'}],data.map(r=>({...r,date:'2020-01-01'}))]){
+test('FX outages, invalid values, malformed/stale dates fail closed without a made-up fallback',async()=>{
+ for(const value of [[],{...data,rates:{...data.rates,THB:0}},{...data,rates:{...data.rates,JPY:0}},{...data,date:'invalid'},{...data,date:'2020-01-01'}]){
   const load=createExchangeRateLoader({now:()=>now,fetch:async()=>Response.json(value)});await assert.rejects(load(),/shipping_fx_unavailable/);
  }
  const load=createExchangeRateLoader({now:()=>now,fetch:async()=>new Response('',{status:503})});await assert.rejects(load(),/shipping_fx_unavailable/);
