@@ -136,7 +136,9 @@
           <div><dt class="text-sm text-neutral-400">{t('totalPaid')}</dt><dd class="font-semibold">{#if rateAvailable && currency !== 'THB'}{referenceMoney(shipment.amount_total, shipment)}<span class="ml-2 text-sm text-neutral-300">({money(shipment.amount_total, currency)})</span>{:else}{money(shipment.amount_total, currency)}{/if}</dd></div>
         </dl>
         {#if rateAvailable && shipment.reference_fx_date}<p class="text-sm text-neutral-400">{t('referenceDate')}: {shipment.reference_fx_date} · {shipment.reference_fx_current?(lang==='th'?'ประมาณจากอัตราปัจจุบัน':'Current reference estimate'):(lang==='th'?'อัตราที่บันทึกเมื่อสั่งซื้อ':'Reference saved at checkout')}. {lang==='th'?'ไม่ใช่ยอดสุทธิที่ Stripe โอนเข้าธนาคาร':'This is not Stripe’s net bank settlement.'}</p>{:else if currency !== 'THB'}<p class="text-sm text-neutral-400">{t('referenceUnknown')}</p>{/if}
-        {#each shipment.items as item}<p>{item.quantity} × {item.name}</p>{/each}
+        {#each shipment.items as item}
+          <p class="min-w-0 break-words">{item.quantity} × {item.name}<span class="ml-2 text-sm text-neutral-300">SKU: <span class="font-mono break-all">{item.sku}</span></span></p>
+        {/each}
         {#if shipment.status!=='shipped'}<AdminOrderCancellation order={shipment} {lang} onSaved={cancellationSaved}/>{/if}
         {#if shipment.hold}<div class="alert alert-warning"><strong>{t('hold')}</strong> {shipment.hold_reason}</div>{/if}
         {#if shipment.payment_status === 'paid' && ['ready', 'needs_address'].includes(shipment.status) && typeof shipment.hold === 'boolean' && (!shipment.cancellation_status || shipment.cancellation_status==='none')}
