@@ -17,6 +17,13 @@ test('full cancellation freezes total, uses stable Stripe key, and retry does no
  await cancelOrder(request(),body,f.deps);assert.equal(f.creates,1);
  assert.deepEqual(f.calls.find(call=>call[0]==='prepare_order_refund')[1],{p_order_id:id,p_amount:2000,p_merchandise:1500,p_shipping:500});
 });
+test('verified payment held for stock review can be refunded without restocking',async()=>{
+ const f=fixture();f.order.status='review';f.order.cancellationStatus='requested';
+ const result=await cancelOrder(request(),body,f.deps);
+ assert.equal(result.order.refundStatus,'succeeded');
+ assert.equal(f.creates,1);
+ assert.equal(f.calls.filter(call=>call[0]==='apply_stripe_event').length,0);
+});
 test('auth, same-origin and reason validation run before money movement',async()=>{
  const f=fixture();f.admin=false;await assert.rejects(cancelOrder(request(),body,f.deps));f.admin=true;
  await assert.rejects(cancelOrder(request('https://evil.test'),body,f.deps));

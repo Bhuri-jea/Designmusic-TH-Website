@@ -45,7 +45,7 @@ export async function cancelOrder(request:Request,body:Record<string,unknown>,de
   const intent=session.payment_intent;
   const charge=typeof intent==='object'&&intent?intent.latest_charge:null;
   if(!intent||typeof intent==='string'||intent.status!=='succeeded'||!charge||typeof charge==='string'||!charge.paid||charge.status!=='succeeded'||charge.amount!==order.amountTotal||charge.currency!==order.currency||charge.disputed)return review('payment_requires_review');
-  if(order.status!=='paid'){
+  if(order.status!=='paid' && order.status!=='review'){
    const paidAt=Number.isSafeInteger(charge.created)&&charge.created>0?charge.created:Math.floor(deps.now()/1000);
    await applySessionEvent(order,session,`reconcile:paid:${session.id}`,'checkout.session.completed',paidAt,{rpc:deps.rpc} as PaymentDependencies);
    await deps.rpc('record_order_payment_time',{p_order_id:order.id,p_paid_at:new Date(paidAt*1000).toISOString(),p_estimated:!Number.isSafeInteger(charge.created)});

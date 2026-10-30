@@ -118,6 +118,19 @@ test('customer resumes the same verified open Checkout session without creating 
  assert.deepEqual(second,first);assert.equal(f.creates.length,created);
 });
 
+test('new checkout policy does not return an open session after stock becomes unavailable',async()=>{
+ const f=fixture();const request=new Request('https://shop.example.test/api/checkout');
+ await checkout(request,body,f.deps);
+ assert.equal(f.order?.checkoutParameters.stockPolicy,'pay_to_secure');
+ const previousSelect=f.deps.select;
+ f.deps.select=async <T>(table:string,filters:Record<string,string>)=>table==='inventory'
+  ? [{sku:'endplug-plain',on_hand:1,reserved:0}] as T[]
+  : previousSelect<T>(table,filters);
+ await assert.rejects(resumeCheckout(request,{orderId:key},f.deps),error=>(error as HttpError).code==='stock_unavailable');
+ await assert.rejects(checkout(request,body,f.deps),error=>(error as HttpError).code==='stock_unavailable');
+ assert.equal(f.creates.length,1);
+});
+
 test('resume Checkout verifies ownership and rejects inactive financial states',async()=>{
  const request=new Request('https://shop.example.test/api/orders/resume-checkout');
  for(const patch of [{customerId:'other'},{status:'paid'},{cancellationStatus:'requested'},{refundStatus:'pending'},{refundedAmount:1}]){
@@ -573,7 +586,7 @@ test('approved oversize quote freezes product prices, shipping fee and delivery 
  const approved={id:key,customerId:customer.id,status:'quoted',locale:body.locale,currency:'usd',cartFingerprint:cart.fingerprint,items:cart.lines,amountSubtotal:3000,shippingAmount:8000,weightGrams:3000,country:'TH',shippingService:'ems_local',address,recipient:{name:'Quoted Buyer'},expiresAt:new Date(Date.now()+7*86400000).toISOString(),version:2};
  const originalRpc=f.deps.rpc,originalSelect=f.deps.select;
  f.deps.rpc=async <T>(name:string,args:Record<string,unknown>)=>name==='shipping_quote_record'?approved as T:originalRpc<T>(name,args);
- f.deps.select=async <T>(table:string,filters:Record<string,string>)=>table==='inventory'?[{sku:'endplug-plain',price_usd_minor:9999,weight_grams:1500}] as T[]:originalSelect<T>(table,filters);
+ f.deps.select=async <T>(table:string,filters:Record<string,string>)=>table==='inventory'?[{sku:'endplug-plain',on_hand:20,reserved:0,price_usd_minor:9999,weight_grams:1500}] as T[]:originalSelect<T>(table,filters);
  f.deps.shippingQuote=async()=>{throw Error('oversize standard quote must not be used');};
  let created:any;
  f.deps.stripe=()=>({create:async(params)=>{created=params;return {...session(f.order!),amount_total:f.order!.amountTotal,url:'https://checkout.stripe.com/c/quoted',expires_at:params.expires_at!,status:'open'} as any;},retrieve:async()=>({...session(f.order!),amount_total:f.order!.amountTotal,status:'open'}) as any});
