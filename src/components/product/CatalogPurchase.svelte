@@ -4,14 +4,19 @@
  import AddToCartButton from '../ui/AddToCartButton.svelte';import {formatPrice,type Locale} from '../../lib/catalog';
  import {cart} from '../../store/cart.svelte';
  import CustomerReviews from './CustomerReviews.svelte';
+ import {shakuhachiPurchaseOptions} from '../../lib/shakuhachi-options';
+ import {ui} from '../../i18n/ui';
+ import {localizedPath} from '../../utils/navigation';
  import {DEFAULT_PRODUCT_LAYOUT,remainingPurchaseQuantity,quantityForSku} from '../../lib/catalog-presentation';
  let {product,lang='en',fullContent=false,preview=false}=$props<{product:any;lang?:Locale;fullContent?:boolean;preview?:boolean}>();
  const layout=$derived(product.presentation?.layout??DEFAULT_PRODUCT_LAYOUT);
  const controlId=$props.id();
  let selected=$state<Record<string,string>>({});
+ const configuration=$derived(shakuhachiPurchaseOptions(product));
+ const selections=$derived({...selected,...configuration.fixedOptions});
  let quantity=$state<number|undefined>(1),checkingStock=$state(false),stockError=$state('');
  let liveStock=$state<Record<string,{onHand:number;reserved:number}>>({});
- let sku=$derived(product.skus.find((row:any)=>product.optionGroups.every((group:any)=>row.optionCodes.includes(selected[group.code])))??(product.optionGroups.length?null:product.skus[0]));
+ let sku=$derived(product.skus.find((row:any)=>product.optionGroups.every((group:any)=>row.optionCodes.includes(selections[group.code])))??(product.optionGroups.length?null:product.skus[0]));
  const visibleLayout=$derived.by(()=>{const current=sku;return layout.map((row:string[])=>row.filter(section=>{if(['badge','name','description'].includes(section))return fullContent&&(section!=='badge'||!!product.badge);if(section==='options')return product.optionGroups.length>0;if(['price','availability','quantity'].includes(section))return current?.salesMode==='checkout';if(section==='reviews')return (product.presentation?.reviews?.length??0)>0;return true;})).filter((row:string[])=>row.length);});
  let currency=$derived(lang==='ja'?'jpy':lang==='th'?'thb':'usd');
  const counts=$derived(sku?(liveStock[sku.sku]??sku):null);
@@ -19,7 +24,7 @@
  const inCart=$derived(sku&&!preview?quantityForSku(cart.items,product.slug,sku.sku,sku.optionCodes??[]):0);
  const maxAdd=$derived(counts?remainingPurchaseQuantity(counts.onHand,counts.reserved,inCart):0);
  const validQuantity=$derived(Number.isSafeInteger(quantity)&&quantity!>0&&quantity!<=maxAdd);
- const item=$derived(sku?{productId:product.slug,variant:sku.sku,options:Object.keys(selected).length?selected:undefined}:null);
+ const item=$derived(sku?{productId:product.slug,variant:sku.sku,options:Object.keys(selections).length?selections:undefined}:null);
  let copy=$derived({
   en:{invitation:'Please visit our shop or contact us directly.',book:'Book reservation',contact:'Contact the shop',inStock:'In stock',soldOut:'Out of stock',choose:'Choose each option to see price and availability.',email:'Email',phone:'Tel'},
   th:{invitation:'กรุณามาที่ร้านหรือติดต่อเราโดยตรง',book:'จองนัดหมาย',contact:'ติดต่อร้าน',inStock:'พร้อมจำหน่าย',soldOut:'สินค้าหมด',choose:'เลือกตัวเลือกเพื่อดูราคาและสถานะ',email:'อีเมล',phone:'โทร'},
@@ -51,11 +56,13 @@
  {#if section==='badge'}<div class="product-badge">{product.badge}</div>
  {:else if section==='name'}<h1>{product.name}</h1>
  {:else if section==='description'}<div class="product-description"><p>{product.description||product.shortDescription}</p></div>
- {:else if section==='options'}{#each product.optionGroups as group}{@const style=product.presentation?.optionStyles?.[group.code]??'buttons'}<fieldset disabled={checkingStock}><legend class="mb-2 font-medium">{group.label}</legend>
+ {:else if section==='options'}{#each configuration.optionGroups as group}{@const style=product.presentation?.optionStyles?.[group.code]??'buttons'}<fieldset disabled={checkingStock}><legend class="mb-2 font-medium">{group.label}</legend>
  {#if style==='dropdown'}<select class="option-select" aria-label={group.label} value={selected[group.code]??''} onchange={event=>selected={...selected,[group.code]:event.currentTarget.value}}><option value="">{words.choose}</option>{#each group.values as value}<option value={value.code}>{value.label}</option>{/each}</select>{#if group.values.find((value:any)=>value.code===selected[group.code])?.description}<p class="option-explanation">{group.values.find((value:any)=>value.code===selected[group.code]).description}</p>{/if}
  {:else if style==='radio'}<div class="radio-list">{#each group.values as value}<label class="radio-choice"><input type="radio" name={`option-${controlId}-${group.code}`} value={value.code} checked={selected[group.code]===value.code} onchange={()=>selected={...selected,[group.code]:value.code}}/><span><span class="option-label">{value.label}</span>{#if value.description}<span class="option-explanation">{value.description}</span>{/if}</span></label>{/each}</div>
  {:else}<div class="option-grid">{#each group.values as value}<button type="button" class="option-choice" aria-pressed={selected[group.code]===value.code} onclick={()=>selected={...selected,[group.code]:value.code}}><span class="option-label">{value.label}{#if selected[group.code]===value.code}<span aria-hidden="true">✓</span>{/if}</span>{#if value.description}<span class="option-explanation">{value.description}</span>{/if}</button>{/each}</div>{/if}
  </fieldset>{/each}
+ {#if configuration.includesBalance}<aside class="included-mouthpiece"><p>{ui[lang]['product.shakuhachi.balanceIncluded']}</p><p>{ui[lang]['product.shakuhachi.extraMouthpieces']}</p><a href={localizedPath('/product/shakuhachi-mouthpiece',lang)}>{ui[lang]['product.shakuhachi.shopMouthpieces']} ↗</a></aside>
+ {:else if product.slug==='shakuhachi-mouthpiece'}<aside class="included-mouthpiece"><p>{ui[lang]['product.shakuhachi.instrumentSeparate']}</p><a href={localizedPath('/product/shakuhachi',lang)}>{ui[lang]['product.shakuhachi.viewInstrument']} ↗</a></aside>{/if}
  {:else if section==='price'}<p class="product-price text-3xl font-serif">{sku.prices[currency]!=null?formatPrice(sku.prices[currency],lang):''}</p>
  {:else if section==='availability'}<p class="availability" class:unavailable={!available}>{available?copy.inStock:copy.soldOut}</p>
  {:else if section==='quantity'}<div class="quantity-section"><label for={`quantity-${controlId}`}>{words.quantity}</label><div class="quantity-control"><button type="button" aria-label={words.decrease} disabled={checkingStock||!quantity||quantity<=1} onclick={()=>quantity=Math.max(1,(quantity??1)-1)}>−</button><input id={`quantity-${controlId}`} type="text" inputmode="numeric" pattern="[0-9]*" value={quantity??''} disabled={checkingStock||!available} aria-describedby={`quantity-hint-${controlId}`} aria-invalid={!validQuantity} oninput={event=>{const value=event.currentTarget.value;quantity=/^\d+$/.test(value)?Number(value):undefined;}}/><button type="button" aria-label={words.increase} disabled={checkingStock||(quantity??0)>=maxAdd} onclick={()=>quantity=Math.min(maxAdd,(quantity??0)+1)}>+</button></div><p id={`quantity-hint-${controlId}`} class="quantity-hint">{limitText(words.limit,maxAdd,inCart)}</p></div>
@@ -73,6 +80,7 @@
 </div>
 
 <style>
+ .included-mouthpiece{margin-top:1rem;padding:1rem;border:1px solid #b39a68;border-radius:.65rem;background:#eee0c5;line-height:1.6;color:#30242d}.included-mouthpiece p+p{margin-top:.4rem}.included-mouthpiece a{display:inline-flex;align-items:center;min-height:44px;font-weight:600;text-decoration:underline;text-underline-offset:4px}.included-mouthpiece a:focus-visible{outline:2px solid currentColor;outline-offset:3px}
  .catalog-purchase{display:grid;gap:.9rem;container-type:inline-size;min-width:0;max-width:100%;overflow-wrap:anywhere}.product-content-row{display:grid;gap:.9rem;min-width:0;max-width:100%}.product-content-row:empty{display:none}.product-content-row.paired{grid-template-columns:repeat(2,minmax(0,1fr))}.product-content-block{min-width:0;max-width:100%}.full-content h1{font-family:'Bodoni MT',Didot,Georgia,serif;font-size:clamp(2.3rem,4vw,4rem);line-height:1.08;letter-spacing:-.035em;font-weight:400;overflow-wrap:anywhere}.product-badge{width:fit-content;border:1px solid #b39a68;background:#eee0c5;color:#57401f;border-radius:99px;padding:.32rem .8rem;font-size:.9rem;font-weight:600}.product-description{white-space:pre-wrap;line-height:1.7;overflow-wrap:anywhere}.product-content-block fieldset+fieldset{margin-top:.9rem}@container(max-width:500px){.product-content-row.paired{grid-template-columns:1fr}}
  .catalog-purchase,fieldset{min-width:0}.product-price{padding-top:.6rem;font-size:1.9rem;line-height:1.2}.availability{font-weight:600;color:#2d4a39}.availability.unavailable{color:#8d3434}
  .option-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr));gap:.7rem}

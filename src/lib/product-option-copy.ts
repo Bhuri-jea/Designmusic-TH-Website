@@ -5,7 +5,8 @@ export function productOptionDescription(slug:string,group:string,code:string,la
  const custom=labels?.[`${locale}Description`]?.trim();
  if(custom)return custom;
  if(slug==='shakuhachi'&&['toneHoles','mouthpiece'].includes(group)){
-  const key=`product.${group==='toneHoles'?'tone':'mouth'}.${code}.desc` as keyof typeof ui.en;
+  const descriptionCode=group==='toneHoles'?({'small-kit':'standard','large-kit':'large'} as Record<string,string>)[code]??code:code;
+  const key=`product.${group==='toneHoles'?'tone':'mouth'}.${descriptionCode}.desc` as keyof typeof ui.en;
   return ui[locale][key]||ui.en[key]||'';
  }
  const endPlugs:Record<string,Record<Locale,string>>={

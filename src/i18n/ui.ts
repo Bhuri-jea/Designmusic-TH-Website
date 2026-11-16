@@ -9,6 +9,13 @@ export const defaultLang = 'en';
 
 export const ui = {
   en: {
+    'product.shakuhachi.balanceIncluded': 'Every Shakuhachi includes a Balance mouthpiece.',
+    'product.tone.small-kit': 'Small',
+    'product.tone.large-kit': 'Large',
+    'product.shakuhachi.extraMouthpieces': 'Extra Modern (M1) and Traditional (T1) mouthpieces are sold separately.',
+    'product.shakuhachi.shopMouthpieces': 'Shop extra mouthpieces',
+    'product.shakuhachi.instrumentSeparate': 'For Shakuhachi S-1/D. The instrument is sold separately.',
+    'product.shakuhachi.viewInstrument': 'View Shakuhachi',
     "cart.limit": "This selection exceeds the cart limit. Remove an item and try again.",
     "flow.account": "Account",
     "flow.login": "Sign in",
@@ -273,6 +280,13 @@ export const ui = {
   },
 
   ja: {
+    'product.shakuhachi.balanceIncluded': '尺八にはバランスマウスピースが標準で付属します。',
+    'product.tone.small-kit': 'Small（小）',
+    'product.tone.large-kit': 'Large（大）',
+    'product.shakuhachi.extraMouthpieces': '追加のモダン（M1）とトラディショナル（T1）マウスピースは別売りです。',
+    'product.shakuhachi.shopMouthpieces': '追加マウスピースを購入',
+    'product.shakuhachi.instrumentSeparate': 'Shakuhachi S-1/D用。本体は別売りです。',
+    'product.shakuhachi.viewInstrument': '尺八を見る',
     "cart.limit": "カートの上限を超えています。商品を減らしてください。",
     "flow.account": "アカウント",
     "flow.login": "ログイン",
@@ -539,6 +553,13 @@ export const ui = {
   },
 
   'zh-CN': {
+    'product.shakuhachi.balanceIncluded': '每支尺八均标配平衡型吹口。',
+    'product.tone.small-kit': 'Small（小）',
+    'product.tone.large-kit': 'Large（大）',
+    'product.shakuhachi.extraMouthpieces': '额外的现代型（M1）和传统型（T1）吹口单独销售。',
+    'product.shakuhachi.shopMouthpieces': '选购额外吹口',
+    'product.shakuhachi.instrumentSeparate': '适用于 Shakuhachi S-1/D，尺八本体单独销售。',
+    'product.shakuhachi.viewInstrument': '查看尺八',
     "cart.limit": "已超出购物车限制，请减少商品后重试。",
     "flow.account": "账户",
     "flow.login": "登录",
@@ -809,6 +830,13 @@ export const ui = {
   },
 
   th: {
+    'product.shakuhachi.balanceIncluded': 'ชากุฮาจิทุกชิ้นมาพร้อมปากเป่าแบบ Balance เป็นมาตรฐาน',
+    'product.tone.small-kit': 'Small (ขนาดเล็ก)',
+    'product.tone.large-kit': 'Large (ขนาดใหญ่)',
+    'product.shakuhachi.extraMouthpieces': 'ปากเป่าเสริมแบบ Modern (M1) และ Traditional (T1) จำหน่ายแยกต่างหาก',
+    'product.shakuhachi.shopMouthpieces': 'เลือกซื้อปากเป่าเสริม',
+    'product.shakuhachi.instrumentSeparate': 'สำหรับ Shakuhachi S-1/D โดยจำหน่ายตัวขลุ่ยแยกต่างหาก',
+    'product.shakuhachi.viewInstrument': 'ดูชากุฮาจิ',
     "cart.limit": "เกินขีดจำกัดตะกร้า โปรดลดจำนวนสินค้า",
     "flow.account": "บัญชี",
     "flow.login": "เข้าสู่ระบบ",
