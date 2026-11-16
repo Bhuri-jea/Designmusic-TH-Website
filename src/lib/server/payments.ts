@@ -92,6 +92,20 @@ function activeUrl(url: string | null | undefined): string {
     }
     throw new HttpError(503, 'checkout_unavailable');
 }
+async function requireAvailableStock(order: OrderRecord, deps: PaymentDependencies): Promise<void> {
+    // Sessions created before the policy migration still own their existing holds.
+    if (order.checkoutParameters.stockPolicy !== 'pay_to_secure') return;
+    const inventory = await deps.select<{sku:string;on_hand:number;reserved:number;lifecycle?:string;product_lifecycle?:string;sales_mode?:string}>('inventory', {});
+    const missing = order.items.filter(item => {
+        const row = inventory.find(stock => stock.sku === item.sku);
+        return !row || !Number.isInteger(row.on_hand) || !Number.isInteger(row.reserved)
+            || row.on_hand - row.reserved < item.quantity
+            || row.lifecycle && row.lifecycle !== 'active'
+            || row.product_lifecycle && row.product_lifecycle !== 'published'
+            || row.sales_mode && row.sales_mode !== 'checkout';
+    }).map(item => item.name);
+    if (missing.length) throw new HttpError(409, 'stock_unavailable', {items:missing});
+}
 export function sessionMatches(session: Stripe.Checkout.Session, order: OrderRecord, live: boolean, attached = true) {
     if (session.object !== 'checkout.session' || !['paid', 'unpaid', 'no_payment_required'].includes(session.payment_status) || session.mode !== 'payment' || session.livemode !== live || session.metadata?.order_id !== order.id || session.metadata?.customer_id !== order.customerId || session.client_reference_id !== order.id || session.currency !== order.currency || session.amount_total !== order.amountTotal || !session.id || attached && order.checkoutSessionId !== session.id)
         throw new HttpError(400, 'payment_metadata_mismatch');
@@ -137,7 +151,7 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
     if(shipping.currency!==quote.currency||shipping.subtotal!==quote.totalAmount)throw new HttpError(409,'cart_price_changed');
     const locale = body.locale as Locale;
     const prefix = locale === 'en' ? '' : `/${locale}`;
-    const fingerprint = await checkoutFingerprint(JSON.stringify([quote.fingerprint,shipping.country,shipping.method,shipping.amount,shipping.weightGrams]), config.key);
+    const fingerprint = await checkoutFingerprint(JSON.stringify(['pay-to-secure-v1',quote.fingerprint,shipping.country,shipping.method,shipping.amount,shipping.weightGrams]), config.key);
     const order = await deps.rpc<OrderRecord>('reserve_order', {
         p_customer_id: customer.id,
         p_request_key: body.requestKey,
@@ -147,6 +161,7 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
         p_amount_total: quote.totalAmount+shipping.amount,
         p_locale: locale,
         p_checkout_parameters: {
+            stockPolicy: 'pay_to_secure',
             customerEmail: customer.email,
             successUrl: `${config.origin}${prefix}/success?order_id={ORDER_ID}&session_id={CHECKOUT_SESSION_ID}`,
             cancelUrl: `${config.origin}${prefix}/cancel?order_id={ORDER_ID}`,
@@ -163,6 +178,7 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
         throw new HttpError(409, 'checkout_conflict');
     if (order.status !== 'pending' || order.cancellationStatus && order.cancellationStatus !== 'none')
         throw new HttpError(409, 'checkout_not_active');
+    await requireAvailableStock(order,deps);
     const stripe = deps.stripe(config.key);
     if (order.checkoutSessionId) {
         const session = await stripe.retrieve(order.checkoutSessionId);
@@ -216,6 +232,7 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
     });
     if (attached.customerId !== customer.id || attached.checkoutSessionId !== session.id || attached.status !== 'pending')
         throw new HttpError(503, 'checkout_attachment_pending');
+    await requireAvailableStock(attached,deps);
     return {
         orderId: attached.id, url: activeUrl(attached.checkoutUrl)
     };
@@ -249,6 +266,7 @@ export async function resumeCheckout(request: Request, body: Record<string, unkn
         throw new HttpError(409, 'checkout_expired');
     if (session.status !== 'open' || session.payment_status !== 'unpaid')
         throw new HttpError(409, 'payment_confirmation_pending');
+    await requireAvailableStock(order,deps);
     return { orderId: order.id, url: activeUrl(order.checkoutUrl) };
 }
 const eventTypes = new Set(['checkout.session.completed', 'checkout.session.async_payment_succeeded', 'checkout.session.async_payment_failed', 'checkout.session.expired']);

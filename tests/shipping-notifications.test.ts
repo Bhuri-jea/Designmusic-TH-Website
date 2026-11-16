@@ -8,6 +8,19 @@ const env = (name: string) => config[name];
 const buyer = { quoteId: id, customer: { name: 'A Customer', email: 'buyer@example.test' }, currency: 'thb', amountTotal: 12500, shippingAmount: 2500, expiresAt: '2026-10-22T00:00:00Z' };
 const locales = ['en', 'ja', 'zh-CN', 'th'];
 
+test('paid stock review notices do not promise dispatch and direct the seller to refund review',()=>{
+ for(const locale of locales){
+  const payload={orderId:id,recipient:'buyer@example.test',locale,currency:'usd',amountTotal:2500,
+   items:[{name:'Saxophone End Plug',quantity:1}],stockReview:true};
+  const buyerMail=notification('order_paid_buyer',payload,env);
+  const sellerMail=notification('order_paid_seller',payload,env);
+  assert.notEqual(buyerMail.subject,notification('order_paid_buyer',{...payload,stockReview:false},env).subject);
+  assert.notEqual(sellerMail.subject,notification('order_paid_seller',{...payload,stockReview:false},env).subject);
+  assert.ok(buyerMail.html.includes('/profile/orders'));
+  assert.ok(sellerMail.html.includes('/admin'));
+ }
+});
+
 test('buyer cancellation notices include usable shop contacts and distinguish pending from completed refunds', () => {
  for (const locale of locales) {
   const mail = notification('order_refund_buyer', { orderId: id, recipient: 'buyer@example.test', locale, currency: 'usd', amount: 1000, refundStatus: 'pending', reason: 'Stock shortage' }, env);

@@ -1,7 +1,7 @@
 import type { CatalogLine, Currency, Locale } from '../catalog.ts';
 
 export type OrderStatus = 'pending' | 'paid' | 'expired' | 'failed' | 'review';
-export type CheckoutParameters = { customerEmail: string; successUrl: string; cancelUrl: string; allowedCountries: string[]; expiresAt: number; shippingCountry?: string; fulfillmentMethod?: 'ems_local'|'ems_world'|'epacket'|'flash'|'pickup'; shippingAmount?: number; estimatedWeightGrams?: number; referenceThbRate?:number|null; referenceFxDate?:string|null; shippingAddressSnapshot?: Record<string,string>|null; shippingRecipientSnapshot?: {name:string}; shippingQuoteId?: string; shippingQuoteVersion?: number; shippingQuoteAddress?: Record<string,string>; shippingQuoteRecipient?: {name:string} };
+export type CheckoutParameters = { customerEmail: string; successUrl: string; cancelUrl: string; allowedCountries: string[]; expiresAt: number; stockPolicy?: 'pay_to_secure'; shippingCountry?: string; fulfillmentMethod?: 'ems_local'|'ems_world'|'epacket'|'flash'|'pickup'; shippingAmount?: number; estimatedWeightGrams?: number; referenceThbRate?:number|null; referenceFxDate?:string|null; shippingAddressSnapshot?: Record<string,string>|null; shippingRecipientSnapshot?: {name:string}; shippingQuoteId?: string; shippingQuoteVersion?: number; shippingQuoteAddress?: Record<string,string>; shippingQuoteRecipient?: {name:string} };
 export type OrderShipment = { service: 'ems_local'|'ems_world'|'epacket'|'flash'|'pickup'; trackingNumber: string|null; trackingUrl: string|null };
 export type OrderRecord = {
   id: string;

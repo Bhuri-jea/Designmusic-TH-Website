@@ -114,7 +114,14 @@ export function notification(topic: string, payload: Record<string, unknown>, en
  const change = booking ? bookingChangeCopy[locale] : null;
  const event = booking && (payload.event === 'rescheduled' || payload.event === 'cancelled') ? payload.event : null;
  if (event === 'cancelled' && payload.cancelledBy === 'admin' && (typeof payload.cancellationReason !== 'string' || !payload.cancellationReason.trim())) throw Error('invalid_notification_payload');
- const subject = booking && event === 'rescheduled' ? seller ? change!.rescheduledSeller : change!.rescheduledBuyer
+ const stockReview= !booking && payload.stockReview===true;
+ const stockReviewWords={
+  en:{buyer:'Payment received — order under review',seller:'Paid order needs stock review',buyerNote:'Payment was received, but we could not allocate the ordered stock. The shop will review the order and contact you about a refund. Your order will not be shipped.',sellerNote:'Payment was received, but stock allocation failed. Dispatch is blocked. Review the order and issue a refund.'},
+  th:{buyer:'ได้รับชำระเงินแล้ว — กำลังตรวจสอบคำสั่งซื้อ',seller:'คำสั่งซื้อที่ชำระแล้วต้องตรวจสอบสต๊อก',buyerNote:'ได้รับชำระเงินแล้ว แต่ยังจัดสรรสินค้าไม่ได้ ร้านจะตรวจสอบคำสั่งซื้อและติดต่อเรื่องการคืนเงิน โดยจะยังไม่จัดส่งสินค้า',sellerNote:'ได้รับชำระเงินแล้ว แต่จัดสรรสต๊อกไม่ได้ ระงับการจัดส่ง โปรดตรวจสอบและคืนเงิน'},
+  ja:{buyer:'お支払いを確認しました — 注文を確認中',seller:'支払い済み注文の在庫確認が必要です',buyerNote:'お支払いを受け付けましたが、在庫を確保できませんでした。店舗が確認し、返金についてご連絡します。発送は保留中です。',sellerNote:'お支払いを受け付けましたが、在庫を確保できませんでした。発送を停止し、確認と返金を行ってください。'},
+  'zh-CN':{buyer:'已收到付款 — 订单待核查',seller:'已付款订单需要库存核查',buyerNote:'已收到付款，但未能分配所购商品的库存。商店将核查订单并联系您处理退款。订单不会发货。',sellerNote:'已收到付款，但库存分配失败。请暂停发货，核查订单并办理退款。'}
+ }[locale];
+ const subject = stockReview ? seller ? stockReviewWords.seller : stockReviewWords.buyer : booking && event === 'rescheduled' ? seller ? change!.rescheduledSeller : change!.rescheduledBuyer
   : booking && event === 'cancelled' ? payload.cancelledBy === 'admin' ? seller ? change!.adminCancelledSeller : change!.adminCancelledBuyer : seller ? change!.cancelledSeller : change!.cancelledBuyer
   : booking ? seller ? c.sellerBooking : c.booking : seller ? c.sellerOrder : c.order;
  let content: string;
@@ -145,6 +152,10 @@ export function notification(topic: string, payload: Record<string, unknown>, en
   if (!['usd','jpy','thb'].includes(currency) || !Number.isSafeInteger(amount) || amount < 0 || !items.length) throw Error('invalid_notification_payload');
   const total = new Intl.NumberFormat(locale, { style: 'currency', currency: currency.toUpperCase() }).format(amount / (currency === 'jpy' ? 1 : 100));
   content = '<p>' + escape(payload.orderId) + '</p><ul>' + items.map(item => '<li>' + escape(item.name) + ' × ' + escape(item.quantity) + '</li>').join('') + '</ul><p>' + escape(c.total) + ': ' + escape(total) + '</p>';
+  if(stockReview){
+   content += '<p>' + escape(seller?stockReviewWords.sellerNote:stockReviewWords.buyerNote) + '</p>';
+   if(seller)content += '<p><a href="' + escape(safeOrigin(env)+(locale==='th'?'/th/admin':'/admin')) + '">Review order</a></p>';
+  }
  }
  if (!booking && !seller) { const link = safeOrigin(env) + (locale==='en'?'':`/${locale}`) + '/profile/orders'; const label={en:'View your orders',ja:'注文を確認','zh-CN':'查看订单',th:'ดูคำสั่งซื้อของคุณ'}[locale]; content += '<p><a href="' + escape(link) + '">' + escape(label) + '</a></p>'; }
  return { from, to, subject, html: '<!doctype html><html lang="' + locale + '"><body><h1>' + escape(subject) + '</h1>' + content + '</body></html>' };

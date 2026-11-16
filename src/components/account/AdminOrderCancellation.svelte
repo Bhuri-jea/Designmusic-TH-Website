@@ -8,6 +8,7 @@
   const items = $derived(order.items ?? []);
   const amount = $derived(order.amount_total ?? order.amountTotal ?? 0);
   const state = $derived(order.cancellation_status ?? order.cancellationStatus ?? 'none');
+  const paidStockReview = $derived(state === 'review' && order.status === 'review' && Boolean(order.paidAt ?? order.paid_at));
   const customerEmail = $derived(order.customerEmail ?? order.customer_email ?? order.checkoutParameters?.customerEmail ?? '');
   const text = {
     en: { open:'Cancel order / refund', title:'Cancel before dispatch', reason:'Reason (required)', restock:'Quantity to return to stock', note:'Default is zero. Return only units actually available to sell. Paid orders receive the remaining refundable payment, including shipping. This also holds dispatch.', confirm:'I checked the order, refund and restock quantities.', submit:'Confirm cancellation / refund', retry:'Retry the same cancellation', busy:'Checking payment and cancellation…', invalid:'Enter a reason and whole restock quantities between zero and the ordered quantity.', pending:'Refund is pending. Dispatch remains on hold. Reload to check the result.', success:'Cancellation completed. Any successful refund is recorded.', review:'Cancellation needs review. Dispatch is held; the payment outcome is not yet confirmed. Do not start another refund. Use the existing cancellation to reconcile.', failed:'Could not start the cancellation. Your entered details are preserved.', existing:'This cancellation already exists. Its reason and restock selection are locked to prevent duplicate refunds or stock changes.', missing:'Load the cancellation queue to review this existing operation before retrying.', close:'Close', total:'Order total', refund:'Refund recorded', cancelled:'Order cancelled. Dispatch is blocked.' },
@@ -25,18 +26,19 @@
         if (!response.ok) throw Error();
         const data = await response.json();
         operation = data.orders?.find((row:any)=>(row.id??row.order_id)===id)?.cancellation;
-      } catch { message=t.missing; }
+      } catch { message=t.missing; locked=true; return; }
       finally { busy=false; }
     }
     if (operation) {
       reason=operation.reason??''; existingRestock={...(operation.restock??{})}; restock=Object.fromEntries(Object.entries(operation.restock??{}).map(([sku,qty])=>[sku,String(qty)])); locked=true;
-    } else if (state !== 'none') { locked=true; message=t.missing; return; }
+    } else if (state !== 'none' && !paidStockReview) { locked=true; message=t.missing; return; }
+    else if (paidStockReview) { reason=lang==='th'?'สินค้าไม่พร้อมจัดส่งหลังได้รับชำระเงิน':'Stock unavailable after payment'; locked=false; }
     for (const item of items) restock[item.sku]??='0';
   }
   async function submit() {
     if (busy || !confirmed || completed) return;
     const quantities = existingRestock ?? Object.fromEntries(items.map((item:any)=>[item.sku,Number(restock[item.sku]??'0')]));
-    if (!reason.trim() || reason.length>1000 || items.some((item:any)=>!String(restock[item.sku]??'').trim() || !Number.isInteger(quantities[item.sku]??0) || (quantities[item.sku]??0)<0 || (quantities[item.sku]??0)>item.quantity)) {message=t.invalid;return;}
+    if (!reason.trim() || reason.length>1000 || items.some((item:any)=>!String(restock[item.sku]??'').trim() || !Number.isInteger(quantities[item.sku]??0) || (quantities[item.sku]??0)<0 || (quantities[item.sku]??0)>(paidStockReview?0:item.quantity))) {message=t.invalid;return;}
     busy=true; message=t.busy;
     try {
       const response=await fetch('/api/admin/order-cancellations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderId:id,reason:reason.trim(),restock:quantities})});
@@ -64,7 +66,7 @@
     <p>{t.total}: <strong>{money(amount)}</strong>{#if (order.refunded_amount??order.refundedAmount)>0} · {t.refund}: {money(order.refunded_amount??order.refundedAmount)}{/if}</p>
     {#if locked}<p class="text-sm text-amber-200">{t.existing}</p>{/if}
     <label class="block">{t.reason}<textarea class="input mt-1 block min-h-24 w-full" maxlength="1000" required disabled={busy||locked} bind:value={reason}></textarea></label>
-    <fieldset disabled={busy||locked} class="space-y-2"><legend class="mb-2 text-sm">{t.restock}</legend>{#each items as item(item.sku)}<label class="flex flex-wrap items-center justify-between gap-3 text-sm"><span>{item.name} (0–{item.quantity})</span><input class="input w-24" type="text" inputmode="numeric" pattern="[0-9]+" required bind:value={restock[item.sku]} /></label>{/each}</fieldset>
+    <fieldset disabled={busy||locked||paidStockReview} class="space-y-2"><legend class="mb-2 text-sm">{t.restock}</legend>{#each items as item(item.sku)}<label class="flex flex-wrap items-center justify-between gap-3 text-sm"><span>{item.name} (0–{paidStockReview?0:item.quantity})</span><input class="input w-24" type="text" inputmode="numeric" pattern="[0-9]+" required bind:value={restock[item.sku]} /></label>{/each}</fieldset>
     {#if !completed && state!=='cancelled'}<label class="flex items-start gap-2 text-sm"><input class="mt-1" type="checkbox" disabled={busy} bind:checked={confirmed}/>{t.confirm}</label><button class="btn border border-red-200/50 bg-red-900 text-white" disabled={busy||!confirmed||!reason.trim()}>{busy?t.busy:locked?t.retry:t.submit}</button>{/if}
     <button class="btn" type="button" disabled={busy} onclick={()=>open=false}>{t.close}</button><p role="status" aria-live="polite" class="text-sm text-amber-200">{message}</p>
   </form>{/if}
