@@ -43,8 +43,9 @@ export const SUPPORTED_SHIPPING_COUNTRIES=[...countries];
 export function paymentCredentials(env = getEnv) {
     const key = env('STRIPE_SECRET_KEY');
     const webhookSecret = env('STRIPE_WEBHOOK_SECRET');
-    const live = key?.startsWith('sk_live_') ?? false;
-    if (!key || !/^sk_(test|live)_.+/.test(key) || !webhookSecret?.startsWith('whsec_') || live && env('PAYMENT_LIVE_ENABLED') !== 'true')
+    const keyMode = key?.match(/^(?:sk|rk)_(test|live)_.+$/);
+    const live = keyMode?.[1] === 'live';
+    if (!key || !keyMode || !webhookSecret?.startsWith('whsec_') || live && env('PAYMENT_LIVE_ENABLED') !== 'true')
         throw new HttpError(503, 'payment_configuration_unavailable');
     return {
         key, webhookSecret, live

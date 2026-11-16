@@ -177,6 +177,36 @@ function session(order: OrderRecord) {
         }
     };
 }
+test('restricted Stripe credentials preserve test and live payment modes', () => {
+    for (const [secret, live] of [['rk_test_dummy', false], ['rk_live_dummy', true]] as const) {
+        const config = paymentConfig(n => ({...values, STRIPE_SECRET_KEY: secret, PAYMENT_LIVE_ENABLED: 'true'})[n]);
+        assert.equal(config.key, secret);
+        assert.equal(config.live, live);
+    }
+});
+
+test('live credentials require explicit activation and reject public or malformed keys', () => {
+    for (const secret of ['sk_live_dummy', 'rk_live_dummy']) {
+        for (const enabled of [undefined, '', 'false', 'TRUE']) {
+            assert.throws(() => paymentConfig(n => ({...values, STRIPE_SECRET_KEY: secret, PAYMENT_LIVE_ENABLED: enabled})[n]), /payment_configuration_unavailable/);
+        }
+    }
+    for (const secret of ['pk_live_dummy', 'pk_test_dummy', 'rk_live_', 'rk_test_', 'rk_unknown_dummy']) {
+        assert.throws(() => paymentConfig(n => ({...values, STRIPE_SECRET_KEY: secret, PAYMENT_LIVE_ENABLED: 'true'})[n]), /payment_configuration_unavailable/);
+    }
+});
+
+test('restricted live credentials accept signed live payments and reject test events', async () => {
+    const f = fixture();
+    await checkout(new Request('https://shop.example.test'), body, f.deps);
+    f.deps.env = n => ({...values, STRIPE_SECRET_KEY: 'rk_live_dummy', PAYMENT_LIVE_ENABLED: 'true'})[n];
+    const liveEvent = signed({...session(f.order!), livemode: true}, {livemode: true});
+    await processWebhook(liveEvent.payload, liveEvent.signature, f.deps);
+    const testEvent = signed(session(f.order!));
+    await assert.rejects(processWebhook(testEvent.payload, testEvent.signature, f.deps), /payment_mode_mismatch/);
+    assert.equal(f.calls.filter(c => c.name === 'apply_stripe_event').length, 1);
+});
+
 test('auth and private configuration fail before stock reservation', async () => {
     const f = fixture();
     f.deps.customer = async () => {
@@ -467,7 +497,7 @@ test('protected Stripe key changes cannot retry an uncertain order in another ac
         providerCalls++;
         throw Error('changed credential must not reach provider');
     };
-    for (const secret of ['sk_test_another_account', 'sk_live_another_mode']) {
+    for (const secret of ['sk_test_another_account', 'sk_live_another_mode', 'rk_test_another_account', 'rk_live_another_mode']) {
         f.deps.env = n => ({
             ...values, STRIPE_SECRET_KEY: secret, PAYMENT_LIVE_ENABLED: 'true'
         })[n];
