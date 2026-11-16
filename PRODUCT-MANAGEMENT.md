@@ -25,6 +25,12 @@ For an installation without the catalog yet, first apply `202610220002_dynamic_c
 
 The preview uses the same product renderer as the public page, including the four languages and option display styles. Purchasing is disabled in preview; it does not add items to the real cart or reserve stock.
 
+## Arrange product display order
+
+Apply `supabase/migrations/202611170001_catalog_product_order.sql`, then `supabase/migrations/202611170002_catalog_order_publication.sql`, before deploying the ordering update. They preserve the existing display order, add an atomic seller-only reorder operation, and append newly published or republished products to the end.
+
+Open **Arrange product order** in `/admin/products` or `/th/admin/products`. Move published products with the Up/Down buttons, then press **Save order**. The order applies to the public list and category filters in every language. Newly published products appear at the end. If another seller changes the catalog while you arrange it, reload the current order and try again; a stale save never overwrites their changes. Reordering does not change product content, SKUs, inventory, prices or orders.
+
 ## Create a product
 
 1. Click **Create product**. It starts as a private draft.

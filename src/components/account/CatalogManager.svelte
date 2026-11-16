@@ -2,6 +2,7 @@
  import {onMount} from 'svelte';
  import './catalog-editor.css';
  import CatalogLayoutEditor from './CatalogLayoutEditor.svelte';
+ import CatalogProductOrder from './CatalogProductOrder.svelte';
  import ProductEditorPreview from './ProductEditorPreview.svelte';
  import {DEFAULT_PRODUCT_LAYOUT,productLifecycleActions} from '../../lib/catalog-presentation';
  let {lang='en'}=$props<{lang?:'en'|'th'}>();
@@ -96,6 +97,7 @@
 <section class="catalog-editor mx-auto max-w-[1800px] space-y-6 px-4 py-10 md:px-6">
  <a class="btn" href={lang==='th'?'/th/admin':'/admin'}>← {say('Seller tools','เครื่องมือผู้ขาย')}</a>
  <h1 class="font-serif text-4xl">{say('Product catalog','แค็ตตาล็อกสินค้า')}</h1>
+ <CatalogProductOrder {lang} onSaved={refreshList}/>
  <div class="catalog-layout">
   <aside aria-label={say('Products','สินค้า')}>
    <div class="filters">

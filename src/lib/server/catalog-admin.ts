@@ -2,11 +2,12 @@ import {CATALOG_LOCALES,validateCatalogProduct} from '../catalog-model';
 import {requireAdmin} from './admin';
 import {HttpError} from './http';
 import {rpc,select} from './supabase';
+import {CATALOG_PRODUCT_ORDER} from './catalog-order';
 
 export async function listCatalog(request:Request,search='',lifecycle=''){
  await requireAdmin(request);
  if(search.length>100||lifecycle&&!['draft','published','archived'].includes(lifecycle))throw new HttpError(400,'invalid_catalog_filter');
- const rows=await select<any>('catalog_products',{select:'id,slug,collection_slug,lifecycle,updated_at,catalog_product_translations(locale,name)',order:'updated_at.desc',limit:'500',...(lifecycle?{lifecycle:`eq.${lifecycle}`}:{})});
+ const rows=await select<any>('catalog_products',{select:'id,slug,collection_slug,lifecycle,updated_at,catalog_product_translations(locale,name)',order:CATALOG_PRODUCT_ORDER,limit:'500',...(lifecycle?{lifecycle:`eq.${lifecycle}`}:{})});
  const needle=search.trim().toLocaleLowerCase();
  return needle?rows.filter(row=>`${row.slug} ${(row.catalog_product_translations??[]).map((t:any)=>t.name).join(' ')}`.toLocaleLowerCase().includes(needle)):rows;
 }

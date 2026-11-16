@@ -1,8 +1,9 @@
 import {loadPublicCollections} from './catalog-collections';
 import {productOptionDescription} from '../product-option-copy';
+import {orderedPublishedProducts} from './catalog-order';
 import type {Locale} from '../catalog';import {select} from './supabase';
 export async function publishedCatalog(locale:Locale){
- const products=await select<any>('catalog_products',{lifecycle:'eq.published',order:'created_at',limit:'200'});if(!products.length)return[];
+ const products=await orderedPublishedProducts({limit:'200'});if(!products.length)return[];
  const ids=products.map(p=>p.id),filter=`in.(${ids.join(',')})`;
  const [translations,images,inventory,groups,collections]=await Promise.all([select<any>('catalog_product_translations',{product_id:filter,locale:`eq.${locale}`}),select<any>('catalog_product_images',{product_id:filter,order:'position'}),select<any>('inventory',{product_id:filter,lifecycle:'eq.active',order:'sku'}),select<any>('catalog_option_groups',{product_id:filter,order:'position'}),loadPublicCollections()]);
  const groupIds=groups.map(g=>g.id),values=groupIds.length?await select<any>('catalog_option_values',{group_id:`in.(${groupIds.join(',')})`,order:'position'}):[];
