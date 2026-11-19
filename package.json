@@ -13,16 +13,12 @@
     "test": "node --experimental-strip-types --experimental-test-isolation=none --test tests/*.test.ts"
   },
   "dependencies": {
-    "@astrojs/node": "^11.1.7",
     "@astrojs/svelte": "^9.0.1",
-    "@astrojs/vercel": "^11.0.14",
+    "@astrojs/vercel": "^11.0.22",
     "@auth/core": "^0.41.3",
-    "@sentry/astro": "^10.53.1",
-    "@spotlightjs/astro": "^3.2.6",
-    "@stripe/stripe-js": "^9.2.0",
     "@tailwindcss/vite": "^4.2.2",
     "aos": "^2.3.4",
-    "astro": "^7.3.8",
+    "astro": "^7.4.13",
     "auth-astro": "^4.2.0",
     "clsx": "^2.1.1",
     "lucide-svelte": "^0.292.0",
@@ -35,7 +31,11 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
-    "@emnapi/runtime": "1.10.0",
-    "cross-env": "^10.1.0"
+    "@emnapi/runtime": "1.10.0"
+  },
+  "overrides": {
+    "@vercel/routing-utils": {
+      "path-to-regexp": "6.3.0"
+    }
   }
 }

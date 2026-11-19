@@ -21,4 +21,6 @@ The new transactional SQL acceptance fixture is `supabase/tests/payment-launch-r
 
 Local SQL verification used PGlite/PostgreSQL with pgcrypto and dummy roles, not a production Supabase database or independent concurrent connections. Replay excludes the obsolete duplicate `202610120003_bookings.sql` and sample-stock `202610120003_inventory_one_each.sql`. Historical stock/refund fixtures assume earlier catalog lifecycle state and need fixture maintenance before they can serve as full-current-schema acceptance tests.
 
-The existing pickup-location test had an obsolete map URL and was aligned with the current configured workshop URL. Dependency auditing also reported pre-existing transitive vulnerabilities, including critical advisories in proxy-addr and shell-quote; dependency remediation is separate from these payment recovery fixes. Do not interpret passing functional checks as full launch/security approval.
+The existing pickup-location test had an obsolete map URL and was aligned with the current configured workshop URL.
+
+The dependency update removes the previously flagged `proxy-addr` and `shell-quote` critical findings. The npm lockfile is the source for installs. The override keeps `@vercel/routing-utils` on patched `path-to-regexp` 6.3.0 until its upstream dependency pin is updated. Both the full npm audit and the production-only audit reported zero known vulnerabilities on 19 November 2026. The live payment test remains a separate rollout step.
