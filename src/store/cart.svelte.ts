@@ -1,6 +1,6 @@
 import { type CartInput, type Locale } from '../lib/catalog.ts';
 import { catalogPricing,displayNameFor,displayPriceFor } from './catalog-pricing.svelte.ts';
-import { CART_STORAGE_KEY, emptyCart, restoreCart, addCartItem, removeCartItem, setCartQuantity, cartItems, submitCart, mergeCartSubmission, bindOrder, reconcilePaid, consumeSubmittedCart } from '../lib/cart-storage.ts';
+import { CART_STORAGE_KEY, emptyCart, restoreCart, addCartItem, removeCartItem, setCartQuantity, cartItems, submitCart, mergeCartSubmission, bindOrder, reconcilePaid, consumeSubmittedCart, retireSubmission, type FulfillmentContext } from '../lib/cart-storage.ts';
 class Cart {
  state=$state(emptyCart());
  locale=$state<Locale>('en');
@@ -15,7 +15,8 @@ class Cart {
  add(item:CartInput){this.state=addCartItem($state.snapshot(this.state),item);this.persist();}
  remove(item:CartInput){this.state=removeCartItem($state.snapshot(this.state),item);this.persist();}
  setQuantity(item:CartInput,quantity:number){this.state=setCartQuantity($state.snapshot(this.state),item,quantity);this.persist();}
- async submit(locale:Locale){const submission=await submitCart($state.snapshot(this.state),locale,$state.snapshot(catalogPricing.skus));this.state=mergeCartSubmission($state.snapshot(this.state),submission.state,submission.request.requestKey);this.persist();if(!this.storageAvailable)throw Error('storage_unavailable');return submission.request;}
+ async submit(locale:Locale,fulfillment?:FulfillmentContext){const submission=await submitCart($state.snapshot(this.state),locale,$state.snapshot(catalogPricing.skus),fulfillment);this.state=mergeCartSubmission($state.snapshot(this.state),submission.state,submission.request.requestKey);this.persist();if(!this.storageAvailable)throw Error('storage_unavailable');return submission.request;}
+ retire(key:string){this.state=retireSubmission($state.snapshot(this.state),key);this.persist();if(!this.storageAvailable)throw Error('storage_unavailable');}
  bind(key:string,id:string){this.state=bindOrder($state.snapshot(this.state),key,id);this.persist();if(!this.storageAvailable)throw Error('storage_unavailable');}
  reconcile(order:unknown){this.state=reconcilePaid($state.snapshot(this.state),order);this.persist();}
  consumeSubmission(requestKey:string){this.state=consumeSubmittedCart($state.snapshot(this.state),requestKey);this.persist();}

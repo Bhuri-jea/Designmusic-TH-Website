@@ -141,7 +141,11 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
     try {
         const prices:CatalogPrices={};for(const row of inventory){const value:CatalogPrices[string]={};if(Number.isInteger(row.price_usd_minor))value.usd=row.price_usd_minor;if(Number.isInteger(row.price_jpy))value.jpy=row.price_jpy;if(Number.isInteger(row.price_thb_minor))value.thb=row.price_thb_minor;if(Object.keys(value).length)prices[row.sku]=value;}
         if(approved)for(const item of approved.items){if(!Number.isSafeInteger(item.unitAmount)||item.unitAmount<=0)throw Error('invalid_quote_price');prices[item.sku]={[approved.currency]:item.unitAmount};}
-        quote = await quoteCart({items: body.items, locale: body.locale, prices,catalogSkus:trustedSkusFromInventory(inventory,body.locale as Locale)});
+        const catalogSkus=trustedSkusFromInventory(inventory,body.locale as Locale)?.map(sku=>{
+            const frozen=approved?.items.find((item:any)=>item.sku===sku.sku);
+            return frozen?{...sku,name:frozen.name,prices:{...sku.prices,[approved.currency]:frozen.unitAmount}}:sku;
+        });
+        quote = await quoteCart({items: body.items, locale: body.locale, prices,catalogSkus});
     }
     catch {
         throw new HttpError(400, 'invalid_cart');
@@ -152,7 +156,18 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
     if(shipping.currency!==quote.currency||shipping.subtotal!==quote.totalAmount)throw new HttpError(409,'cart_price_changed');
     const locale = body.locale as Locale;
     const prefix = locale === 'en' ? '' : `/${locale}`;
-    const fingerprint = await checkoutFingerprint(JSON.stringify(['pay-to-secure-v1',quote.fingerprint,shipping.country,shipping.method,shipping.amount,shipping.weightGrams]), config.key);
+    const deliverySnapshot=!approved&&shipping.country!=='TH'?{
+        recipient:{name:customer.name.trim()},
+        address:Object.fromEntries(['line1','line2','city','state','postal_code','country'].map(field=>{
+            const value=String(customer.shippingAddress?.[field as keyof NonNullable<Customer['shippingAddress']>]??'').trim();
+            return [field,field==='country'?value.toUpperCase():value];
+        })),
+    }:null;
+    const fingerprint = await checkoutFingerprint(JSON.stringify(['pay-to-secure-v1',quote.fingerprint,shipping.country,shipping.method,shipping.amount,shipping.weightGrams,...(deliverySnapshot?[deliverySnapshot]:[])]), config.key);
+    const expiresAt=approved?Math.min(Math.floor(deps.now()/1000)+3600,Math.floor(Date.parse(approved.expiresAt)/1000)):Math.floor(deps.now()/1000)+3600;
+    // A new quote must not be linked to an order that cannot open a provider session.
+    if(approved&&!approved.orderId&&expiresAt-Math.floor(deps.now()/1000)<=1860)
+        throw new HttpError(409,'shipping_quote_not_ready');
     const order = await deps.rpc<OrderRecord>('reserve_order', {
         p_customer_id: customer.id,
         p_request_key: body.requestKey,
@@ -170,26 +185,30 @@ export async function checkout(request: Request, body: Record<string, unknown>, 
             shippingCountry:shipping.country,fulfillmentMethod:shipping.method,
             shippingAmount:shipping.amount,estimatedWeightGrams:shipping.weightGrams,
             referenceThbRate:shipping.referenceThbRate??(quote.currency==='thb'?1:null),referenceFxDate:shipping.referenceFxDate??null,
-            ...(!approved&&shipping.country!=='TH'?{shippingAddressSnapshot:customer.shippingAddress,shippingRecipientSnapshot:{name:customer.name}}:{}),
+            ...(deliverySnapshot?{shippingAddressSnapshot:deliverySnapshot.address,shippingRecipientSnapshot:deliverySnapshot.recipient}:{}),
             ...(approved?{shippingQuoteId:approved.id,shippingQuoteVersion:approved.version,shippingQuoteAddress:approved.address,shippingQuoteRecipient:approved.recipient}:{}),
-            expiresAt: approved?Math.min(Math.floor(deps.now()/1000)+3600,Math.floor(Date.parse(approved.expiresAt)/1000)):Math.floor(deps.now() / 1000) + 3600,
+            expiresAt,
         },
     });
     if (order.customerId !== customer.id || order.requestKey !== body.requestKey || order.fingerprint !== fingerprint)
         throw new HttpError(409, 'checkout_conflict');
-    if (order.status !== 'pending' || order.cancellationStatus && order.cancellationStatus !== 'none')
+    if (order.cancellationStatus && order.cancellationStatus !== 'none' || !['pending','expired','failed'].includes(order.status))
         throw new HttpError(409, 'checkout_not_active');
-    await requireAvailableStock(order,deps);
     const stripe = deps.stripe(config.key);
     if (order.checkoutSessionId) {
         const session = await stripe.retrieve(order.checkoutSessionId);
         sessionMatches(session, order, config.live);
-        if (session.status !== 'open')
+        if(session.status==='expired'&&session.payment_status==='unpaid')
+            throw new HttpError(409,'checkout_expired');
+        if (order.status !== 'pending' || session.status !== 'open' || session.payment_status !== 'unpaid')
             throw new HttpError(409, 'checkout_not_active');
+        await requireAvailableStock(order,deps);
         return {
             orderId: order.id, url: activeUrl(order.checkoutUrl)
         };
     }
+    if(order.status!=='pending')throw new HttpError(409,'checkout_not_active');
+    await requireAvailableStock(order,deps);
     if (order.checkoutParameters.expiresAt - Math.floor(deps.now() / 1000) <= 1860)
         throw new HttpError(409, 'checkout_requires_review');
     const frozen = order.checkoutParameters;

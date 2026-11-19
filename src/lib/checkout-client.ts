@@ -1,7 +1,8 @@
 import type { CartInput, Locale } from './catalog.ts';
+import type {FulfillmentContext} from './cart-storage.ts';
 
 type Submission = { requestKey: string; locale: Locale; items: CartInput[] };
-type CheckoutCart = { submit: (locale: Locale) => Promise<Submission>; bind: (key: string, id: string) => void };
+type CheckoutCart = { submit: (locale: Locale, fulfillment?:FulfillmentContext) => Promise<Submission>; bind: (key: string, id: string) => void; retire?:(key:string)=>void };
 export class CheckoutError extends Error {
  readonly code: string;
  constructor(code: string) { super(code); this.code = code; }
@@ -28,8 +29,8 @@ export async function resumeHostedCheckout(orderId: string, fetcher: typeof fetc
  if (data?.orderId !== orderId || !hostedUrl(data.url)) throw new CheckoutError('checkout_unavailable');
  return data.url;
 }
-export async function runCheckout(cart: CheckoutCart, locale: Locale, shipping: { country:string; method:'ems_local'|'ems_world'|'epacket'|'flash'|'pickup' }, fetcher: typeof fetch = fetch): Promise<string> {
- const request = await cart.submit(locale);
+export async function runCheckout(cart: CheckoutCart, locale: Locale, shipping: FulfillmentContext & { method:'ems_local'|'ems_world'|'epacket'|'flash'|'pickup' }, fetcher: typeof fetch = fetch, retryExpired=true): Promise<string> {
+ const request = await cart.submit(locale,shipping);
  const response = await fetcher('/api/checkout', {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({...request,shippingCountry:shipping.country,shippingMethod:shipping.method}),
  });
@@ -37,6 +38,7 @@ export async function runCheckout(cart: CheckoutCart, locale: Locale, shipping: 
  try { data = await response.json(); } catch { throw new CheckoutError('checkout_unavailable'); }
  if (!response.ok) {
   if (response.status === 401 || response.status === 403) throw new CheckoutError('sign_in_required');
+  if(data?.error==='checkout_expired'&&retryExpired&&cart.retire){cart.retire(request.requestKey);return runCheckout(cart,locale,shipping,fetcher,false);}
   throw new CheckoutError(typeof data?.error === 'string' ? data.error : 'checkout_unavailable');
  }
  if (typeof data?.orderId !== 'string' || !uuid.test(data.orderId) || !hostedUrl(data.url)) throw new CheckoutError('checkout_unavailable');

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { runCheckout, resumeHostedCheckout } from '../src/lib/checkout-client.ts';
-import { addCartItem, bindOrder, emptyCart, submitCart } from '../src/lib/cart-storage.ts';
+import { addCartItem, bindOrder, emptyCart, restoreCart, retireSubmission, submitCart } from '../src/lib/cart-storage.ts';
 
 const orderId='22222222-2222-4222-8222-222222222222';
 function fixture() {
@@ -41,4 +41,18 @@ test('malformed checkout response or failed binding never authorizes navigation'
  await assert.rejects(runCheckout(f.cart,'en',{country:'TH',method:'ems_local'},async()=>new Response(JSON.stringify({orderId,url:'https://evil.example/pay'}),{status:200})),{code:'checkout_unavailable'});
  assert.deepEqual(f.bound,[]);
  await assert.rejects(runCheckout({...f.cart,bind(){throw Error('storage_unavailable');}},'en',{country:'TH',method:'ems_local'},async()=>new Response(JSON.stringify({orderId,url:'https://checkout.stripe.com/pay'}),{status:200})),{message:'storage_unavailable'});
+});
+test('only verified expired checkout retires its key and retries once, preserving history and cart',async()=>{
+ const f=fixture();const keys:string[]=[];
+ const cart={...f.cart,retire(key:string){const state=f.state();Object.assign(state,retireSubmission(state,key));}};
+ const url=await runCheckout(cart,'en',{country:'TH',method:'ems_local',amount:0},async(_input,init)=>{
+  keys.push(JSON.parse(String(init?.body)).requestKey);
+  return new Response(JSON.stringify(keys.length===1?{error:'checkout_expired'}:{orderId,url:'https://checkout.stripe.com/pay/new'}),{status:keys.length===1?409:200});
+ });
+ assert.equal(url,'https://checkout.stripe.com/pay/new');assert.notEqual(keys[0],keys[1]);assert.equal(f.state().attempts.length,2);assert.equal(f.state().items.length,1);
+ assert.equal(restoreCart(JSON.stringify(f.state())).attempts[0].retired,true);
+ for(const code of ['checkout_not_active','payment_confirmation_pending','checkout_requires_review']){
+  let calls=0;await assert.rejects(runCheckout(cart,'en',{country:'TH',method:'ems_local'},async()=>{calls++;return new Response(JSON.stringify({error:code}),{status:409});}),{code});assert.equal(calls,1);
+ }
+ let expiredCalls=0;await assert.rejects(runCheckout(cart,'en',{country:'TH',method:'ems_local'},async()=>{expiredCalls++;return new Response(JSON.stringify({error:'checkout_expired'}),{status:409});}),{code:'checkout_expired'});assert.equal(expiredCalls,2);
 });
