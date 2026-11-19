@@ -4,7 +4,7 @@ import { errorResponse, readSameOriginJson } from '../../lib/server/http.ts';
 import {requireCustomer} from '../../lib/server/customer.ts';
 export const prerender = false;
 export const POST: APIRoute = async ({request}) => { try {
- const body=await readSameOriginJson(request);
+ const body=await readSameOriginJson(request,16384);
  if(Object.keys(body).some(key=>!['items','locale','country','method'].includes(key)))throw new Error('invalid_shipping');
  const method=body.method??(body.country==='TH'?'ems_local':'epacket');
  const address=body.country!=='TH'?(await requireCustomer(request)).shippingAddress:undefined;

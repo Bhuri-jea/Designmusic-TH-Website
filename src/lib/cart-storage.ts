@@ -1,6 +1,12 @@
 import { quoteCart, quoteCartDetails, priceFor, type CartInput, type CartQuote, type Locale,type TrustedCatalogSku } from './catalog.ts';
 type Lot = CartInput & { entryId: string };
-type Attempt = {requestKey:string;locale:Locale;quote:CartQuote;lots:Lot[];orderId?:string;reconciled:boolean};
+export type FulfillmentContext = {country:string;method:string;amount?:number;recipient?:{name?:string};address?:Record<string,string|undefined>};
+type Attempt = {requestKey:string;locale:Locale;quote:CartQuote;lots:Lot[];orderId?:string;reconciled:boolean;fulfillment?:string;retired?:boolean};
+function fulfillmentIdentity(context?:FulfillmentContext):string|undefined {
+ if(!context)return undefined;
+ const address=context.address?Object.fromEntries(['line1','line2','city','state','postal_code','country'].map(key=>[key,key==='country'?(context.address?.[key]??'').trim().toUpperCase():(context.address?.[key]??'').trim()])):undefined;
+ return canonical({country:context.country.trim().toUpperCase(),method:context.method,amount:context.amount??null,...(context.country.trim().toUpperCase()!=='TH'?{recipient:{name:context.recipient?.name?.trim()??''},address:address??null}:{})});
+}
 export type CartState = {version:1;items:Lot[];attempts:Attempt[]};
 export const CART_STORAGE_KEY='designmusic.cart.v1';
 const MAX_STORAGE_BYTES=1024*1024;
@@ -23,7 +29,7 @@ export function restoreCart(raw:string|null):CartState {
   if(value.version!==1 || Object.keys(value).sort().join(',')!=='attempts,items,version' || !Array.isArray(value.items) || value.items.length>100 || !value.items.every(validLot) || new Set(value.items.map((v:Lot)=>v.entryId)).size!==value.items.length || !Array.isArray(value.attempts) || value.attempts.length>30)return emptyCart();
   if(new Set(value.attempts.map((a:Attempt)=>a.requestKey)).size!==value.attempts.length)return emptyCart();
   for(const a of value.attempts){
-   if(!a || Object.keys(a).some(k=>!['requestKey','locale','quote','lots','orderId','reconciled'].includes(k)) || !uuid.test(a.requestKey) || !['en','ja','th','zh-CN'].includes(a.locale) || typeof a.reconciled!=='boolean' || a.orderId!==undefined && !uuid.test(a.orderId) || !Array.isArray(a.lots) || !a.lots.length || a.lots.length>100 || !a.lots.every(validLot) || new Set(a.lots.map((lot:Lot)=>lot.entryId)).size!==a.lots.length || !a.quote || Object.keys(a.quote).sort().join(',')!=='currency,fingerprint,lines,totalAmount' || !/^[0-9a-f]{64}$/.test(a.quote.fingerprint))return emptyCart();
+   if(!a || Object.keys(a).some(k=>!['requestKey','locale','quote','lots','orderId','reconciled','fulfillment','retired'].includes(k)) || (a.fulfillment!==undefined&&(typeof a.fulfillment!=='string'||a.fulfillment.length>4096)) || (a.retired!==undefined&&typeof a.retired!=='boolean') || !uuid.test(a.requestKey) || !['en','ja','th','zh-CN'].includes(a.locale) || typeof a.reconciled!=='boolean' || a.orderId!==undefined && !uuid.test(a.orderId) || !Array.isArray(a.lots) || !a.lots.length || a.lots.length>100 || !a.lots.every(validLot) || new Set(a.lots.map((lot:Lot)=>lot.entryId)).size!==a.lots.length || !a.quote || Object.keys(a.quote).sort().join(',')!=='currency,fingerprint,lines,totalAmount' || !/^[0-9a-f]{64}$/.test(a.quote.fingerprint))return emptyCart();
    const dynamic=a.lots.some((lot:Lot)=>lot.productId==='shakuhachi'?!legacyShakuhachi(lot):lot.productId!=='saxophone-end-plug'||!['plain','twoColor','custom'].includes(lot.variant??''));
    if(!dynamic){const expected=quoteCartDetails({items:cartItems({version:1,items:a.lots,attempts:[]}),locale:a.locale});if(canonical({currency:a.quote.currency,lines:a.quote.lines,totalAmount:a.quote.totalAmount})!==canonical(expected))return emptyCart();}
    else if(!Array.isArray(a.quote.lines)||!Number.isSafeInteger(a.quote.totalAmount)||a.quote.totalAmount<=0)return emptyCart();
@@ -53,12 +59,17 @@ export function setCartQuantity(state:CartState,input:CartInput,quantity:number)
  for(let index=items.length-1;index>=0&&remove>0;index--){if(inputKey(items[index])!==key)continue;const count=Math.min(remove,items[index].quantity);items[index].quantity-=count;remove-=count;}
  return {...state,items:items.filter(lot=>lot.quantity>0)};
 }
-export async function submitCart(state:CartState,locale:Locale,catalogSkus?:TrustedCatalogSku[]) {
+export async function submitCart(state:CartState,locale:Locale,catalogSkus?:TrustedCatalogSku[],context?:FulfillmentContext) {
  state={...state,attempts:state.attempts.filter(a=>!a.reconciled)};
  const items=cartItems(state);const quote=await quoteCart({items,locale,...(catalogSkus?.length?{catalogSkus}: {})});
- let attempt=state.attempts.find(a=>!a.reconciled && a.locale===locale && a.quote.fingerprint===quote.fingerprint && canonical(a.lots)===canonical(state.items));
- if(!attempt){if(state.attempts.length>=30)throw Error('attempt_limit');attempt={requestKey:crypto.randomUUID(),locale,quote,lots:structuredClone(state.items),reconciled:false};state={...state,attempts:[...state.attempts,attempt]};}
+ const fulfillment=fulfillmentIdentity(context);
+ let attempt=state.attempts.find(a=>!a.reconciled && !a.retired && a.fulfillment===fulfillment && a.locale===locale && a.quote.fingerprint===quote.fingerprint && canonical(a.lots)===canonical(state.items));
+ if(!attempt){if(state.attempts.length>=30)throw Error('attempt_limit');attempt={requestKey:crypto.randomUUID(),locale,quote,lots:structuredClone(state.items),reconciled:false,...(fulfillment!==undefined?{fulfillment}:{})};state={...state,attempts:[...state.attempts,attempt]};}
  return {state:bounded(state),request:{requestKey:attempt.requestKey,locale,items}};
+}
+export function retireSubmission(state:CartState,requestKey:string):CartState {
+ if(!state.attempts.some(a=>a.requestKey===requestKey))throw Error('unknown_submission');
+ return {...state,attempts:state.attempts.map(a=>a.requestKey===requestKey?{...a,retired:true}:a)};
 }
 export function mergeCartSubmission(current:CartState,submitted:CartState,requestKey:string):CartState {
  const attempt=submitted.attempts.find(a=>a.requestKey===requestKey);

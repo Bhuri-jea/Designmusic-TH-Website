@@ -45,7 +45,7 @@ export async function reconcilePayments(deps: PaymentDependencies = paymentDepen
         rows = await boundedAwait(() => deps.select<{ id: string }>('orders', {
             status: 'in.(pending,failed)',
             checkout_session_id: 'not.is.null',
-            order: 'expires_at.asc',
+            order: 'reconciliation_checked_at.asc.nullsfirst,expires_at.asc,id.asc',
             limit: String(maxBatch),
         }), remaining());
     } catch {
@@ -60,6 +60,9 @@ export async function reconcilePayments(deps: PaymentDependencies = paymentDepen
             break;
         }
         try {
+            // Persist the attempt before any per-order reads, including failures
+            // and still-open sessions, so the next run can reach other rows.
+            await boundedAwait(()=>deps.rpc('mark_order_reconciliation_attempt',{p_order_id:batch[index].id}),remaining());
             const order = await boundedAwait(() => deps.rpc<OrderRecord>('order_record', {
                 p_id: batch[index].id,
             }), remaining());

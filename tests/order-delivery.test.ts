@@ -11,7 +11,7 @@ test('failed, pending and cancelled orders do not advertise delivery',()=>{
  assert.equal(orderDelivery({status:'paid',cancellationStatus:'requested',fulfillmentMethod:'ems_local',shipment:{trackingNumber:'EE123TH'}}),null);
 });
 test('pickup links to the supplied shop location without a tracking number',()=>{
- assert.deepEqual(orderDelivery({status:'paid',fulfillmentMethod:'pickup'}),{service:'pickup',trackingNumber:null,url:'https://maps.app.goo.gl/Q2KKz19MVEVE721Q9'});
+ assert.deepEqual(orderDelivery({status:'paid',fulfillmentMethod:'pickup'}),{service:'pickup',trackingNumber:null,url:'https://maps.app.goo.gl/ygrt5NdVKQrzkJhu5'});
 });
 test('missing tracking is explicit and unsafe supplied URLs are not exposed',()=>{
  assert.equal(orderDelivery({status:'paid',fulfillmentMethod:'flash',shipment:{trackingUrl:'javascript:alert(1)'}}),null);

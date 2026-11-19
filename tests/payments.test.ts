@@ -632,6 +632,54 @@ test('approved oversize quote freezes product prices, shipping fee and delivery 
  await assert.rejects(checkout(new Request('https://shop.example.test'),{...body,quoteId:key,shippingMethod:'ems_world'},f.deps),/shipping_quote_not_ready/);
 });
 
+test('approved dynamic quotes retain approved names and prices and reject short lifetimes before reserving',async()=>{
+ const f=fixture();
+ const trusted={sku:'endplug-plain',productSlug:'saxophone-end-plug',optionCodes:['plain'],name:'Approved product name',salesMode:'checkout' as const,productLifecycle:'published' as const,skuLifecycle:'active' as const,prices:{usd:1500}};
+ const cart=await quoteCart({items:body.items,locale:body.locale,catalogSkus:[trusted]});
+ const approved={id:key,customerId:customer.id,status:'quoted',locale:body.locale,currency:'usd',cartFingerprint:cart.fingerprint,items:cart.lines,amountSubtotal:3000,shippingAmount:8000,weightGrams:3000,country:'TH',shippingService:'ems_local',address:{line1:'Address',city:'Bangkok',postal_code:'10120',country:'TH'},recipient:{name:'Buyer'},expiresAt:new Date(Date.now()+86400000).toISOString(),version:2};
+ const originalRpc=f.deps.rpc;
+ f.deps.rpc=async <T>(name:string,args:Record<string,unknown>)=>name==='shipping_quote_record'?approved as T:originalRpc<T>(name,args);
+ f.deps.select=async <T>()=>[{sku:'endplug-plain',product_id:key,product_slug:'saxophone-end-plug',option_codes:['plain'],product_name:'Changed name',sales_mode:'checkout',product_lifecycle:'published',lifecycle:'active',on_hand:20,reserved:0,price_usd_minor:9999,weight_grams:1500}] as T[];
+ f.deps.stripe=()=>({create:async(params)=>({...session(f.order!),amount_total:11000,url:'https://checkout.stripe.com/c/pay',expires_at:params.expires_at!,status:'open'}) as any,retrieve:async()=>({...session(f.order!),amount_total:11000,status:'open'}) as any});
+ await checkout(new Request('https://shop.example.test'),{...body,quoteId:key},f.deps);
+ assert.equal(f.order!.items[0].unitAmount,1500);
+ assert.equal(f.order!.items[0].name,'Approved product name');
+ const activeInventory=f.deps.select;
+ f.deps.select=async <T>()=>(await activeInventory<any>('inventory',{})).map(row=>({...row,lifecycle:'archived'})) as T[];
+ await assert.rejects(checkout(new Request('https://shop.example.test'),{...body,quoteId:key},f.deps),/invalid_cart/);
+ f.deps.select=activeInventory;
+ f.calls.length=0; f.order=null; approved.expiresAt=new Date(Date.now()+1800000).toISOString();
+ await assert.rejects(checkout(new Request('https://shop.example.test'),{...body,quoteId:key},f.deps),/shipping_quote_not_ready/);
+ assert.equal(f.calls.some(call=>call.name==='reserve_order'),false);
+});
+
+test('international recipient and address changes distinguish checkout attempts while whitespace is canonical',async()=>{
+ const f=fixture(); let address={line1:'Old street',line2:'',city:'Tokyo',state:'',postal_code:'100',country:'JP'}, name='Buyer';
+ f.deps.customer=async()=>({...customer,name,shippingAddress:address});
+ const fingerprints:string[]=[];const original=f.deps.rpc;
+ f.deps.rpc=async <T>(method:string,args:Record<string,unknown>)=>{if(method==='reserve_order')fingerprints.push(args.p_fingerprint as string);return original<T>(method,args);};
+ const input={...body,shippingCountry:'JP',shippingMethod:'epacket'};
+ await checkout(new Request('https://shop.example.test'),input,f.deps);
+ address={...address,line1:'New street'};f.order=null;
+ await checkout(new Request('https://shop.example.test'),input,f.deps);
+ name='New buyer';f.order=null;
+ await checkout(new Request('https://shop.example.test'),input,f.deps);
+ name=' New buyer ';address={...address,line1:' New street '};f.order=null;
+ await checkout(new Request('https://shop.example.test'),input,f.deps);
+ assert.notEqual(fingerprints[0],fingerprints[1]);assert.notEqual(fingerprints[1],fingerprints[2]);assert.equal(fingerprints[2],fingerprints[3]);
+});
+
+test('only Stripe verified expired unpaid sessions authorize restarting an old checkout',async()=>{
+ for(const status of ['pending','expired','failed'] as const){
+  for(const provider of [{status:'expired',payment_status:'unpaid',expected:'checkout_expired'},{status:'expired',payment_status:'paid',expected:'checkout_not_active'},{status:'expired',payment_status:'no_payment_required',expected:'checkout_not_active'},{status:'complete',payment_status:'paid',expected:'checkout_not_active'},{status:'open',payment_status:'unpaid',expected:status==='pending'?null:'checkout_not_active'}]){
+   const f=fixture();await checkout(new Request('https://shop.example.test'),body,f.deps);f.order={...f.order!,status};
+   f.deps.stripe=()=>({create:async()=>{throw Error('must reuse');},retrieve:async()=>({...session(f.order!),...provider}) as any});
+   if(provider.expected)await assert.rejects(checkout(new Request('https://shop.example.test'),body,f.deps),error=>(error as HttpError).code===provider.expected);
+   else assert.equal((await checkout(new Request('https://shop.example.test'),body,f.deps)).orderId,key);
+  }
+ }
+});
+
 test('checkout uses storefront destinations when legacy country environment is absent',async()=>{
  const f=fixture();f.deps.env=n=>n==='SHIPPING_ALLOWED_COUNTRIES'?undefined:values[n];
  await checkout(new Request('https://shop.example.test'),body,f.deps);

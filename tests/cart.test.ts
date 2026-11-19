@@ -103,3 +103,13 @@ test('paid snapshot never clears a new addition after its original lot was remov
  state=reconcilePaid(state,{id:'22222222-2222-4222-8222-222222222222',status:'paid',currency:'thb',amountTotal:20000,items:submitted.state.attempts[0].quote.lines});
  assert.equal(cartItems(state)[0].quantity,1);
 });
+test('fulfillment changes create distinct attempts while equivalent addresses retry the same attempt',async()=>{
+ const fulfillment={country:'US',method:'epacket' as const,amount:5000,recipient:{name:'Buyer'},address:{line1:'Road',city:'Town',postal_code:'12345',country:'US'}};
+ const first=await submitCart(addCartItem(emptyCart(),plug),'en',undefined,fulfillment);
+ const restored=restoreCart(JSON.stringify(first.state));
+ assert.equal((await submitCart(restored,'en',undefined,{...fulfillment,recipient:{name:' Buyer '}})).request.requestKey,first.request.requestKey);
+ for(const changed of [{...fulfillment,method:'ems_world' as const},{...fulfillment,amount:5001},{...fulfillment,country:'JP'},{...fulfillment,address:{...fulfillment.address,line1:'New road'}},{...fulfillment,recipient:{name:'Another buyer'}}])assert.notEqual((await submitCart(restored,'en',undefined,changed)).request.requestKey,first.request.requestKey);
+ const legacy=await submitCart(addCartItem(emptyCart(),plug),'en');
+ assert.equal(restoreCart(JSON.stringify(legacy.state)).attempts.length,1);
+ assert.notEqual((await submitCart(legacy.state,'en',undefined,fulfillment)).request.requestKey,legacy.request.requestKey);
+});

@@ -97,7 +97,7 @@
     isCheckingOut = true;
     try {
       if(!shippingQuote||shippingStatus)throw new CheckoutError(shippingStatus||'shipping_unavailable');
-      const url=await runCheckout(cart,lang as Locale,{country:shippingCountry,method:shippingMethod});
+      const url=await runCheckout(cart,lang as Locale,{country:shippingCountry,method:shippingMethod,amount:shippingQuote.amount,...(international?{address:profileCustomer?.shippingAddress,recipient:{name:profileCustomer?.name}}:{})});
       window.location.assign(url);
     } catch (err) {
       const code=err instanceof CheckoutError?err.code:err instanceof Error?err.message:'';
@@ -120,7 +120,7 @@
     try{
       if(profileLoginRequired){quoteRequestState='login';return;}
       if(addressRequiredForCountry()){quoteRequestState=profileCustomer?.shippingAddress?.country&&profileCustomer.shippingAddress.country!==shippingCountry?'address_mismatch':'address_required';return;}
-      const request=await cart.submit(lang as Locale);
+      const request=await cart.submit(lang as Locale,{country:shippingCountry,method:shippingMethod,address:profileCustomer?.shippingAddress,recipient:{name:profileCustomer?.name}});
       const response=await fetch('/api/shipping-quotes',{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(15000),body:JSON.stringify({requestKey:request.requestKey,locale:request.locale,items:request.items,country:shippingCountry,method:shippingMethod})});
       const data=await response.json().catch(()=>({}));
       if(response.status===401){quoteRequestState='login';return;}

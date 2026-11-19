@@ -54,3 +54,32 @@ test('a seller-created SKU can be cancelled without another refund or restock',a
  await cancelOrder(request(),dynamic,f.deps);
  assert.equal(f.creates,1);
 });
+
+test('a locally pending order with a verified charge requires a fresh restock review before cancellation',async()=>{
+ const f=fixture();f.order.status='pending';
+ const original=f.deps.rpc;f.deps.rpc=(async(name:string,args:Record<string,unknown>)=>{const result=await original(name,args);if(name==='apply_stripe_event')f.order.status='paid';return result;}) as typeof f.deps.rpc;
+ await assert.rejects(cancelOrder(request(),body,f.deps),error=>(error as any).code==='cancellation_restock_review_required');
+ assert.equal(f.order.status,'paid');assert.equal(f.creates,0);
+ assert.ok(!f.calls.some(call=>call[0]==='begin_order_cancellation'));
+ await cancelOrder(request(),{...body,restock:{'endplug-plain':1}},f.deps);
+ assert.equal(f.calls.find(call=>call[0]==='begin_order_cancellation')[1].p_restock['endplug-plain'],1);
+ assert.equal(f.creates,1);
+});
+
+test('an unverified pending charge cannot create a cancellation or commit inventory',async()=>{
+ const f=fixture();f.order.status='pending';f.charge.disputed=true;
+ await assert.rejects(cancelOrder(request(),body,f.deps),error=>(error as any).code==='cancellation_payment_unavailable');
+ assert.equal(f.creates,0);assert.ok(!f.calls.some(call=>['begin_order_cancellation','apply_stripe_event'].includes(call[0])));
+});
+
+test('a provider read failure before cancellation leaves the order available for retry',async()=>{
+ const f=fixture();f.order.status='pending';f.deps.stripe=()=>({checkout:{sessions:{retrieve:async()=>{throw Error('timeout');}}}} as any);
+ await assert.rejects(cancelOrder(request(),body,f.deps),error=>(error as any).code==='cancellation_payment_unavailable');
+ assert.ok(!f.calls.some(call=>['begin_order_cancellation','review_order_cancellation'].includes(call[0])));assert.equal(f.creates,0);
+});
+
+test('the database can reject a paid transition after an unpaid provider preflight without refunding',async()=>{
+ const f=fixture();f.order.status='pending';f.session.payment_status='unpaid';f.session.status='open';
+ const original=f.deps.rpc;f.deps.rpc=(async(name:string,args:Record<string,unknown>)=>{if(name==='begin_order_cancellation'){assert.equal(args.p_expected_status,'pending');return {restockReviewRequired:true,order:{...f.order,status:'paid'}};}return original(name,args);}) as typeof f.deps.rpc;
+ await assert.rejects(cancelOrder(request(),body,f.deps),error=>(error as any).code==='cancellation_restock_review_required');assert.equal(f.creates,0);
+});

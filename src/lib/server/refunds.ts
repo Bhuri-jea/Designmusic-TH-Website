@@ -21,10 +21,31 @@ async function recordRefund(refund:Stripe.Refund,order:OrderRecord,pi:string,dep
 
 export async function cancelOrder(request:Request,body:Record<string,unknown>,deps=refundDependencies):Promise<{order:OrderRecord;needsReview?:boolean}>{
  const actor=await deps.admin(request);assertSameOrigin(request);
- if(Object.keys(body).sort().join(',')!=='orderId,reason,restock'||!uuid(body.orderId)||typeof body.reason!=='string'||!body.reason.trim()||body.reason.trim().length>1000||!body.restock||typeof body.restock!=='object'||Array.isArray(body.restock)
+ if(Object.keys(body).some(key=>!['orderId','reason','restock','expectedStatus'].includes(key))||body.expectedStatus!==undefined&&!['pending','failed','paid','review'].includes(String(body.expectedStatus))||!uuid(body.orderId)||typeof body.reason!=='string'||!body.reason.trim()||body.reason.trim().length>1000||!body.restock||typeof body.restock!=='object'||Array.isArray(body.restock)
   ||Object.entries(body.restock).some(([sku,quantity])=>!sku||sku.length>120||/[\u0000-\u001f\u007f]/.test(sku)||!Number.isInteger(quantity)||(quantity as number)<0||(quantity as number)>10))throw new HttpError(400,'invalid_cancellation');
  const config=paymentCredentials(deps.env),stripe=deps.stripe(config.key);
- const operation=await deps.rpc<any>('begin_order_cancellation',{p_order_id:body.orderId,p_reason:body.reason.trim(),p_restock:body.restock,p_actor:actor});
+ // A pending form cannot make a restock decision for stock that has since been
+ // allocated. Reconcile first, then require the seller to review the paid order.
+ const before=await deps.rpc<OrderRecord>('order_record',{p_id:body.orderId});
+ if(before&&['pending','failed'].includes(before.status)&&before.checkoutSessionId){
+  try{
+   const session=await stripe.checkout.sessions.retrieve(before.checkoutSessionId,{expand:['payment_intent.latest_charge']});
+   sessionMatches(session,before,config.live);
+   if(session.payment_status==='paid'){
+    const intent=session.payment_intent,charge=typeof intent==='object'&&intent?intent.latest_charge:null;
+    if(session.status!=='complete'||!intent||typeof intent==='string'||intent.status!=='succeeded'||!charge||typeof charge==='string'||!charge.paid||charge.status!=='succeeded'||charge.amount!==before.amountTotal||charge.currency!==before.currency||charge.disputed)throw Error('payment_requires_review');
+    const paidAt=Number.isSafeInteger(charge.created)&&charge.created>0?charge.created:Math.floor(deps.now()/1000);
+    await applySessionEvent(before,session,`reconcile:paid:${session.id}`,'checkout.session.completed',paidAt,{rpc:deps.rpc} as PaymentDependencies);
+    await deps.rpc('record_order_payment_time',{p_order_id:before.id,p_paid_at:new Date(paidAt*1000).toISOString(),p_estimated:!Number.isSafeInteger(charge.created)});
+    throw new HttpError(409,'cancellation_restock_review_required');
+   }
+  }catch(error){
+   if(error instanceof HttpError&&error.code==='cancellation_restock_review_required')throw error;
+   throw new HttpError(503,'cancellation_payment_unavailable');
+  }
+ }
+ const operation=await deps.rpc<any>('begin_order_cancellation',{p_order_id:body.orderId,p_reason:body.reason.trim(),p_restock:body.restock,p_actor:actor,p_expected_status:body.expectedStatus??before?.status??null});
+ if(operation.restockReviewRequired)throw new HttpError(409,'cancellation_restock_review_required');
  let order=operation.order as OrderRecord;
  if((order as any).cancellationStatus==='cancelled')return {order};
  const review=async(code:string)=>{await deps.rpc('review_order_cancellation',{p_order_id:order.id,p_error:code});return {order:await deps.rpc<OrderRecord>('order_record',{p_id:order.id}),needsReview:true};};
@@ -51,6 +72,7 @@ export async function cancelOrder(request:Request,body:Record<string,unknown>,de
    await deps.rpc('record_order_payment_time',{p_order_id:order.id,p_paid_at:new Date(paidAt*1000).toISOString(),p_estimated:!Number.isSafeInteger(charge.created)});
    order=await deps.rpc<OrderRecord>('order_record',{p_id:order.id});
    if(order.status!=='paid')return review('payment_requires_review');
+   if(operation.restock_review_required)throw new HttpError(409,'cancellation_restock_review_required');
   }
   await deps.rpc('link_order_payment',{p_order_id:order.id,p_payment_intent:intent.id});
   const refunds=await stripe.refunds.list({charge:charge.id,limit:100});
@@ -69,6 +91,7 @@ export async function cancelOrder(request:Request,body:Record<string,unknown>,de
   const refund=await stripe.refunds.create({payment_intent:intent.id,amount:prepared.refund_amount,metadata:{order_id:order.id,cancellation_id:operation.id}}, {idempotencyKey:`cancel-refund:${operation.id}`});
   return {order:await recordRefund(refund,order,intent.id,deps)};
  }catch(error){
+  if(error instanceof HttpError&&error.code==='cancellation_restock_review_required')throw error;
   await deps.rpc('review_order_cancellation',{p_order_id:order.id,p_error:error instanceof HttpError?error.code:'provider_or_recording_failed'});
   throw new HttpError(503,'cancellation_needs_review');
  }

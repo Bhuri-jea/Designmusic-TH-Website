@@ -3,6 +3,7 @@
   let { order, lang = 'en', onSaved } = $props<{ order: any; lang?: AdminLocale; onSaved?: () => void | Promise<void> }>();
   let open = $state(false), busy = $state(false), confirmed = $state(false), reason = $state(''), restock = $state<Record<string,string>>({}), message = $state(''), locked = $state(false), completed = $state(false);
   let existingRestock = $state<Record<string,number>|null>(null);
+  let restockReview = $state(false);
   const id = $derived(order.order_id ?? order.id);
   const paid = $derived((order.payment_status ?? order.status) === 'paid');
   const items = $derived(order.items ?? []);
@@ -31,6 +32,7 @@
     }
     if (operation) {
       reason=operation.reason??''; existingRestock={...(operation.restock??{})}; restock=Object.fromEntries(Object.entries(operation.restock??{}).map(([sku,qty])=>[sku,String(qty)])); locked=true;
+      if(operation.restock_review_required && paid){locked=false;existingRestock=null;restockReview=true;}
     } else if (state !== 'none' && !paidStockReview) { locked=true; message=t.missing; return; }
     else if (paidStockReview) { reason=lang==='th'?'สินค้าไม่พร้อมจัดส่งหลังได้รับชำระเงิน':'Stock unavailable after payment'; locked=false; }
     for (const item of items) restock[item.sku]??='0';
@@ -41,13 +43,19 @@
     if (!reason.trim() || reason.length>1000 || items.some((item:any)=>!String(restock[item.sku]??'').trim() || !Number.isInteger(quantities[item.sku]??0) || (quantities[item.sku]??0)<0 || (quantities[item.sku]??0)>(paidStockReview?0:item.quantity))) {message=t.invalid;return;}
     busy=true; message=t.busy;
     try {
-      const response=await fetch('/api/admin/order-cancellations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderId:id,reason:reason.trim(),restock:quantities})});
+      const response=await fetch('/api/admin/order-cancellations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderId:id,reason:reason.trim(),restock:quantities,expectedStatus:order.payment_status??order.status})});
       const data=await response.json();
       if (!response.ok) {
+        if(data.error==='cancellation_restock_review_required'){
+          confirmed=false;locked=false;existingRestock=null;restockReview=true;
+          await Promise.resolve(onSaved?.()).catch(()=>{});
+          message=lang==='th'?'ยืนยันว่ารับชำระเงินแล้ว โปรดตรวจสอบจำนวนคืนสต๊อกและยืนยันอีกครั้งก่อนคืนเงิน':'Payment is now confirmed. Review the restock quantities and confirm again before issuing the refund.';
+          return;
+        }
         if(data.error==='cancellation_needs_review'){locked=true;existingRestock=quantities;message=t.review;await Promise.resolve(onSaved?.()).catch(()=>{});return;}
         message=t.failed;return;
       }
-      locked=true; existingRestock=quantities;
+      locked=true; existingRestock=quantities;restockReview=false;
       const result=data.order;
       completed=result?.cancellationStatus==='cancelled';
       message=data.needsReview || result?.cancellationStatus==='review' ? t.review : result?.refundStatus==='pending' ? t.pending : completed ? t.success : t.review;
@@ -63,6 +71,7 @@
   {:else if !open}<button class="btn border border-red-200/50 bg-red-950/30 text-red-100" type="button" onclick={() => void show()}>{t.open}</button>
   {:else}<form class="space-y-3 rounded-xl border border-red-200/30 bg-red-950/15 p-4" onsubmit={event=>{event.preventDefault();void submit();}}>
     <h3 class="font-semibold">{t.title}</h3><p class="text-sm text-neutral-300">{t.note}</p>
+    {#if restockReview}<p class="text-sm text-amber-200" role="alert">{lang==='th'?'รับชำระเงินแล้ว โปรดตรวจสอบจำนวนสินค้าที่นำกลับเข้าสต๊อกก่อนยืนยันอีกครั้ง':'Payment was confirmed. Check how many units should return to stock before confirming again.'}</p>{/if}
     <p>{t.total}: <strong>{money(amount)}</strong>{#if (order.refunded_amount??order.refundedAmount)>0} · {t.refund}: {money(order.refunded_amount??order.refundedAmount)}{/if}</p>
     {#if locked}<p class="text-sm text-amber-200">{t.existing}</p>{/if}
     <label class="block">{t.reason}<textarea class="input mt-1 block min-h-24 w-full" maxlength="1000" required disabled={busy||locked} bind:value={reason}></textarea></label>
